@@ -1,0 +1,8 @@
+parameters:
+    level: max
+    phpVersion: 80300
+    parallel:
+        processTimeout: 300.0
+    paths:
+       - src
+       - tests
