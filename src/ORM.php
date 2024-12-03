@@ -17,10 +17,13 @@ readonly class ORM
 
     private EntityFactory $entityFactory;
 
+    private Mapper $mapper;
+
     public function __construct(private DatabaseInterface $database, private Schema $schema)
     {
         $this->queryProvider = new QueryProvider($this->database, $this->schema);
-        $this->entityFactory = new EntityFactory($this->schema, new Mapper());
+        $this->entityFactory = new EntityFactory($this->schema);
+        $this->mapper = new Mapper($this->queryProvider, $this->entityFactory);
     }
 
     /**
@@ -32,6 +35,6 @@ readonly class ORM
     {
         $repositoryClass = $this->schema->entities[$entityClass]->repositoryClass;
 
-        return new $repositoryClass($entityClass, $this->queryProvider, $this->entityFactory);
+        return new $repositoryClass($entityClass, $this->queryProvider, $this->entityFactory, $this->mapper);
     }
 }

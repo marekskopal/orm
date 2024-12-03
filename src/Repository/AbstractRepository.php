@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Repository;
 
 use MarekSkopal\ORM\Factory\EntityFactory;
+use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
 
@@ -19,6 +20,7 @@ abstract class AbstractRepository implements RepositoryInterface
         private readonly string $entityClass,
         private readonly QueryProvider $queryProvider,
         private readonly EntityFactory $entityFactory,
+        private readonly Mapper $mapper,
     ) {
     }
 
@@ -35,7 +37,7 @@ abstract class AbstractRepository implements RepositoryInterface
     {
         $results = $this->select()->where($where)->fetchAll();
         foreach ($results as $result) {
-            yield $this->entityFactory->create($this->entityClass, $result);
+            yield $this->entityFactory->create($this->entityClass, $result, $this->mapper);
         }
     }
 
@@ -46,6 +48,6 @@ abstract class AbstractRepository implements RepositoryInterface
     public function findOne(array $where = []): ?object
     {
         $result = $this->select()->where($where)->fetch();
-        return $result !== null ? $this->entityFactory->create($this->entityClass, $result) : null;
+        return $result !== null ? $this->entityFactory->create($this->entityClass, $result, $this->mapper) : null;
     }
 }

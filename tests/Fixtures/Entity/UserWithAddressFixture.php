@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Tests\Fixtures\Entity;
 
 use MarekSkopal\ORM\Attribute\Column;
+use MarekSkopal\ORM\Attribute\ManyToOne;
 
-final class UserFixture
+class UserWithAddressFixture
 {
     public function __construct(
         #[Column(type: 'int')]
@@ -19,16 +20,8 @@ final class UserFixture
         public string $email,
         #[Column(type: 'tinyint(1)')]
         public bool $isActive,
+        #[ManyToOne(entityClass: AddressFixture::class)]
+        public AddressFixture $address,
     ) {
-    }
-
-    public static function create(
-        int $id = 1,
-        string $firstName = 'John',
-        string $lastName = 'Doe',
-        string $email = 'john.doe@example.com',
-        bool $isActive = true,
-    ): self {
-        return new self(id: $id, firstName: $firstName, lastName: $lastName, email: $email, isActive: $isActive);
     }
 }

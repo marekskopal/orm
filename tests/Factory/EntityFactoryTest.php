@@ -16,9 +16,12 @@ final class EntityFactoryTest extends TestCase
 {
     public function testCreateEntity(): void
     {
+        $mapper = $this->createMock(Mapper::class);
+        $mapper->method('mapColumn')
+            ->willReturn(1, 'John', 'Doe', 'johh.doe@example.com', true);
+
         $entityFactory = new EntityFactory(
             SchemaFixture::create(),
-            new Mapper(),
         );
         $entity = $entityFactory->create(UserFixture::class, [
             'id' => 1,
@@ -26,7 +29,7 @@ final class EntityFactoryTest extends TestCase
             'last_name' => 'Doe',
             'email' => 'johh.doe@example.com',
             'is_active' => 1,
-        ]);
+        ], $mapper);
 
         self::assertInstanceOf(UserFixture::class, $entity);
         self::assertEquals('John', $entity->firstName);

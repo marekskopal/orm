@@ -17,7 +17,7 @@ class Select
     {
     }
 
-    /** @param array<scalar|array{0: string, 1: string, 2: scalar}> $params */
+    /** @param array<string|scalar>|list<array{0: string, 1: string, 2: scalar}> $params */
     public function where(array $params = []): self
     {
         $this->addWhereParams($params);
@@ -43,7 +43,7 @@ class Select
         }
     }
 
-    /** @param array<scalar|array{0: string, 1: string, 2: scalar}> $params */
+    /** @param array<string|scalar>|list<array{0: string, 1: string, 2: scalar}> $params */
     private function addWhereParams(array $params): void
     {
         foreach ($params as $column => $param) {

@@ -10,7 +10,7 @@ use ReflectionClass;
 
 class EntityFactory
 {
-    public function __construct(private readonly Schema $schema, private readonly Mapper $mapper)
+    public function __construct(private readonly Schema $schema)
     {
     }
 
@@ -20,7 +20,7 @@ class EntityFactory
      * @param array<string, float|int|string> $values
      * @return T
      */
-    public function create(string $entityClass, array $values): object
+    public function create(string $entityClass, array $values, Mapper $mapper): object
     {
         $entitySchema = $this->schema->entities[$entityClass];
 
@@ -34,7 +34,7 @@ class EntityFactory
         $properties = [];
         foreach ($parameters as $parameter) {
             $columnSchema = $entitySchema->columns[$parameter->getName()];
-            $properties[] = $this->mapper->mapColumn($columnSchema, $values[$columnSchema->columnName]);
+            $properties[] = $mapper->mapColumn($columnSchema, $values[$columnSchema->columnName]);
         }
         return new $entityClass(...$properties);
     }

@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Schema\Enum;
 
-enum PropertyTypeEnum: string
+enum PropertyTypeEnum
 {
-    case String = 'string';
-    case Int = 'int';
-    case Float = 'float';
-    case Bool = 'bool';
+    case String;
+    case Int;
+    case Float;
+    case Bool;
+    case Relation;
 }
