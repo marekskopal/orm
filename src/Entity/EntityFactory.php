@@ -38,6 +38,10 @@ class EntityFactory
             $columnSchema = $entitySchema->columns[$parameter->getName()];
             $properties[] = $mapper->mapColumn($columnSchema, $values[$columnSchema->columnName]);
         }
-        return new $entityClass(...$properties);
+
+        $entity = new $entityClass(...$properties);
+        $this->entityCache->addEntity($entity);
+
+        return $entity;
     }
 }
