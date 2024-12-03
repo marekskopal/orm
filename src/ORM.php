@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Factory\EntityFactory;
+use MarekSkopal\ORM\Entity\EntityCache;
+use MarekSkopal\ORM\Entity\EntityFactory;
+use MarekSkopal\ORM\Entity\EntityReflection;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Repository\RepositoryInterface;
@@ -15,6 +17,10 @@ readonly class ORM
 {
     private QueryProvider $queryProvider;
 
+    private EntityCache $entityCache;
+
+    private EntityReflection $entityReflection;
+
     private EntityFactory $entityFactory;
 
     private Mapper $mapper;
@@ -22,7 +28,9 @@ readonly class ORM
     public function __construct(private DatabaseInterface $database, private Schema $schema)
     {
         $this->queryProvider = new QueryProvider($this->database, $this->schema);
-        $this->entityFactory = new EntityFactory($this->schema);
+        $this->entityCache = new EntityCache();
+        $this->entityReflection = new EntityReflection();
+        $this->entityFactory = new EntityFactory($this->schema, $this->entityCache, $this->entityReflection);
         $this->mapper = new Mapper($this->queryProvider, $this->entityFactory);
     }
 

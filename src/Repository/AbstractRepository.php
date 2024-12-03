@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Repository;
 
-use MarekSkopal\ORM\Factory\EntityFactory;
+use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;

@@ -2,16 +2,18 @@
 
 declare(strict_types=1);
 
-namespace MarekSkopal\ORM\Factory;
+namespace MarekSkopal\ORM\Entity;
 
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\Schema;
-use ReflectionClass;
 
 class EntityFactory
 {
-    public function __construct(private readonly Schema $schema)
-    {
+    public function __construct(
+        private readonly Schema $schema,
+        private readonly EntityCache $entityCache,
+        private readonly EntityReflection $entityReflection,
+    ) {
     }
 
     /**
@@ -22,15 +24,15 @@ class EntityFactory
      */
     public function create(string $entityClass, array $values, Mapper $mapper): object
     {
-        $entitySchema = $this->schema->entities[$entityClass];
-
-        $reflectionClass = new ReflectionClass($entityClass);
-        $constructor = $reflectionClass->getConstructor();
-        if ($constructor === null) {
-            throw new \RuntimeException('Entity must have constructor');
+        $entity = $this->entityCache->getEntity($entityClass, $values['id']);
+        if ($entity !== null) {
+            return $entity;
         }
 
-        $parameters = $constructor->getParameters();
+        $entitySchema = $this->schema->entities[$entityClass];
+
+        $parameters = $this->entityReflection->getParameters($entityClass);
+
         $properties = [];
         foreach ($parameters as $parameter) {
             $columnSchema = $entitySchema->columns[$parameter->getName()];
