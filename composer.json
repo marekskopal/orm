@@ -12,7 +12,8 @@
     "require": {
         "php": ">=8.4",
         "ext-pdo": "*",
-        "laminas/laminas-file": "^2.13"
+        "laminas/laminas-file": "^2.13",
+        "ramsey/uuid": "^4.7"
     },
     "require-dev": {
         "phpstan/phpstan": "^2.0",

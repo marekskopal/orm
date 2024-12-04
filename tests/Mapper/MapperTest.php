@@ -14,6 +14,8 @@ use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Ramsey\Uuid\Lazy\LazyUuidFromString;
+use Ramsey\Uuid\Uuid;
 
 #[CoversClass(Mapper::class)]
 final class MapperTest extends TestCase
@@ -48,6 +50,15 @@ final class MapperTest extends TestCase
         $mapper = new Mapper($this->createMock(QueryProvider::class), $this->createMock(EntityFactory::class));
         $result = $mapper->mapColumn($schema, 1);
         self::assertTrue($result);
+    }
+
+    public function testMapColumnUuid(): void
+    {
+        $schema = new ColumnSchema('code', PropertyTypeEnum::Uuid, 'code', 'uuid');
+        $mapper = new Mapper($this->createMock(QueryProvider::class), $this->createMock(EntityFactory::class));
+        $result = $mapper->mapColumn($schema, 'f47ac10b-58cc-4372-a567-0e02b2c3d479');
+        self::assertInstanceOf(LazyUuidFromString::class, $result);
+        self::assertSame((string) Uuid::fromString('f47ac10b-58cc-4372-a567-0e02b2c3d479'), (string) $result);
     }
 
     public function testMapColumnRelation(): void

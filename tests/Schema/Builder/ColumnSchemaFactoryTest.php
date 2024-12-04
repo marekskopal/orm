@@ -10,6 +10,7 @@ use MarekSkopal\ORM\Schema\Enum\CaseEnum;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\Code;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -19,7 +20,7 @@ use ReflectionProperty;
 #[CoversClass(ColumnSchemaFactory::class)]
 class ColumnSchemaFactoryTest extends TestCase
 {
-    public function testCreateFromColumn(): void
+    public function testCreateFromColumnString(): void
     {
         $columnSchemaFactory = new ColumnSchemaFactory();
 
@@ -36,6 +37,50 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyType: PropertyTypeEnum::String,
             columnName: 'first_name',
             columnType: 'varchar(255)',
+        );
+
+        self::assertEquals($columnSchemaExpected, $columnSchema);
+    }
+
+    public function testCreateFromColumnInt(): void
+    {
+        $columnSchemaFactory = new ColumnSchemaFactory();
+
+        $columnSchema = $columnSchemaFactory->create(
+            new ReflectionProperty(
+                UserFixture::class,
+                'id',
+            ),
+            CaseEnum::SnakeCase,
+        );
+
+        $columnSchemaExpected = new ColumnSchema(
+            propertyName: 'id',
+            propertyType: PropertyTypeEnum::Int,
+            columnName: 'id',
+            columnType: 'int',
+        );
+
+        self::assertEquals($columnSchemaExpected, $columnSchema);
+    }
+
+    public function testCreateFromColumnUuid(): void
+    {
+        $columnSchemaFactory = new ColumnSchemaFactory();
+
+        $columnSchema = $columnSchemaFactory->create(
+            new ReflectionProperty(
+                Code::class,
+                'code',
+            ),
+            CaseEnum::SnakeCase,
+        );
+
+        $columnSchemaExpected = new ColumnSchema(
+            propertyName: 'code',
+            propertyType: PropertyTypeEnum::Uuid,
+            columnName: 'code',
+            columnType: 'uuid',
         );
 
         self::assertEquals($columnSchemaExpected, $columnSchema);

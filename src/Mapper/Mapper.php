@@ -9,6 +9,7 @@ use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
+use Ramsey\Uuid\Uuid;
 
 readonly class Mapper
 {
@@ -23,6 +24,7 @@ readonly class Mapper
             PropertyTypeEnum::Int => (int) $value,
             PropertyTypeEnum::Float => (float) $value,
             PropertyTypeEnum::Bool => (bool) $value,
+            PropertyTypeEnum::Uuid => Uuid::fromString((string) $value),
             PropertyTypeEnum::Relation => $this->mapRelation($schema, (int) $value),
         };
     }
