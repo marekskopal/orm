@@ -6,13 +6,10 @@ namespace MarekSkopal\ORM\Tests;
 
 use MarekSkopal\ORM\Database\SqliteDatabase;
 use MarekSkopal\ORM\ORM;
-use MarekSkopal\ORM\Schema\Schema;
+use MarekSkopal\ORM\Schema\Builder\SchemaBuilder;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
-use MarekSkopal\ORM\Tests\Fixtures\Schema\AddressEntitySchemaFixture;
-use MarekSkopal\ORM\Tests\Fixtures\Schema\SchemaFixture;
-use MarekSkopal\ORM\Tests\Fixtures\Schema\UserEntityWithAddressSchemaFixture;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -27,7 +24,11 @@ final class IntegrationTest extends TestCase
             throw new \RuntimeException('Cannot read database.sql file');
         }
 
-        $orm = new ORM($database, SchemaFixture::create());
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
 
         foreach (explode(';', $sqlFileContent) as $sql) {
             $sql = trim($sql);
@@ -63,12 +64,11 @@ final class IntegrationTest extends TestCase
             throw new \RuntimeException('Cannot read database.sql file');
         }
 
-        $orm = new ORM($database, new Schema(
-            [
-                UserWithAddressFixture::class => UserEntityWithAddressSchemaFixture::create(),
-                AddressFixture::class => AddressEntitySchemaFixture::create(),
-            ],
-        ));
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
 
         foreach (explode(';', $sqlFileContent) as $sql) {
             $sql = trim($sql);

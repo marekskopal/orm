@@ -7,7 +7,7 @@ namespace MarekSkopal\ORM\Attribute;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-class Column
+readonly class Column
 {
     public function __construct(public string $type, public ?string $name = null,)
     {

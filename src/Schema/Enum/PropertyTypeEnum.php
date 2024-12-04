@@ -11,4 +11,15 @@ enum PropertyTypeEnum
     case Float;
     case Bool;
     case Relation;
+
+    public static function fromTypeName(string $typeName): self
+    {
+        return match ($typeName) {
+            'string' => self::String,
+            'int' => self::Int,
+            'float' => self::Float,
+            'bool' => self::Bool,
+            default => throw new \InvalidArgumentException('Invalid type name'),
+        };
+    }
 }

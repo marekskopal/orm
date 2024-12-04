@@ -9,6 +9,7 @@ use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 
 readonly class ColumnSchema
 {
+    /** @param class-string<object>|null $relationEntityClass */
     public function __construct(
         public string $propertyName,
         public PropertyTypeEnum $propertyType,
