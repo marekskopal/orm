@@ -2,18 +2,26 @@
 
 declare(strict_types=1);
 
-namespace MarekSkopal\ORM\Tests\Factory;
+namespace MarekSkopal\ORM\Tests\Entity;
 
 use MarekSkopal\ORM\Entity\EntityCache;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Entity\EntityReflection;
 use MarekSkopal\ORM\Mapper\Mapper;
+use MarekSkopal\ORM\Schema\ColumnSchema;
+use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\SchemaFixture;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(EntityFactory::class)]
+#[UsesClass(EntityReflection::class)]
+#[UsesClass(ColumnSchema::class)]
+#[UsesClass(EntitySchema::class)]
+#[UsesClass(Schema::class)]
 final class EntityFactoryTest extends TestCase
 {
     public function testCreateEntity(): void

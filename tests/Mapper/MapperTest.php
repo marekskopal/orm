@@ -13,11 +13,13 @@ use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Lazy\LazyUuidFromString;
 use Ramsey\Uuid\Uuid;
 
 #[CoversClass(Mapper::class)]
+#[UsesClass(ColumnSchema::class)]
 final class MapperTest extends TestCase
 {
     public function testMapColumnString(): void

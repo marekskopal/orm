@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Schema\Builder;
 
+use MarekSkopal\ORM\Attribute\Column;
+use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Schema\Builder\ColumnSchemaFactory;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Enum\CaseEnum;
@@ -13,11 +15,18 @@ use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Code;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
+use MarekSkopal\ORM\Utils\CaseUtils;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 
 #[CoversClass(ColumnSchemaFactory::class)]
+#[UsesClass(Column::class)]
+#[UsesClass(ColumnSchema::class)]
+#[UsesClass(PropertyTypeEnum::class)]
+#[UsesClass(CaseUtils::class)]
+#[UsesClass(ManyToOne::class)]
 class ColumnSchemaFactoryTest extends TestCase
 {
     public function testCreateFromColumnString(): void
