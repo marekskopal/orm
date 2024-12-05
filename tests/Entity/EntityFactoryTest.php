@@ -44,13 +44,14 @@ final class EntityFactoryTest extends TestCase
             $entityCache,
             new EntityReflection(),
         );
+        $entityFactory->setMapper($mapper);
         $entity = $entityFactory->create(UserFixture::class, [
             'id' => 1,
             'first_name' => 'John',
             'last_name' => 'Doe',
             'email' => 'johh.doe@example.com',
             'is_active' => 1,
-        ], $mapper);
+        ]);
 
         self::assertInstanceOf(UserFixture::class, $entity);
         self::assertEquals('John', $entity->firstName);

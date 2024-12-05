@@ -9,6 +9,8 @@ use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 
 class EntityFactory
 {
+    private Mapper $mapper;
+
     public function __construct(
         private readonly SchemaProvider $schemaProvider,
         private readonly EntityCache $entityCache,
@@ -22,7 +24,7 @@ class EntityFactory
      * @param array<string, float|int|string> $values
      * @return T
      */
-    public function create(string $entityClass, array $values, Mapper $mapper): object
+    public function create(string $entityClass, array $values): object
     {
         /** @var int $primaryValue */
         $primaryValue = $values[$this->schemaProvider->getPrimaryColumnSchema($entityClass)->columnName];
@@ -39,12 +41,17 @@ class EntityFactory
         $properties = [];
         foreach ($parameters as $parameter) {
             $columnSchema = $entitySchema->columns[$parameter->getName()];
-            $properties[] = $mapper->mapColumn($entitySchema, $columnSchema, $values[$columnSchema->columnName]);
+            $properties[] = $this->mapper->mapColumn($entitySchema, $columnSchema, $values[$columnSchema->columnName]);
         }
 
         $entity = new $entityClass(...$properties);
         $this->entityCache->addEntity($entity);
 
         return $entity;
+    }
+
+    public function setMapper(Mapper $mapper): void
+    {
+        $this->mapper = $mapper;
     }
 }

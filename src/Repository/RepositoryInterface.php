@@ -9,6 +9,7 @@ use MarekSkopal\ORM\Query\Select;
 /** @template T of object */
 interface RepositoryInterface
 {
+    /** @return Select<T> */
     public function select(): Select;
 
     /**

@@ -4,20 +4,31 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Query;
 
+use Iterator;
+use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use PDO;
 use PDOStatement;
 
+/** @template T of object */
 class Select
 {
     /** @var list<array{0: string, 1: string, 2: scalar}> */
     private array $whereParams = [];
 
-    public function __construct(private readonly PDO $pdo, private readonly EntitySchema $schema,)
-    {
+    /** @param class-string<T> $entityClass */
+    public function __construct(
+        private readonly PDO $pdo,
+        private readonly EntityFactory $entityFactory,
+        private readonly string $entityClass,
+        private readonly EntitySchema $schema,
+    ) {
     }
 
-    /** @param array<string|scalar>|list<array{0: string, 1: string, 2: scalar}> $params */
+    /**
+     * @param array<string|scalar>|list<array{0: string, 1: string, 2: scalar}> $params
+     * @return Select<T>
+     */
     public function where(array $params = []): self
     {
         $this->addWhereParams($params);
@@ -25,21 +36,21 @@ class Select
         return $this;
     }
 
-    /** @return array<string, float|int|string> */
-    public function fetch(): ?array
+    /** @return T|null */
+    public function fetch(): ?object
     {
         $result = $this->query()->fetch(mode: PDO::FETCH_ASSOC);
         // @phpstan-ignore-next-line return.type
-        return $result === false ? null : $result;
+        return $result === false ? null : $this->entityFactory->create($this->entityClass, $result);
     }
 
-    /** @return iterable<array<string, float|int|string>> */
-    public function fetchAll(): iterable
+    /** @return Iterator<T> */
+    public function fetchAll(): Iterator
     {
         $query = $this->query();
         while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
             // @phpstan-ignore-next-line return.type
-            yield $row;
+            yield $this->entityFactory->create($this->entityClass, $row);
         }
     }
 

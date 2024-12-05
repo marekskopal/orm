@@ -31,11 +31,12 @@ readonly class ORM
     public function __construct(private DatabaseInterface $database, private Schema $schema)
     {
         $this->schemaProvider = new SchemaProvider($this->schema);
-        $this->queryProvider = new QueryProvider($this->database, $this->schemaProvider);
         $this->entityCache = new EntityCache();
         $this->entityReflection = new EntityReflection();
         $this->entityFactory = new EntityFactory($this->schemaProvider, $this->entityCache, $this->entityReflection);
-        $this->mapper = new Mapper($this->schemaProvider, $this->queryProvider, $this->entityFactory);
+        $this->queryProvider = new QueryProvider($this->database, $this->entityFactory, $this->schemaProvider);
+        $this->mapper = new Mapper($this->schemaProvider, $this->queryProvider);
+        $this->entityFactory->setMapper($this->mapper);
     }
 
     /**
@@ -47,6 +48,6 @@ readonly class ORM
     {
         $repositoryClass = $this->schema->entities[$entityClass]->repositoryClass;
 
-        return new $repositoryClass($entityClass, $this->queryProvider, $this->entityFactory, $this->mapper);
+        return new $repositoryClass($entityClass, $this->queryProvider);
     }
 }
