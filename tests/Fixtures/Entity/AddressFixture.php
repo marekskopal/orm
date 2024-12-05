@@ -11,7 +11,7 @@ use MarekSkopal\ORM\Attribute\Entity;
 final class AddressFixture
 {
     public function __construct(
-        #[Column(type: 'int')]
+        #[Column(type: 'int', primary: true)]
         public int $id,
         #[Column(type: 'varchar(255)')]
         public string $street,

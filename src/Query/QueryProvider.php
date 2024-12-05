@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Query;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Schema\Schema;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 
 readonly class QueryProvider
 {
-    private readonly SelectFactory $selectFactory;
+    private SelectFactory $selectFactory;
 
-    public function __construct(private DatabaseInterface $database, private Schema $schema)
+    public function __construct(private DatabaseInterface $database, private SchemaProvider $schemaProvider)
     {
-        $this->selectFactory = new SelectFactory($this->database, $this->schema);
+        $this->selectFactory = new SelectFactory($this->database, $this->schemaProvider);
     }
 
     /**

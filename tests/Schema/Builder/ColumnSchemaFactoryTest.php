@@ -68,6 +68,7 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyType: PropertyTypeEnum::Int,
             columnName: 'id',
             columnType: 'int',
+            isPrimary: true,
         );
 
         self::assertEquals($columnSchemaExpected, $columnSchema);

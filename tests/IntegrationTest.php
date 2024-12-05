@@ -24,6 +24,7 @@ use MarekSkopal\ORM\Schema\Builder\SchemaBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
@@ -54,6 +55,7 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(EntitySchema::class)]
 #[UsesClass(PropertyTypeEnum::class)]
 #[UsesClass(Schema::class)]
+#[UsesClass(SchemaProvider::class)]
 #[UsesClass(CaseUtils::class)]
 final class IntegrationTest extends TestCase
 {

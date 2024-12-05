@@ -15,6 +15,7 @@ use MarekSkopal\ORM\Repository\AbstractRepository;
 use MarekSkopal\ORM\Repository\RepositoryInterface;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\SchemaFixture;
@@ -33,6 +34,7 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(ColumnSchema::class)]
 #[UsesClass(EntitySchema::class)]
 #[UsesClass(Schema::class)]
+#[UsesClass(SchemaProvider::class)]
 final class ORMTest extends TestCase
 {
     public function testGetRepository(): void

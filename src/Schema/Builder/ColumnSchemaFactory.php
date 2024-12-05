@@ -48,6 +48,7 @@ class ColumnSchemaFactory
             propertyType: $this->getPropertyTypeFromReflectionProperty($reflectionProperty),
             columnName: CaseUtils::toCase($columnCase, $reflectionProperty->getName()),
             columnType: $attributeInstance->type,
+            isPrimary: $attributeInstance->primary,
         );
     }
 

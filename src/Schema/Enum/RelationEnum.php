@@ -6,5 +6,6 @@ namespace MarekSkopal\ORM\Schema\Enum;
 
 enum RelationEnum
 {
+    case OneToMany;
     case ManyToOne;
 }

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Entity;
 
 use MarekSkopal\ORM\Mapper\Mapper;
-use MarekSkopal\ORM\Schema\Schema;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 
 class EntityFactory
 {
     public function __construct(
-        private readonly Schema $schema,
+        private readonly SchemaProvider $schemaProvider,
         private readonly EntityCache $entityCache,
         private readonly EntityReflection $entityReflection,
     ) {
@@ -24,19 +24,22 @@ class EntityFactory
      */
     public function create(string $entityClass, array $values, Mapper $mapper): object
     {
-        $entity = $this->entityCache->getEntity($entityClass, $values['id']);
+        /** @var int $primaryValue */
+        $primaryValue = $values[$this->schemaProvider->getPrimaryColumnSchema($entityClass)->columnName];
+
+        $entity = $this->entityCache->getEntity($entityClass, $primaryValue);
         if ($entity !== null) {
             return $entity;
         }
 
-        $entitySchema = $this->schema->entities[$entityClass];
+        $entitySchema = $this->schemaProvider->getEntitySchema($entityClass);
 
         $parameters = $this->entityReflection->getParameters($entityClass);
 
         $properties = [];
         foreach ($parameters as $parameter) {
             $columnSchema = $entitySchema->columns[$parameter->getName()];
-            $properties[] = $mapper->mapColumn($columnSchema, $values[$columnSchema->columnName]);
+            $properties[] = $mapper->mapColumn($entitySchema, $columnSchema, $values[$columnSchema->columnName]);
         }
 
         $entity = new $entityClass(...$properties);

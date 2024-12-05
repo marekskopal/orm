@@ -10,9 +10,10 @@ use MarekSkopal\ORM\Entity\EntityReflection;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
-use MarekSkopal\ORM\Schema\Schema;
+use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
-use MarekSkopal\ORM\Tests\Fixtures\Schema\SchemaFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
@@ -21,7 +22,7 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(EntityReflection::class)]
 #[UsesClass(ColumnSchema::class)]
 #[UsesClass(EntitySchema::class)]
-#[UsesClass(Schema::class)]
+#[UsesClass(SchemaProvider::class)]
 final class EntityFactoryTest extends TestCase
 {
     public function testCreateEntity(): void
@@ -32,9 +33,14 @@ final class EntityFactoryTest extends TestCase
         $mapper = $this->createMock(Mapper::class);
         $mapper->method('mapColumn')
             ->willReturn(1, 'John', 'Doe', 'johh.doe@example.com', true);
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $schemaProvider->method('getPrimaryColumnSchema')
+            ->willReturn(new ColumnSchema('id', PropertyTypeEnum::Int, 'id', 'int'));
+        $schemaProvider->method('getEntitySchema')
+            ->willReturn(EntitySchemaFixture::create());
 
         $entityFactory = new EntityFactory(
-            SchemaFixture::create(),
+            $schemaProvider,
             $entityCache,
             new EntityReflection(),
         );

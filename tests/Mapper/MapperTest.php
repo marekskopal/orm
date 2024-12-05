@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Mapper;
 
+use Generator;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Schema\ColumnSchema;
+use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
@@ -20,53 +24,85 @@ use Ramsey\Uuid\Uuid;
 
 #[CoversClass(Mapper::class)]
 #[UsesClass(ColumnSchema::class)]
+#[UsesClass(EntitySchema::class)]
 final class MapperTest extends TestCase
 {
     public function testMapColumnString(): void
     {
-        $schema = new ColumnSchema('name', PropertyTypeEnum::String, 'name', 'varchar');
-        $mapper = new Mapper($this->createMock(QueryProvider::class), $this->createMock(EntityFactory::class));
-        $result = $mapper->mapColumn($schema, 'test');
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $queryProvider = $this->createMock(QueryProvider::class);
+        $entityFactory = $this->createMock(EntityFactory::class);
+
+        $columnSchema = new ColumnSchema('name', PropertyTypeEnum::String, 'name', 'varchar');
+        $entitySchema = EntitySchemaFixture::create(columns: ['name' => $columnSchema]);
+
+        $mapper = new Mapper($schemaProvider, $queryProvider, $entityFactory);
+        $result = $mapper->mapColumn($entitySchema, $columnSchema, 'test');
         self::assertSame('test', $result);
     }
 
     public function testMapColumnInt(): void
     {
-        $schema = new ColumnSchema('age', PropertyTypeEnum::Int, 'age', 'int');
-        $mapper = new Mapper($this->createMock(QueryProvider::class), $this->createMock(EntityFactory::class));
-        $result = $mapper->mapColumn($schema, 25);
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $queryProvider = $this->createMock(QueryProvider::class);
+        $entityFactory = $this->createMock(EntityFactory::class);
+
+        $columnSchema = new ColumnSchema('age', PropertyTypeEnum::Int, 'age', 'int');
+        $entitySchema = EntitySchemaFixture::create(columns: ['age' => $columnSchema]);
+
+        $mapper = new Mapper($schemaProvider, $queryProvider, $entityFactory);
+        $result = $mapper->mapColumn($entitySchema, $columnSchema, 25);
         self::assertSame(25, $result);
     }
 
     public function testMapColumnFloat(): void
     {
-        $schema = new ColumnSchema('price', PropertyTypeEnum::Float, 'price', 'float');
-        $mapper = new Mapper($this->createMock(QueryProvider::class), $this->createMock(EntityFactory::class));
-        $result = $mapper->mapColumn($schema, 19.99);
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $queryProvider = $this->createMock(QueryProvider::class);
+        $entityFactory = $this->createMock(EntityFactory::class);
+
+        $columnSchema = new ColumnSchema('price', PropertyTypeEnum::Float, 'price', 'float');
+        $entitySchema = EntitySchemaFixture::create(columns: ['price' => $columnSchema]);
+
+        $mapper = new Mapper($schemaProvider, $queryProvider, $entityFactory);
+        $result = $mapper->mapColumn($entitySchema, $columnSchema, 19.99);
         self::assertSame(19.99, $result);
     }
 
     public function testMapColumnBool(): void
     {
-        $schema = new ColumnSchema('isActive', PropertyTypeEnum::Bool, 'is_active', 'tinyint');
-        $mapper = new Mapper($this->createMock(QueryProvider::class), $this->createMock(EntityFactory::class));
-        $result = $mapper->mapColumn($schema, 1);
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $queryProvider = $this->createMock(QueryProvider::class);
+        $entityFactory = $this->createMock(EntityFactory::class);
+
+        $columnSchema = new ColumnSchema('isActive', PropertyTypeEnum::Bool, 'is_active', 'tinyint');
+        $entitySchema = EntitySchemaFixture::create(columns: ['isActive' => $columnSchema]);
+
+        $mapper = new Mapper($schemaProvider, $queryProvider, $entityFactory);
+        $result = $mapper->mapColumn($entitySchema, $columnSchema, 1);
         self::assertTrue($result);
     }
 
     public function testMapColumnUuid(): void
     {
-        $schema = new ColumnSchema('code', PropertyTypeEnum::Uuid, 'code', 'uuid');
-        $mapper = new Mapper($this->createMock(QueryProvider::class), $this->createMock(EntityFactory::class));
-        $result = $mapper->mapColumn($schema, 'f47ac10b-58cc-4372-a567-0e02b2c3d479');
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $queryProvider = $this->createMock(QueryProvider::class);
+        $entityFactory = $this->createMock(EntityFactory::class);
+
+        $columnSchema = new ColumnSchema('code', PropertyTypeEnum::Uuid, 'code', 'uuid');
+        $entitySchema = EntitySchemaFixture::create(columns: ['code' => $columnSchema]);
+
+        $mapper = new Mapper($schemaProvider, $queryProvider, $entityFactory);
+        $result = $mapper->mapColumn($entitySchema, $columnSchema, 'f47ac10b-58cc-4372-a567-0e02b2c3d479');
         self::assertInstanceOf(LazyUuidFromString::class, $result);
         self::assertSame((string) Uuid::fromString('f47ac10b-58cc-4372-a567-0e02b2c3d479'), (string) $result);
     }
 
-    public function testMapColumnRelation(): void
+    public function testMapColumnRelationManyToOne(): void
     {
-        $schema = new ColumnSchema('user', PropertyTypeEnum::Relation, 'user_id', 'int', RelationEnum::ManyToOne, UserFixture::class);
-
+        $primaryColumnSchema = new ColumnSchema('id', PropertyTypeEnum::Int, 'int', 'int', isPrimary: true);
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $schemaProvider->method('getPrimaryColumnSchema')->willReturn($primaryColumnSchema);
         $select = $this->createMock(Select::class);
         $select->method('where')->willReturnSelf();
         $select->method('fetch')->willReturn(['id' => 1]);
@@ -75,10 +111,35 @@ final class MapperTest extends TestCase
         $entityFactory = $this->createMock(EntityFactory::class);
         $entityFactory->method('create')->willReturn(UserFixture::create());
 
-        $mapper = new Mapper($queryProvider, $entityFactory);
+        $mapper = new Mapper($schemaProvider, $queryProvider, $entityFactory);
 
-        $result = $mapper->mapColumn($schema, 1);
+        $columnSchema = new ColumnSchema('user', PropertyTypeEnum::Relation, 'user_id', 'int', RelationEnum::ManyToOne, UserFixture::class);
+        $entitySchema = EntitySchemaFixture::create(columns: ['user' => $columnSchema]);
+
+        $result = $mapper->mapColumn($entitySchema, $columnSchema, 1);
         self::assertInstanceOf(UserFixture::class, $result);
+    }
+
+    public function testMapColumnRelationOneToMany(): void
+    {
+        $primaryColumnSchema = new ColumnSchema('id', PropertyTypeEnum::Int, 'int', 'int', isPrimary: true);
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $schemaProvider->method('getPrimaryColumnSchema')->willReturn($primaryColumnSchema);
+        $select = $this->createMock(Select::class);
+        $select->method('where')->willReturnSelf();
+        $select->method('fetch')->willReturn(['id' => 1]);
+        $queryProvider = $this->createMock(QueryProvider::class);
+        $queryProvider->method('select')->willReturn($select);
+        $entityFactory = $this->createMock(EntityFactory::class);
+        $entityFactory->method('create')->willReturn(UserFixture::create());
+
+        $mapper = new Mapper($schemaProvider, $queryProvider, $entityFactory);
+
+        $columnSchema = new ColumnSchema('users', PropertyTypeEnum::Relation, 'users', 'int', RelationEnum::OneToMany, UserFixture::class);
+        $entitySchema = EntitySchemaFixture::create(columns: ['users' => $columnSchema]);
+
+        $result = $mapper->mapColumn($entitySchema, $columnSchema, 1);
+        self::assertInstanceOf(Generator::class, $result);
     }
 
     public function testMapColumnRelationNotFound(): void
@@ -86,8 +147,12 @@ final class MapperTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Entity "MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture" with id "1" not found');
 
-        $schema = new ColumnSchema('user', PropertyTypeEnum::Relation, 'user_id', 'int', RelationEnum::ManyToOne, UserFixture::class);
+        $columnSchema = new ColumnSchema('user', PropertyTypeEnum::Relation, 'user_id', 'int', RelationEnum::ManyToOne, UserFixture::class);
+        $entitySchema = EntitySchemaFixture::create(columns: ['user' => $columnSchema]);
 
+        $primaryColumnSchema = new ColumnSchema('id', PropertyTypeEnum::Int, 'int', 'int', isPrimary: true);
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $schemaProvider->method('getPrimaryColumnSchema')->willReturn($primaryColumnSchema);
         $select = $this->createMock(Select::class);
         $select->method('where')->willReturnSelf();
         $select->method('fetch')->willReturn(null);
@@ -95,8 +160,8 @@ final class MapperTest extends TestCase
         $queryProvider->method('select')->willReturn($select);
         $entityFactory = $this->createMock(EntityFactory::class);
 
-        $mapper = new Mapper($queryProvider, $entityFactory);
+        $mapper = new Mapper($schemaProvider, $queryProvider, $entityFactory);
 
-        $mapper->mapColumn($schema, 1);
+        $mapper->mapColumn($entitySchema, $columnSchema, 1);
     }
 }
