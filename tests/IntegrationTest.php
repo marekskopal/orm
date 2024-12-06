@@ -14,6 +14,7 @@ use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Entity\EntityReflection;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\ORM;
+use MarekSkopal\ORM\Query\Delete;
 use MarekSkopal\ORM\Query\Factory\DeleteFactory;
 use MarekSkopal\ORM\Query\Factory\InsertFactory;
 use MarekSkopal\ORM\Query\Factory\SelectFactory;
@@ -57,6 +58,7 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(Insert::class)]
 #[UsesClass(UpdateFactory::class)]
 #[UsesClass(DeleteFactory::class)]
+#[UsesClass(Delete::class)]
 #[UsesClass(AbstractRepository::class)]
 #[UsesClass(ColumnSchemaFactory::class)]
 #[UsesClass(EntitySchemaFactory::class)]
@@ -178,5 +180,38 @@ final class IntegrationTest extends TestCase
 
         $users = $repository->find();
         self::assertCount(3, iterator_to_array($users));
+    }
+
+    public function testDeleteEntity(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_users.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(UserFixture::class);
+
+        $user = $repository->findOne(['id' => 1]);
+        $repository->delete($user);
+
+        $users = iterator_to_array($repository->find());
+        self::assertCount(1, $users);
+        self::assertSame(2, $users[0]->id);
     }
 }

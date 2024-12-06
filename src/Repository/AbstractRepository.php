@@ -63,6 +63,6 @@ abstract class AbstractRepository implements RepositoryInterface
     /** @param T $entity */
     public function delete(object $entity): void
     {
-        $this->queryProvider->delete($entity);
+        $this->queryProvider->delete($entity)->execute();
     }
 }

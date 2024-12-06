@@ -9,44 +9,40 @@ use MarekSkopal\ORM\Schema\EntitySchema;
 use PDO;
 use PDOStatement;
 
+/** @template T of object */
 class Delete
 {
-    /** @var list<int> */
-    private array $ids = [];
+    /** @var list<T> */
+    private array $entities = [];
 
     public function __construct(
         private readonly PDO $pdo,
         private readonly EntitySchema $entitySchema,
         private readonly ColumnSchema $primaryColumnSchema,
-    )
-    {
+    ) {
     }
 
-    /** @param list<int> $ids */
-    public function ids(array $ids = []): self
+    /**
+     * @param T $entity
+     * @return Insert<T>
+     */
+    public function entity(object $entity): self
     {
-        $this->ids = array_merge($this->ids, $ids);
+        $this->entities[] = $entity;
 
         return $this;
     }
 
     public function execute(): void
     {
-        if (count($this->ids) === 0) {
+        if (count($this->entities) === 0) {
             return;
         }
 
         $this->query();
     }
 
-    private function query(): PDOStatement
-    {
-        $pdoStatement = $this->pdo->prepare($this->getSql());
-        $pdoStatement->execute($this->ids);
-        return $pdoStatement;
-    }
-
-    private function getSql(): string
+    public function getSql(): string
     {
         return implode(' ', [
             'DELETE FROM',
@@ -55,11 +51,26 @@ class Delete
         ]);
     }
 
+    private function query(): PDOStatement
+    {
+        $pdoStatement = $this->pdo->prepare($this->getSql());
+        $pdoStatement->execute($this->getIds());
+        return $pdoStatement;
+    }
+
     private function getWhereQuery(): string
     {
         return 'WHERE ' . $this->primaryColumnSchema->columnName . ' IN (' . implode(
             ',',
-            array_map(fn($item): string => '?', $this->ids),
+            array_map(fn($item): string => '?', $this->entities),
         ) . ')';
+    }
+
+    private function getIds(): array
+    {
+        return array_map(
+            fn($entity): int => $entity->{$this->primaryColumnSchema->columnName},
+            $this->entities,
+        );
     }
 }
