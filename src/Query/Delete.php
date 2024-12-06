@@ -24,7 +24,7 @@ class Delete
 
     /**
      * @param T $entity
-     * @return Insert<T>
+     * @return self<T>
      */
     public function entity(object $entity): self
     {
@@ -66,9 +66,11 @@ class Delete
         ) . ')';
     }
 
+    /** @return list<int> */
     private function getIds(): array
     {
         return array_map(
+            // @phpstan-ignore-next-line return.type property.dynamicName
             fn($entity): int => $entity->{$this->primaryColumnSchema->columnName},
             $this->entities,
         );

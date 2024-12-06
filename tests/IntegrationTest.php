@@ -210,6 +210,7 @@ final class IntegrationTest extends TestCase
         $repository = $orm->getRepository(UserFixture::class);
 
         $user = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(UserFixture::class, $user);
         $repository->delete($user);
 
         $users = iterator_to_array($repository->find());
@@ -243,10 +244,12 @@ final class IntegrationTest extends TestCase
         $repository = $orm->getRepository(UserFixture::class);
 
         $user = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(UserFixture::class, $user);
         $user->firstName = 'Jane';
         $repository->persist($user);
 
         $user = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(UserFixture::class, $user);
         self::assertSame('Jane', $user->firstName);
     }
 }

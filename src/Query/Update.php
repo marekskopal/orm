@@ -22,7 +22,7 @@ class Update
 
     /**
      * @param T $entity
-     * @return Insert<T>
+     * @return self<T>
      */
     public function entity(object $entity): self
     {

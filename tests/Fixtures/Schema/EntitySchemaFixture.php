@@ -15,8 +15,9 @@ use MarekSkopal\ORM\Tests\Fixtures\Repository\UserRepositoryFixture;
 class EntitySchemaFixture
 {
     /**
-     * @param class-string $entityClass
-     * @param class-string<RepositoryInterface<object>> $repositoryClass
+     * @template T of object
+     * @param class-string<T> $entityClass
+     * @param class-string<RepositoryInterface<T>> $repositoryClass
      * @param array<string, ColumnSchema> $columns
      */
     public static function create(

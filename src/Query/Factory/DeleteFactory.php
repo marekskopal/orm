@@ -17,6 +17,7 @@ readonly class DeleteFactory
     /**
      * @template T of object
      * @param T $entity
+     * @return Delete<T>
      */
     public function create(object $entity): Delete
     {

@@ -62,6 +62,7 @@ class Insert
     {
         $lastInsertId = $this->pdo->lastInsertId();
         foreach ($this->entities as $entity) {
+            // @phpstan-ignore-next-line property.dynamicName
             $entity->{$this->schema->getPrimaryColumn()->columnName} = (int) $lastInsertId;
         }
     }

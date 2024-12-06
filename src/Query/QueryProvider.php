@@ -59,6 +59,7 @@ readonly class QueryProvider
     /**
      * @template T of object
      * @param T $entity
+     * @return Update<T>
      */
     public function update(object $entity): Update
     {
@@ -68,6 +69,7 @@ readonly class QueryProvider
     /**
      * @template T of object
      * @param T $entity
+     * @return Delete<T>
      */
     public function delete(object $entity): Delete
     {

@@ -18,6 +18,7 @@ readonly class UpdateFactory
     /**
      * @template T of object
      * @param T $entity
+     * @return Update<T>
      */
     public function create(object $entity): Update
     {

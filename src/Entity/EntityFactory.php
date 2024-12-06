@@ -49,6 +49,7 @@ class EntityFactory
         $propertiesNotInConstructor = $this->entityReflection->getPropertiesNotInConstructor($entityClass);
         foreach ($propertiesNotInConstructor as $property) {
             $columnSchema = $entitySchema->columns[$property->getName()];
+            // @phpstan-ignore-next-line property.dynamicName
             $entity->{$property->getName()} = $this->mapper->mapToProperty(
                 $entitySchema,
                 $columnSchema,

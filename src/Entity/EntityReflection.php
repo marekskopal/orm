@@ -16,7 +16,7 @@ class EntityReflection
     /** @var array<class-string, array<ReflectionParameter>> */
     private array $constructorParameters = [];
 
-    /** @var array<class-string, array<ReflectionParameter>> */
+    /** @var array<class-string, array<ReflectionProperty>> */
     private array $propertiesNotInConstructor = [];
 
     /**
