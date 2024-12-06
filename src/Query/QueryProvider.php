@@ -32,7 +32,7 @@ readonly class QueryProvider
     {
         $this->selectFactory = new SelectFactory($this->database, $this->entityFactory, $this->schemaProvider);
         $this->insertFactory = new InsertFactory($this->database, $this->schemaProvider, $this->mapper);
-        $this->updateFactory = new UpdateFactory($this->database, $this->schemaProvider);
+        $this->updateFactory = new UpdateFactory($this->database, $this->schemaProvider, $this->mapper);
         $this->deleteFactory = new DeleteFactory($this->database, $this->schemaProvider);
     }
 

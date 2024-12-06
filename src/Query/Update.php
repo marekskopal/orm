@@ -4,24 +4,29 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Query;
 
+use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use PDO;
 use PDOStatement;
 
+/** @template T of object */
 class Update
 {
-    /** @var list<array{0: string, 1: string, 2: scalar}> */
-    private array $values = [];
+    /** @var T */
+    private object $entity;
 
-    public function __construct(private readonly PDO $pdo, private readonly EntitySchema $schema,)
+    public function __construct(private readonly PDO $pdo, private readonly EntitySchema $schema, private readonly Mapper $mapper)
     {
     }
 
-    /** @param array<string, scalar> $values */
-    public function values(array $values = []): self
+    /**
+     * @param T $entity
+     * @return Insert<T>
+     */
+    public function entity(object $entity): self
     {
-        $this->values[] = $values;
+        $this->entity = $entity;
 
         return $this;
     }
@@ -31,34 +36,42 @@ class Update
         $this->query();
     }
 
-    private function query(): PDOStatement
+    public function getSql(): string
     {
-        $pdoStatement = $this->pdo->prepare($this->getSql());
-        $pdoStatement->execute($this->values);
-        return $pdoStatement;
-    }
+        if (!isset($this->entity)) {
+            throw new \LogicException('No entity to update');
+        }
 
-    private function getSql(): string
-    {
         return implode(' ', [
-            'INSERT INTO',
+            'UPDATE',
             $this->schema->table,
-            implode(',', $this->getColumns()),
-            $this->getValuesQuery(),
+            'SET',
+            $this->getSetQuery(),
         ]);
     }
 
-    /** @return array<string, string> */
-    private function getColumns(): array
+    private function query(): PDOStatement
     {
-        return array_map(fn(ColumnSchema $column): string => $column->columnName, $this->schema->columns);
+        $pdoStatement = $this->pdo->prepare($this->getSql());
+        $pdoStatement->execute($this->getValues());
+        return $pdoStatement;
     }
 
-    private function getValuesQuery(): string
+    private function getSetQuery(): string
     {
-        return 'VALUES(' . implode(
-            ',',
-            array_map(fn(ColumnSchema $column): string => ':' . $column->columnName, $this->schema->columns),
-        ) . ')';
+        return implode(',', array_map(
+            fn(ColumnSchema $column): string => $column->columnName . '=:' . $column->propertyName,
+            $this->schema->getInsertableColumns(),
+        ));
+    }
+
+    /** @return array<string, string|int|float|null> */
+    private function getValues(): array
+    {
+        return array_map(
+        // @phpstan-ignore-next-line argument.type property.dynamicName
+            fn(ColumnSchema $column): string|int|float|null => $this->mapper->mapToColumn($column, $this->entity->{$column->propertyName}),
+            $this->schema->getInsertableColumns(),
+        );
     }
 }
