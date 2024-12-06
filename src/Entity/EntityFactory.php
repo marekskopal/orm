@@ -21,7 +21,7 @@ class EntityFactory
     /**
      * @template T of object
      * @param class-string<T> $entityClass
-     * @param array<string, float|int|string> $values
+     * @param array<string, float|int|string|null> $values
      * @return T
      */
     public function create(string $entityClass, array $values): object

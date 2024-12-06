@@ -29,9 +29,17 @@ class Mapper
     public function mapToProperty(
         EntitySchema $entitySchema,
         ColumnSchema $columnSchema,
-        string|int|float $value,
-    ): string|int|float|bool|object
+        string|int|float|null $value,
+    ): string|int|float|bool|object|null
     {
+        if ($value === null) {
+            if (!$columnSchema->isNullable) {
+                throw new \RuntimeException(sprintf('Column "%s" is not nullable', $columnSchema->columnName));
+            }
+
+            return null;
+        }
+
         return match ($columnSchema->propertyType) {
             PropertyTypeEnum::String => (string) $value,
             PropertyTypeEnum::Int => (int) $value,
@@ -42,8 +50,16 @@ class Mapper
         };
     }
 
-    public function mapToColumn(ColumnSchema $columnSchema, string|int|float|bool|object $value,): string|int|float
+    public function mapToColumn(ColumnSchema $columnSchema, string|int|float|bool|object|null $value,): string|int|float|null
     {
+        if ($value === null) {
+            if (!$columnSchema->isNullable) {
+                throw new \RuntimeException(sprintf('Column "%s" is not nullable', $columnSchema->columnName));
+            }
+
+            return null;
+        }
+
         return match ($columnSchema->propertyType) {
             PropertyTypeEnum::String => (string) $value,
             PropertyTypeEnum::Int => (int) $value,

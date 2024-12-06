@@ -16,8 +16,11 @@ use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 abstract class AbstractRepository implements RepositoryInterface
 {
     /** @param class-string<T> $entityClass */
-    public function __construct(private readonly string $entityClass, private readonly QueryProvider $queryProvider, private readonly SchemaProvider $schemaProvider)
-    {
+    public function __construct(
+        private readonly string $entityClass,
+        private readonly QueryProvider $queryProvider,
+        private readonly SchemaProvider $schemaProvider,
+    ) {
     }
 
     /** @return Select<T> */
@@ -44,9 +47,7 @@ abstract class AbstractRepository implements RepositoryInterface
         return $this->select()->where($where)->fetch();
     }
 
-    /**
-     * @param T $entity
-     */
+    /** @param T $entity */
     public function persist(object $entity): void
     {
         $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entity::class);
@@ -59,9 +60,7 @@ abstract class AbstractRepository implements RepositoryInterface
         $this->queryProvider->update($entity)->execute();
     }
 
-    /**
-     * @param T $entity
-     */
+    /** @param T $entity */
     public function delete(object $entity): void
     {
         $this->queryProvider->delete($entity);

@@ -32,7 +32,7 @@ final class EntityFactoryTest extends TestCase
             ->willReturn(null);
         $mapper = $this->createMock(Mapper::class);
         $mapper->method('mapToProperty')
-            ->willReturn('John', 'Doe', 'johh.doe@example.com', true, 1);
+            ->willReturn('John', null, 'Doe', 'johh.doe@example.com', true, 1);
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $schemaProvider->method('getPrimaryColumnSchema')
             ->willReturn(new ColumnSchema('id', PropertyTypeEnum::Int, 'id', 'int'));
@@ -48,6 +48,7 @@ final class EntityFactoryTest extends TestCase
         $entity = $entityFactory->create(UserFixture::class, [
             'id' => 1,
             'first_name' => 'John',
+            'middle_name' => null,
             'last_name' => 'Doe',
             'email' => 'johh.doe@example.com',
             'is_active' => 1,
@@ -55,6 +56,7 @@ final class EntityFactoryTest extends TestCase
 
         self::assertInstanceOf(UserFixture::class, $entity);
         self::assertEquals('John', $entity->firstName);
+        self::assertEquals(null, $entity->middleName);
         self::assertEquals('Doe', $entity->lastName);
         self::assertEquals('johh.doe@example.com', $entity->email);
         self::assertEquals(true, $entity->isActive);

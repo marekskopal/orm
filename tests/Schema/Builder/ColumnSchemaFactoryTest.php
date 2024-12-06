@@ -51,6 +51,29 @@ class ColumnSchemaFactoryTest extends TestCase
         self::assertEquals($columnSchemaExpected, $columnSchema);
     }
 
+    public function testCreateFromColumnStringNullable(): void
+    {
+        $columnSchemaFactory = new ColumnSchemaFactory();
+
+        $columnSchema = $columnSchemaFactory->create(
+            new ReflectionProperty(
+                UserFixture::class,
+                'middleName',
+            ),
+            CaseEnum::SnakeCase,
+        );
+
+        $columnSchemaExpected = new ColumnSchema(
+            propertyName: 'middleName',
+            propertyType: PropertyTypeEnum::String,
+            columnName: 'middle_name',
+            columnType: 'varchar(255)',
+            isNullable: true,
+        );
+
+        self::assertEquals($columnSchemaExpected, $columnSchema);
+    }
+
     public function testCreateFromColumnInt(): void
     {
         $columnSchemaFactory = new ColumnSchemaFactory();

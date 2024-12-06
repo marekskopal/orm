@@ -49,6 +49,7 @@ class ColumnSchemaFactory
             columnName: CaseUtils::toCase($columnCase, $reflectionProperty->getName()),
             columnType: $attributeInstance->type,
             isPrimary: $attributeInstance->primary,
+            isNullable: $attributeInstance->nullable,
         );
     }
 

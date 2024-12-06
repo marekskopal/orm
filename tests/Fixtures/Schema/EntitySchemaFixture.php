@@ -42,6 +42,13 @@ class EntitySchemaFixture
                     columnName: 'first_name',
                     columnType: 'varchar',
                 ),
+                'middleName' => new ColumnSchema(
+                    propertyName: 'middleName',
+                    propertyType: PropertyTypeEnum::String,
+                    columnName: 'middle_name',
+                    columnType: 'varchar',
+                    isNullable: true,
+                ),
                 'lastName' => new ColumnSchema(
                     propertyName: 'lastName',
                     propertyType: PropertyTypeEnum::String,

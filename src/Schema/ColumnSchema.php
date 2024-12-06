@@ -19,6 +19,7 @@ readonly class ColumnSchema
         public ?string $relationEntityClass = null,
         public bool $isPrimary = false,
         public bool $isAutoIncrement = false,
+        public bool $isNullable = false,
     ) {
     }
 }
