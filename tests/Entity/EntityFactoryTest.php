@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Entity;
 
+use DateTimeImmutable;
 use MarekSkopal\ORM\Entity\EntityCache;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Entity\EntityReflection;
@@ -32,7 +33,7 @@ final class EntityFactoryTest extends TestCase
             ->willReturn(null);
         $mapper = $this->createMock(Mapper::class);
         $mapper->method('mapToProperty')
-            ->willReturn('John', null, 'Doe', 'johh.doe@example.com', true, 1);
+            ->willReturn(new DateTimeImmutable('2024-01-01 00:00'), 'John', null, 'Doe', 'johh.doe@example.com', true, 1);
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $schemaProvider->method('getPrimaryColumnSchema')
             ->willReturn(new ColumnSchema('id', PropertyTypeEnum::Int, 'id', 'int'));
@@ -47,6 +48,7 @@ final class EntityFactoryTest extends TestCase
         $entityFactory->setMapper($mapper);
         $entity = $entityFactory->create(UserFixture::class, [
             'id' => 1,
+            'created_at' => '2024-01-01 00:00',
             'first_name' => 'John',
             'middle_name' => null,
             'last_name' => 'Doe',

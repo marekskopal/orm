@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Mapper;
 
+use DateTime;
+use DateTimeImmutable;
+use DateTimeInterface;
 use Iterator;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Schema\ColumnSchema;
@@ -46,11 +49,13 @@ class Mapper
             PropertyTypeEnum::Float => (float) $value,
             PropertyTypeEnum::Bool => (bool) $value,
             PropertyTypeEnum::Uuid => Uuid::fromString((string) $value),
+            PropertyTypeEnum::DateTime => $this->mapDateTimeToProperty($columnSchema, $value),
+            PropertyTypeEnum::DateTimeImmutable => $this->mapDateTimeToProperty($columnSchema, $value),
             PropertyTypeEnum::Relation => $this->mapRelationToProperty($entitySchema, $columnSchema, (int) $value),
         };
     }
 
-    public function mapToColumn(ColumnSchema $columnSchema, string|int|float|bool|object|null $value,): string|int|float|null
+    public function mapToColumn(ColumnSchema $columnSchema, string|int|float|bool|object|null $value): string|int|float|null
     {
         if ($value === null) {
             if (!$columnSchema->isNullable) {
@@ -66,6 +71,8 @@ class Mapper
             PropertyTypeEnum::Float => (float) $value,
             PropertyTypeEnum::Bool => (int) $value,
             PropertyTypeEnum::Uuid => (string) $value,
+            PropertyTypeEnum::DateTime => $this->mapDateTimeToColumn($columnSchema, $value),
+            PropertyTypeEnum::DateTimeImmutable => $this->mapDateTimeToColumn($columnSchema, $value),
             PropertyTypeEnum::Relation => $this->mapRelationToColumn($columnSchema, $value),
         };
     }
@@ -127,5 +134,35 @@ class Mapper
         $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
         // @phpstan-ignore-next-line property.dynamicName
         return $value->{$primaryColumnSchema->columnName};
+    }
+
+    private function mapDateTimeToProperty(ColumnSchema $columnSchema, string|int $value): DateTimeInterface
+    {
+        if ($columnSchema->propertyType === PropertyTypeEnum::DateTime) {
+            if (is_int($value)) {
+                return new DateTime('@' . $value);
+            }
+
+            return new DateTime($value);
+        }
+
+        if (is_int($value)) {
+            return new DateTimeImmutable('@' . $value);
+        }
+
+        return new DateTimeImmutable($value);
+    }
+
+    private function mapDateTimeToColumn(ColumnSchema $columnSchema, DateTimeInterface $value): string|int
+    {
+        if ($columnSchema->columnType === 'timestamp') {
+            return $value->getTimestamp();
+        }
+
+        if ($columnSchema->columnType === 'date') {
+            return $value->format('Y-m-d');
+        }
+
+        return $value->format('Y-m-d H:i:s');
     }
 }

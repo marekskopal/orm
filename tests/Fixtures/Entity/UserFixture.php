@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Fixtures\Entity;
 
+use DateTimeImmutable;
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\Entity;
 use MarekSkopal\ORM\Tests\Fixtures\Repository\UserRepositoryFixture;
@@ -15,6 +16,8 @@ final class UserFixture
     public int $id;
 
     public function __construct(
+        #[Column(type: 'timestamp')]
+        public DateTimeImmutable $createdAt,
         #[Column(type: 'varchar(255)')]
         public string $firstName,
         #[Column(type: 'varchar(255)', nullable: true)]
@@ -29,6 +32,7 @@ final class UserFixture
     }
 
     public static function create(
+        ?DateTimeImmutable $createdAt = null,
         ?string $firstName = null,
         ?string $middleName = null,
         ?string $lastName = null,
@@ -36,6 +40,7 @@ final class UserFixture
         ?bool $isActive = true,
     ): self {
         return new self(
+            createdAt: $createdAt ?? new DateTimeImmutable('2024-01-01 00:00:00'),
             firstName: $firstName ?? 'John',
             middleName: $middleName,
             lastName: $lastName ?? 'Doe',

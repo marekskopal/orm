@@ -36,6 +36,12 @@ class EntitySchemaFixture
                     columnType: 'int',
                     isPrimary: true,
                 ),
+                'createdAt' => new ColumnSchema(
+                    propertyName: 'createdAt',
+                    propertyType: PropertyTypeEnum::DateTimeImmutable,
+                    columnName: 'created_at',
+                    columnType: 'datetime',
+                ),
                 'firstName' => new ColumnSchema(
                     propertyName: 'firstName',
                     propertyType: PropertyTypeEnum::String,
