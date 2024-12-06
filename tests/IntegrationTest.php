@@ -38,6 +38,7 @@ use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
+use MarekSkopal\ORM\Utils\ValidationUtils;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
@@ -73,6 +74,7 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(CaseUtils::class)]
 #[UsesClass(ClassScanner::class)]
 #[UsesClass(NameUtils::class)]
+#[UsesClass(ValidationUtils::class)]
 final class IntegrationTest extends TestCase
 {
     public function testSelectEntity(): void

@@ -18,6 +18,7 @@ use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
+use MarekSkopal\ORM\Utils\ValidationUtils;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
@@ -27,6 +28,7 @@ use Ramsey\Uuid\Uuid;
 #[CoversClass(Mapper::class)]
 #[UsesClass(ColumnSchema::class)]
 #[UsesClass(EntitySchema::class)]
+#[UsesClass(ValidationUtils::class)]
 final class MapperTest extends TestCase
 {
     public function testMapColumnString(): void

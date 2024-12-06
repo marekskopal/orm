@@ -14,6 +14,7 @@ use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
+use MarekSkopal\ORM\Utils\ValidationUtils;
 use Ramsey\Uuid\Uuid;
 
 class Mapper
@@ -49,9 +50,11 @@ class Mapper
             PropertyTypeEnum::Float => (float) $value,
             PropertyTypeEnum::Bool => (bool) $value,
             PropertyTypeEnum::Uuid => Uuid::fromString((string) $value),
-            PropertyTypeEnum::DateTime => $this->mapDateTimeToProperty($columnSchema, $value),
-            PropertyTypeEnum::DateTimeImmutable => $this->mapDateTimeToProperty($columnSchema, $value),
-            PropertyTypeEnum::Enum => $columnSchema->enumClass::from($value),
+            PropertyTypeEnum::DateTime => $this->mapDateTimeToProperty($columnSchema, ValidationUtils::checkIntString($value)),
+            PropertyTypeEnum::DateTimeImmutable => $this->mapDateTimeToProperty($columnSchema, ValidationUtils::checkIntString($value)),
+            PropertyTypeEnum::Enum => $columnSchema->enumClass !== null ? $columnSchema->enumClass::from(
+                ValidationUtils::checkString($value),
+            ) : null,
             PropertyTypeEnum::Relation => $this->mapRelationToProperty($entitySchema, $columnSchema, (int) $value),
         };
     }
@@ -67,15 +70,15 @@ class Mapper
         }
 
         return match ($columnSchema->propertyType) {
-            PropertyTypeEnum::String => (string) $value,
-            PropertyTypeEnum::Int => (int) $value,
-            PropertyTypeEnum::Float => (float) $value,
-            PropertyTypeEnum::Bool => (int) $value,
-            PropertyTypeEnum::Uuid => (string) $value,
-            PropertyTypeEnum::DateTime => $this->mapDateTimeToColumn($columnSchema, $value),
-            PropertyTypeEnum::DateTimeImmutable => $this->mapDateTimeToColumn($columnSchema, $value),
-            PropertyTypeEnum::Enum => $value->value,
-            PropertyTypeEnum::Relation => $this->mapRelationToColumn($columnSchema, $value),
+            PropertyTypeEnum::String => ValidationUtils::checkString($value),
+            PropertyTypeEnum::Int => ValidationUtils::checkInt($value),
+            PropertyTypeEnum::Float => ValidationUtils::checkFloat($value),
+            PropertyTypeEnum::Bool => (int) ValidationUtils::checkBool($value),
+            PropertyTypeEnum::Uuid => (string) ValidationUtils::checkUuid($value),
+            PropertyTypeEnum::DateTime => $this->mapDateTimeToColumn($columnSchema, ValidationUtils::checkDatetime($value)),
+            PropertyTypeEnum::DateTimeImmutable => $this->mapDateTimeToColumn($columnSchema, ValidationUtils::checkDatetime($value)),
+            PropertyTypeEnum::Enum => ValidationUtils::checkEnum($value)->value,
+            PropertyTypeEnum::Relation => $this->mapRelationToColumn($columnSchema, ValidationUtils::checkObject($value)),
         };
     }
 
