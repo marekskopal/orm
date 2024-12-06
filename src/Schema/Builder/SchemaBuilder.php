@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Schema\Builder;
 
-use Laminas\File\ClassFileLocator;
-use Laminas\File\PhpClassFile;
 use MarekSkopal\ORM\Attribute\Entity;
+use MarekSkopal\ORM\Schema\Builder\ClassScanner\ClassScanner;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\CaseEnum;
 use MarekSkopal\ORM\Schema\Schema;
+use MarekSkopal\Router\Provider\ClassRouteProvider;
+use Nette\Utils\Finder;
 use ReflectionClass;
 
 class SchemaBuilder
@@ -53,11 +54,12 @@ class SchemaBuilder
         $entitiesSchema = [];
 
         foreach ($this->entityPaths as $path) {
-            $classFileLocator = new ClassFileLocator($path);
-            /** @var PhpClassFile $file */
-            foreach ($classFileLocator as $file) {
-                /** @var class-string $class */
-                foreach ($file->getClasses() as $class) {
+            $phpFiles = Finder::findFiles($path . '/**/*.php');
+
+            foreach ($phpFiles as $phpFile) {
+                $classScanner = new ClassScanner($phpFile->getRealPath());
+
+                foreach ($classScanner->findClasses() as $class) {
                     $reflectionClass = new ReflectionClass($class);
                     $attributes = $reflectionClass->getAttributes(Entity::class);
 
