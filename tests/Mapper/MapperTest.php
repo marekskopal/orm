@@ -34,8 +34,9 @@ final class MapperTest extends TestCase
         $columnSchema = new ColumnSchema('name', PropertyTypeEnum::String, 'name', 'varchar');
         $entitySchema = EntitySchemaFixture::create(columns: ['name' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider, $queryProvider);
-        $result = $mapper->mapColumn($entitySchema, $columnSchema, 'test');
+        $mapper = new Mapper($schemaProvider);
+        $mapper->setQueryProvider($queryProvider);
+        $result = $mapper->mapToProperty($entitySchema, $columnSchema, 'test');
         self::assertSame('test', $result);
     }
 
@@ -47,8 +48,9 @@ final class MapperTest extends TestCase
         $columnSchema = new ColumnSchema('age', PropertyTypeEnum::Int, 'age', 'int');
         $entitySchema = EntitySchemaFixture::create(columns: ['age' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider, $queryProvider);
-        $result = $mapper->mapColumn($entitySchema, $columnSchema, 25);
+        $mapper = new Mapper($schemaProvider);
+        $mapper->setQueryProvider($queryProvider);
+        $result = $mapper->mapToProperty($entitySchema, $columnSchema, 25);
         self::assertSame(25, $result);
     }
 
@@ -60,8 +62,9 @@ final class MapperTest extends TestCase
         $columnSchema = new ColumnSchema('price', PropertyTypeEnum::Float, 'price', 'float');
         $entitySchema = EntitySchemaFixture::create(columns: ['price' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider, $queryProvider);
-        $result = $mapper->mapColumn($entitySchema, $columnSchema, 19.99);
+        $mapper = new Mapper($schemaProvider);
+        $mapper->setQueryProvider($queryProvider);
+        $result = $mapper->mapToProperty($entitySchema, $columnSchema, 19.99);
         self::assertSame(19.99, $result);
     }
 
@@ -73,8 +76,9 @@ final class MapperTest extends TestCase
         $columnSchema = new ColumnSchema('isActive', PropertyTypeEnum::Bool, 'is_active', 'tinyint');
         $entitySchema = EntitySchemaFixture::create(columns: ['isActive' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider, $queryProvider);
-        $result = $mapper->mapColumn($entitySchema, $columnSchema, 1);
+        $mapper = new Mapper($schemaProvider);
+        $mapper->setQueryProvider($queryProvider);
+        $result = $mapper->mapToProperty($entitySchema, $columnSchema, 1);
         self::assertTrue($result);
     }
 
@@ -86,8 +90,9 @@ final class MapperTest extends TestCase
         $columnSchema = new ColumnSchema('code', PropertyTypeEnum::Uuid, 'code', 'uuid');
         $entitySchema = EntitySchemaFixture::create(columns: ['code' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider, $queryProvider);
-        $result = $mapper->mapColumn($entitySchema, $columnSchema, 'f47ac10b-58cc-4372-a567-0e02b2c3d479');
+        $mapper = new Mapper($schemaProvider);
+        $mapper->setQueryProvider($queryProvider);
+        $result = $mapper->mapToProperty($entitySchema, $columnSchema, 'f47ac10b-58cc-4372-a567-0e02b2c3d479');
         self::assertInstanceOf(LazyUuidFromString::class, $result);
         self::assertSame((string) Uuid::fromString('f47ac10b-58cc-4372-a567-0e02b2c3d479'), (string) $result);
     }
@@ -103,12 +108,13 @@ final class MapperTest extends TestCase
         $queryProvider = $this->createMock(QueryProvider::class);
         $queryProvider->method('select')->willReturn($select);
 
-        $mapper = new Mapper($schemaProvider, $queryProvider);
+        $mapper = new Mapper($schemaProvider);
+        $mapper->setQueryProvider($queryProvider);
 
         $columnSchema = new ColumnSchema('user', PropertyTypeEnum::Relation, 'user_id', 'int', RelationEnum::ManyToOne, UserFixture::class);
         $entitySchema = EntitySchemaFixture::create(columns: ['user' => $columnSchema]);
 
-        $result = $mapper->mapColumn($entitySchema, $columnSchema, 1);
+        $result = $mapper->mapToProperty($entitySchema, $columnSchema, 1);
         self::assertInstanceOf(UserFixture::class, $result);
     }
 
@@ -123,12 +129,13 @@ final class MapperTest extends TestCase
         $queryProvider = $this->createMock(QueryProvider::class);
         $queryProvider->method('select')->willReturn($select);
 
-        $mapper = new Mapper($schemaProvider, $queryProvider);
+        $mapper = new Mapper($schemaProvider);
+        $mapper->setQueryProvider($queryProvider);
 
         $columnSchema = new ColumnSchema('users', PropertyTypeEnum::Relation, 'users', 'int', RelationEnum::OneToMany, UserFixture::class);
         $entitySchema = EntitySchemaFixture::create(columns: ['users' => $columnSchema]);
 
-        $result = $mapper->mapColumn($entitySchema, $columnSchema, 1);
+        $result = $mapper->mapToProperty($entitySchema, $columnSchema, 1);
         self::assertInstanceOf(Iterator::class, $result);
     }
 
@@ -149,8 +156,9 @@ final class MapperTest extends TestCase
         $queryProvider = $this->createMock(QueryProvider::class);
         $queryProvider->method('select')->willReturn($select);
 
-        $mapper = new Mapper($schemaProvider, $queryProvider);
+        $mapper = new Mapper($schemaProvider);
+        $mapper->setQueryProvider($queryProvider);
 
-        $mapper->mapColumn($entitySchema, $columnSchema, 1);
+        $mapper->mapToProperty($entitySchema, $columnSchema, 1);
     }
 }

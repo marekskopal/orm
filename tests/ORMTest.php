@@ -9,8 +9,11 @@ use MarekSkopal\ORM\Database\SqliteDatabase;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\ORM;
+use MarekSkopal\ORM\Query\Factory\DeleteFactory;
+use MarekSkopal\ORM\Query\Factory\InsertFactory;
+use MarekSkopal\ORM\Query\Factory\SelectFactory;
+use MarekSkopal\ORM\Query\Factory\UpdateFactory;
 use MarekSkopal\ORM\Query\QueryProvider;
-use MarekSkopal\ORM\Query\SelectFactory;
 use MarekSkopal\ORM\Repository\AbstractRepository;
 use MarekSkopal\ORM\Repository\RepositoryInterface;
 use MarekSkopal\ORM\Schema\ColumnSchema;
@@ -30,6 +33,9 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(Mapper::class)]
 #[UsesClass(QueryProvider::class)]
 #[UsesClass(SelectFactory::class)]
+#[UsesClass(InsertFactory::class)]
+#[UsesClass(UpdateFactory::class)]
+#[UsesClass(DeleteFactory::class)]
 #[UsesClass(AbstractRepository::class)]
 #[UsesClass(ColumnSchema::class)]
 #[UsesClass(EntitySchema::class)]

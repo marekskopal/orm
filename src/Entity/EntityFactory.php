@@ -36,15 +36,26 @@ class EntityFactory
 
         $entitySchema = $this->schemaProvider->getEntitySchema($entityClass);
 
-        $parameters = $this->entityReflection->getParameters($entityClass);
+        $constructorParameters = $this->entityReflection->getConstructorParameters($entityClass);
 
         $properties = [];
-        foreach ($parameters as $parameter) {
+        foreach ($constructorParameters as $parameter) {
             $columnSchema = $entitySchema->columns[$parameter->getName()];
-            $properties[] = $this->mapper->mapColumn($entitySchema, $columnSchema, $values[$columnSchema->columnName]);
+            $properties[] = $this->mapper->mapToProperty($entitySchema, $columnSchema, $values[$columnSchema->columnName]);
         }
 
         $entity = new $entityClass(...$properties);
+
+        $propertiesNotInConstructor = $this->entityReflection->getPropertiesNotInConstructor($entityClass);
+        foreach ($propertiesNotInConstructor as $property) {
+            $columnSchema = $entitySchema->columns[$property->getName()];
+            $entity->{$property->getName()} = $this->mapper->mapToProperty(
+                $entitySchema,
+                $columnSchema,
+                $values[$columnSchema->columnName],
+            );
+        }
+
         $this->entityCache->addEntity($entity);
 
         return $entity;

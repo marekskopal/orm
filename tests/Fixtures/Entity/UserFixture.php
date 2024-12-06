@@ -11,9 +11,10 @@ use MarekSkopal\ORM\Tests\Fixtures\Repository\UserRepositoryFixture;
 #[Entity(table: 'users', repositoryClass: UserRepositoryFixture::class)]
 final class UserFixture
 {
+    #[Column(type: 'int', primary: true)]
+    public int $id;
+
     public function __construct(
-        #[Column(type: 'int', primary: true)]
-        public int $id,
         #[Column(type: 'varchar(255)')]
         public string $firstName,
         #[Column(type: 'varchar(255)')]
@@ -26,12 +27,11 @@ final class UserFixture
     }
 
     public static function create(
-        int $id = 1,
         string $firstName = 'John',
         string $lastName = 'Doe',
         string $email = 'john.doe@example.com',
         bool $isActive = true,
     ): self {
-        return new self(id: $id, firstName: $firstName, lastName: $lastName, email: $email, isActive: $isActive);
+        return new self(firstName: $firstName, lastName: $lastName, email: $email, isActive: $isActive);
     }
 }

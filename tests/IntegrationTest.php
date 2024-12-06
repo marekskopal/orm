@@ -14,9 +14,13 @@ use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Entity\EntityReflection;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\ORM;
+use MarekSkopal\ORM\Query\Factory\DeleteFactory;
+use MarekSkopal\ORM\Query\Factory\InsertFactory;
+use MarekSkopal\ORM\Query\Factory\SelectFactory;
+use MarekSkopal\ORM\Query\Factory\UpdateFactory;
+use MarekSkopal\ORM\Query\Insert;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
-use MarekSkopal\ORM\Query\SelectFactory;
 use MarekSkopal\ORM\Repository\AbstractRepository;
 use MarekSkopal\ORM\Schema\Builder\ColumnSchemaFactory;
 use MarekSkopal\ORM\Schema\Builder\EntitySchemaFactory;
@@ -47,6 +51,10 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(QueryProvider::class)]
 #[UsesClass(Select::class)]
 #[UsesClass(SelectFactory::class)]
+#[UsesClass(InsertFactory::class)]
+#[UsesClass(Insert::class)]
+#[UsesClass(UpdateFactory::class)]
+#[UsesClass(DeleteFactory::class)]
 #[UsesClass(AbstractRepository::class)]
 #[UsesClass(ColumnSchemaFactory::class)]
 #[UsesClass(EntitySchemaFactory::class)]
@@ -131,5 +139,40 @@ final class IntegrationTest extends TestCase
         $address = $userById->address;
         self::assertInstanceOf(AddressFixture::class, $address);
         self::assertEquals(1, $address->id);
+    }
+
+    public function testInsetEntity(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_users.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(UserFixture::class);
+
+        $user = UserFixture::create();
+
+        $repository->persist($user);
+
+        self::assertSame(3, $user->id);
+
+        $users = $repository->find();
+        self::assertCount(3, iterator_to_array($users));
     }
 }

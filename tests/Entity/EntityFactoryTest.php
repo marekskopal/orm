@@ -31,8 +31,8 @@ final class EntityFactoryTest extends TestCase
         $entityCache->method('getEntity')
             ->willReturn(null);
         $mapper = $this->createMock(Mapper::class);
-        $mapper->method('mapColumn')
-            ->willReturn(1, 'John', 'Doe', 'johh.doe@example.com', true);
+        $mapper->method('mapToProperty')
+            ->willReturn('John', 'Doe', 'johh.doe@example.com', true, 1);
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $schemaProvider->method('getPrimaryColumnSchema')
             ->willReturn(new ColumnSchema('id', PropertyTypeEnum::Int, 'id', 'int'));

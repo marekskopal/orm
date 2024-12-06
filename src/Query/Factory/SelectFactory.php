@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MarekSkopal\ORM\Query;
+namespace MarekSkopal\ORM\Query\Factory;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\EntityFactory;
+use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 
 readonly class SelectFactory

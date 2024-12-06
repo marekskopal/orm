@@ -21,7 +21,6 @@ readonly class SchemaProvider
 
     public function getPrimaryColumnSchema(string $entityClass): ColumnSchema
     {
-        return array_find($this->getEntitySchema($entityClass)->columns, fn(ColumnSchema $column): bool => $column->isPrimary)
-            ?? throw new \InvalidArgumentException('Primary column schema not found.');
+        return $this->getEntitySchema($entityClass)->getPrimaryColumn();
     }
 }

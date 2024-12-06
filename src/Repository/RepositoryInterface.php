@@ -23,4 +23,10 @@ interface RepositoryInterface
      * @return T|null
      */
     public function findOne(array $where = []): ?object;
+
+    /** @param T $entity */
+    public function persist(object $entity): void;
+
+    /** @param T $entity */
+    public function delete(object $entity): void;
 }

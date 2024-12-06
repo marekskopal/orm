@@ -34,8 +34,9 @@ readonly class ORM
         $this->entityCache = new EntityCache();
         $this->entityReflection = new EntityReflection();
         $this->entityFactory = new EntityFactory($this->schemaProvider, $this->entityCache, $this->entityReflection);
-        $this->queryProvider = new QueryProvider($this->database, $this->entityFactory, $this->schemaProvider);
-        $this->mapper = new Mapper($this->schemaProvider, $this->queryProvider);
+        $this->mapper = new Mapper($this->schemaProvider);
+        $this->queryProvider = new QueryProvider($this->database, $this->entityFactory, $this->schemaProvider, $this->mapper);
+        $this->mapper->setQueryProvider($this->queryProvider);
         $this->entityFactory->setMapper($this->mapper);
     }
 
@@ -48,6 +49,6 @@ readonly class ORM
     {
         $repositoryClass = $this->schema->entities[$entityClass]->repositoryClass;
 
-        return new $repositoryClass($entityClass, $this->queryProvider);
+        return new $repositoryClass($entityClass, $this->queryProvider, $this->schemaProvider);
     }
 }

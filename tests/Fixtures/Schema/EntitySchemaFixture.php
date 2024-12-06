@@ -34,6 +34,7 @@ class EntitySchemaFixture
                     propertyType: PropertyTypeEnum::Int,
                     columnName: 'id',
                     columnType: 'int',
+                    isPrimary: true,
                 ),
                 'firstName' => new ColumnSchema(
                     propertyName: 'firstName',
