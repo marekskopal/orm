@@ -129,7 +129,7 @@ final class MapperTest extends TestCase
         self::assertSame('2024-01-01 00:00:00', $result->format('Y-m-d H:i:s'));
     }
 
-    public function testMapColumnDatetimeImmutable(): void
+    public function testMapColumnDatetimeImmutableFromTimestamp(): void
     {
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $queryProvider = $this->createMock(QueryProvider::class);
@@ -140,6 +140,21 @@ final class MapperTest extends TestCase
         $mapper = new Mapper($schemaProvider);
         $mapper->setQueryProvider($queryProvider);
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 1704067200);
+        self::assertInstanceOf(DateTimeImmutable::class, $result);
+        self::assertSame('2024-01-01 00:00:00', $result->format('Y-m-d H:i:s'));
+    }
+
+    public function testMapColumnDatetimeImmutableFromDatetime(): void
+    {
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $queryProvider = $this->createMock(QueryProvider::class);
+
+        $columnSchema = new ColumnSchema('createdAt', PropertyTypeEnum::DateTimeImmutable, 'created_at', 'timestamp');
+        $entitySchema = EntitySchemaFixture::create(columns: ['createdAt' => $columnSchema]);
+
+        $mapper = new Mapper($schemaProvider);
+        $mapper->setQueryProvider($queryProvider);
+        $result = $mapper->mapToProperty($entitySchema, $columnSchema, '2024-01-01 00:00:00');
         self::assertInstanceOf(DateTimeImmutable::class, $result);
         self::assertSame('2024-01-01 00:00:00', $result->format('Y-m-d H:i:s'));
     }
