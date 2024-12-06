@@ -9,7 +9,6 @@ use MarekSkopal\ORM\Schema\Builder\ClassScanner\ClassScanner;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\CaseEnum;
 use MarekSkopal\ORM\Schema\Schema;
-use MarekSkopal\Router\Provider\ClassRouteProvider;
 use Nette\Utils\Finder;
 use ReflectionClass;
 

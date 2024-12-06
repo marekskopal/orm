@@ -9,6 +9,7 @@ use MarekSkopal\ORM\Repository\Repository;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\CaseEnum;
 use MarekSkopal\ORM\Utils\CaseUtils;
+use MarekSkopal\ORM\Utils\NameUtils;
 use ReflectionClass;
 
 class EntitySchemaFactory
@@ -28,7 +29,7 @@ class EntitySchemaFactory
         return new EntitySchema(
             entityClass: $reflectionClass->getName(),
             repositoryClass: $attribute->repositoryClass ?? Repository::class,
-            table: $attribute->table ?? CaseUtils::toCase($tableCase, $reflectionClass->getShortName()),
+            table: $attribute->table ?? NameUtils::getTableName(CaseUtils::toCase($tableCase, $reflectionClass->getShortName())),
             columns: $columns,
         );
     }
