@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Tests\Fixtures\Entity;
 use DateTimeImmutable;
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\Entity;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Repository\UserRepositoryFixture;
 
 #[Entity(table: 'users', repositoryClass: UserRepositoryFixture::class)]
@@ -28,6 +29,8 @@ final class UserFixture
         public string $email,
         #[Column(type: 'tinyint(1)')]
         public bool $isActive,
+        #[Column(type: 'enum', enum: UserTypeEnum::class)]
+        public UserTypeEnum $type,
     ) {
     }
 
@@ -38,6 +41,7 @@ final class UserFixture
         ?string $lastName = null,
         ?string $email = null,
         ?bool $isActive = true,
+        ?UserTypeEnum $type = null,
     ): self {
         return new self(
             createdAt: $createdAt ?? new DateTimeImmutable('2024-01-01 00:00:00'),
@@ -46,6 +50,7 @@ final class UserFixture
             lastName: $lastName ?? 'Doe',
             email: $email ?? 'john.doe@example.com',
             isActive: $isActive ?? true,
+            type: $type ?? UserTypeEnum::Admin,
         );
     }
 }

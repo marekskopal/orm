@@ -6,10 +6,10 @@ CREATE TABLE `users` (
     `middle_name` varchar(255) NULL,
     `last_name` varchar(255) NOT NULL,
     `email` varchar(255) NOT NULL,
-    `is_active` tinyint(1) NOT NULL
-
+    `is_active` tinyint(1) NOT NULL,
+    `type` TEXT NOT NULL
 );
 
-INSERT INTO `users` (`id`, `created_at`, `first_name`, `middle_name`, `last_name`, `email`, `is_active`) VALUES
-    (1, 1704067200, 'John', null, 'Doe', 'john.doe@example.com', 1),
-    (2, 1704067200, 'Jane', 'Janet', 'Doe', 'jane.doe@example.com', 0);
+INSERT INTO `users` (`id`, `created_at`, `first_name`, `middle_name`, `last_name`, `email`, `is_active`, `type`) VALUES
+    (1, 1704067200, 'John', null, 'Doe', 'john.doe@example.com', 1, 'admin'),
+    (2, 1704067200, 'Jane', 'Janet', 'Doe', 'jane.doe@example.com', 0, 'user');

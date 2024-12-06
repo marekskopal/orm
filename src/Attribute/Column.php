@@ -14,7 +14,7 @@ readonly class Column
         public ?string $name = null,
         public bool $primary = false,
         public bool $nullable = false,
-    )
-    {
+        public ?string $enum = null,
+    ) {
     }
 }

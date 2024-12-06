@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Schema\Enum;
 
+use BackedEnum;
 use DateTime;
 use DateTimeImmutable;
 use Ramsey\Uuid\UuidInterface;
@@ -17,6 +18,7 @@ enum PropertyTypeEnum
     case Uuid;
     case DateTime;
     case DateTimeImmutable;
+    case Enum;
     case Relation;
 
     public static function fromTypeName(string $typeName): self
@@ -26,10 +28,28 @@ enum PropertyTypeEnum
             'int' => self::Int,
             'float' => self::Float,
             'bool' => self::Bool,
-            UuidInterface::class => self::Uuid,
-            DateTime::class => self::DateTime,
-            DateTimeImmutable::class => self::DateTimeImmutable,
             default => throw new \InvalidArgumentException('Invalid type name'),
         };
+    }
+
+    public static function fromClassName(string $className): self
+    {
+        if (is_a($className, UuidInterface::class, true)) {
+            return self::Uuid;
+        }
+
+        if (is_a($className, DateTime::class, true)) {
+            return self::DateTime;
+        }
+
+        if (is_a($className, DateTimeImmutable::class, true)) {
+            return self::DateTimeImmutable;
+        }
+
+        if (is_a($className, BackedEnum::class, true)) {
+            return self::Enum;
+        }
+
+        throw new \InvalidArgumentException('Invalid class name');
     }
 }

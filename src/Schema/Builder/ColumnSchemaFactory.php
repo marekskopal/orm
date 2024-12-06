@@ -50,6 +50,7 @@ class ColumnSchemaFactory
             columnType: $attributeInstance->type,
             isPrimary: $attributeInstance->primary,
             isNullable: $attributeInstance->nullable,
+            enumClass: $attributeInstance->enum,
         );
     }
 
@@ -79,8 +80,10 @@ class ColumnSchemaFactory
             throw new \RuntimeException('Property type is not named');
         }
 
-        $type = $type->getName();
+        if ($type->isBuiltin()) {
+            return PropertyTypeEnum::fromTypeName($type->getName());
+        }
 
-        return PropertyTypeEnum::fromTypeName($type);
+        return PropertyTypeEnum::fromClassName($type->getName());
     }
 }

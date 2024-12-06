@@ -15,6 +15,7 @@ use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -142,6 +143,21 @@ final class MapperTest extends TestCase
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 1704067200);
         self::assertInstanceOf(DateTimeImmutable::class, $result);
         self::assertSame('2024-01-01 00:00:00', $result->format('Y-m-d H:i:s'));
+    }
+
+    public function testMapColumnEnum(): void
+    {
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $queryProvider = $this->createMock(QueryProvider::class);
+
+        $columnSchema = new ColumnSchema('type', PropertyTypeEnum::Enum, 'type', 'enum', enumClass: UserTypeEnum::class);
+        $entitySchema = EntitySchemaFixture::create(columns: ['type' => $columnSchema]);
+
+        $mapper = new Mapper($schemaProvider);
+        $mapper->setQueryProvider($queryProvider);
+        $result = $mapper->mapToProperty($entitySchema, $columnSchema, 'admin');
+        self::assertInstanceOf(UserTypeEnum::class, $result);
+        self::assertSame(UserTypeEnum::Admin, $result);
     }
 
     public function testMapColumnDatetimeImmutableFromDatetime(): void

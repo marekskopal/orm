@@ -51,6 +51,7 @@ class Mapper
             PropertyTypeEnum::Uuid => Uuid::fromString((string) $value),
             PropertyTypeEnum::DateTime => $this->mapDateTimeToProperty($columnSchema, $value),
             PropertyTypeEnum::DateTimeImmutable => $this->mapDateTimeToProperty($columnSchema, $value),
+            PropertyTypeEnum::Enum => $columnSchema->enumClass::from($value),
             PropertyTypeEnum::Relation => $this->mapRelationToProperty($entitySchema, $columnSchema, (int) $value),
         };
     }
@@ -73,6 +74,7 @@ class Mapper
             PropertyTypeEnum::Uuid => (string) $value,
             PropertyTypeEnum::DateTime => $this->mapDateTimeToColumn($columnSchema, $value),
             PropertyTypeEnum::DateTimeImmutable => $this->mapDateTimeToColumn($columnSchema, $value),
+            PropertyTypeEnum::Enum => $value->value,
             PropertyTypeEnum::Relation => $this->mapRelationToColumn($columnSchema, $value),
         };
     }

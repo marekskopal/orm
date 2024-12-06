@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Schema;
 
 use MarekSkopal\ORM\Repository\RepositoryInterface;
+use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 
 readonly class EntitySchema
 {
@@ -29,7 +30,7 @@ readonly class EntitySchema
     {
         return array_filter(
             $this->columns,
-            fn(ColumnSchema $column): bool => !$column->isPrimary && ($column->relationType === null || $column->relationType === RelationTypeEnum::ManyToOne),
+            fn(ColumnSchema $column): bool => !$column->isPrimary && ($column->relationType === null || $column->relationType === RelationEnum::ManyToOne),
         );
     }
 }

@@ -30,7 +30,7 @@ final class InsertTest extends TestCase
         $insert->entity(UserFixture::create());
 
         self::assertSame(
-            'INSERT INTO users (created_at,first_name,middle_name,last_name,email,is_active) VALUES (:created_at,:first_name,:middle_name,:last_name,:email,:is_active)',
+            'INSERT INTO users (created_at,first_name,middle_name,last_name,email,is_active,type) VALUES (:created_at,:first_name,:middle_name,:last_name,:email,:is_active,:type)',
             $insert->getSql(),
         );
     }

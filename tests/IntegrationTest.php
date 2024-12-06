@@ -145,7 +145,7 @@ final class IntegrationTest extends TestCase
         self::assertEquals(1, $address->id);
     }
 
-    public function testInsetEntity(): void
+    public function testInsertEntity(): void
     {
         $database = new SqliteDatabase(':memory:');
         $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_users.sql');

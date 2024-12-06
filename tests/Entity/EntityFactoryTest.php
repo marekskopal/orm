@@ -13,6 +13,7 @@ use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -33,7 +34,16 @@ final class EntityFactoryTest extends TestCase
             ->willReturn(null);
         $mapper = $this->createMock(Mapper::class);
         $mapper->method('mapToProperty')
-            ->willReturn(new DateTimeImmutable('2024-01-01 00:00'), 'John', null, 'Doe', 'johh.doe@example.com', true, 1);
+            ->willReturn(
+                new DateTimeImmutable('2024-01-01 00:00'),
+                'John',
+                null,
+                'Doe',
+                'johh.doe@example.com',
+                true,
+                UserTypeEnum::Admin,
+                1,
+            );
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $schemaProvider->method('getPrimaryColumnSchema')
             ->willReturn(new ColumnSchema('id', PropertyTypeEnum::Int, 'id', 'int'));
@@ -54,6 +64,7 @@ final class EntityFactoryTest extends TestCase
             'last_name' => 'Doe',
             'email' => 'johh.doe@example.com',
             'is_active' => 1,
+            'type' => 'admin',
         ]);
 
         self::assertInstanceOf(UserFixture::class, $entity);
