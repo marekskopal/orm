@@ -15,6 +15,7 @@ readonly class ColumnSchema
      * @param class-string<object>|null $relationEntityClass
      * @param class-string<BackedEnum>|null $enumClass
      * @param class-string<MapperInterface>|null $extensionClass
+     * @param array<string, mixed> $extensionOptions
      */
     public function __construct(
         public string $propertyName,
@@ -28,6 +29,7 @@ readonly class ColumnSchema
         public bool $isNullable = false,
         public ?string $enumClass = null,
         public ?string $extensionClass = null,
+        public array $extensionOptions = [],
     ) {
     }
 }

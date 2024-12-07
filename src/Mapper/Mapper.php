@@ -21,8 +21,11 @@ class Mapper implements MapperInterface
 {
     private QueryProvider $queryProvider;
 
+    private readonly ExtensionMapperProvider $extensionMapperProvider;
+
     public function __construct(private readonly SchemaProvider $schemaProvider)
     {
+        $this->extensionMapperProvider = new ExtensionMapperProvider();
     }
 
     public function setQueryProvider(QueryProvider $queryProvider): void
@@ -57,7 +60,11 @@ class Mapper implements MapperInterface
             ) : null,
             PropertyTypeEnum::Relation => $this->mapRelationToProperty($entitySchema, $columnSchema, (int) $value),
             PropertyTypeEnum::Extension => $columnSchema->extensionClass !== null ?
-                new $columnSchema->extensionClass()->mapToProperty($entitySchema, $columnSchema, $value) :
+                $this->extensionMapperProvider->getExtensionMapper($columnSchema->extensionClass)->mapToProperty(
+                    $entitySchema,
+                    $columnSchema,
+                    $value,
+                ) :
                 null,
         };
     }
@@ -83,7 +90,7 @@ class Mapper implements MapperInterface
             PropertyTypeEnum::Enum => ValidationUtils::checkEnum($value)->value,
             PropertyTypeEnum::Relation => $this->mapRelationToColumn($columnSchema, ValidationUtils::checkObject($value)),
             PropertyTypeEnum::Extension => $columnSchema->extensionClass !== null ?
-                new $columnSchema->extensionClass()->mapToColumn($columnSchema, $value) :
+                $this->extensionMapperProvider->getExtensionMapper($columnSchema->extensionClass)->mapToColumn($columnSchema, $value) :
                 null,
         };
     }

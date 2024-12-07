@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Tests\Mapper;
 use DateTime;
 use DateTimeImmutable;
 use Iterator;
+use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
@@ -30,6 +31,7 @@ use Ramsey\Uuid\Uuid;
 #[UsesClass(ColumnSchema::class)]
 #[UsesClass(EntitySchema::class)]
 #[UsesClass(ValidationUtils::class)]
+#[UsesClass(ExtensionMapperProvider::class)]
 final class MapperTest extends TestCase
 {
     public function testMapColumnString(): void

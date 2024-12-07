@@ -51,6 +51,8 @@ class ColumnSchemaFactory
             isPrimary: $attributeInstance->primary,
             isNullable: $attributeInstance->nullable,
             enumClass: $attributeInstance->enum,
+            extensionClass: $attributeInstance->extension,
+            extensionOptions: $attributeInstance->extensionOptions,
         );
     }
 
