@@ -30,7 +30,7 @@ abstract class AbstractRepository implements RepositoryInterface
     }
 
     /**
-     * @param array<scalar|array{0: string, 1: string, 2: scalar}> $where
+     * @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where
      * @return Iterator<T>
      */
     public function find(array $where = []): Iterator
@@ -39,7 +39,7 @@ abstract class AbstractRepository implements RepositoryInterface
     }
 
     /**
-     * @param array<scalar|array{0: string, 1: string, 2: scalar}> $where
+     * @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where
      * @return T|null
      */
     public function findOne(array $where = []): ?object

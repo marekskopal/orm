@@ -113,7 +113,7 @@ class Mapper implements MapperInterface
      */
     private function mapRelationOneToManyToProperty(string $table, string $entityClass, int $value): Iterator
     {
-        return $this->queryProvider->select($entityClass)->where([[$table . '_id', '=', $value]])->fetchAll();
+        return $this->queryProvider->select($entityClass)->where([$table . '_id', '=', $value])->fetchAll();
     }
 
     /**
@@ -125,7 +125,7 @@ class Mapper implements MapperInterface
     {
         $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
 
-        $entity = $this->queryProvider->select($entityClass)->where([[$primaryColumnSchema->columnName, '=', $value]])->fetch();
+        $entity = $this->queryProvider->select($entityClass)->where([$primaryColumnSchema->columnName, '=', $value])->fetch();
         if ($entity === null) {
             throw new \RuntimeException(sprintf('Entity "%s" with id "%d" not found', $entityClass, $value));
         }

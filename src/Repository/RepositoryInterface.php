@@ -13,13 +13,13 @@ interface RepositoryInterface
     public function select(): Select;
 
     /**
-     * @param array<scalar|array{0: string, 1: string, 2: scalar}> $where
+     * @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where
      * @return iterable<T>
      */
     public function find(array $where = []): iterable;
 
     /**
-     * @param array<scalar|array{0: string, 1: string, 2: scalar}> $where
+     * @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where
      * @return T|null
      */
     public function findOne(array $where = []): ?object;

@@ -6,6 +6,7 @@ namespace MarekSkopal\ORM\Query;
 
 use Iterator;
 use MarekSkopal\ORM\Entity\EntityFactory;
+use MarekSkopal\ORM\Query\Enum\DirectionEnum;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use PDO;
 use PDOStatement;
@@ -15,6 +16,9 @@ class Select
 {
     /** @var list<array{0: string, 1: string, 2: scalar}> */
     private array $whereParams = [];
+
+    /** @var list<array{0: string, 1: DirectionEnum}> */
+    private array $orderBy = [];
 
     /** @param class-string<T> $entityClass */
     public function __construct(
@@ -26,12 +30,51 @@ class Select
     }
 
     /**
-     * @param array<string|scalar>|list<array{0: string, 1: string, 2: scalar}> $params
+     * @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $params
      * @return Select<T>
      */
     public function where(array $params = []): self
     {
-        $this->addWhereParams($params);
+        if (count($params) === 0) {
+            return $this;
+        }
+
+        if (
+            count($params) === 3
+            && is_string($params[0] ?? null)
+            && is_string($params[1] ?? null)
+            && is_scalar($params[2] ?? null)
+        ) {
+            /** @var array{0: string, 1: string, 2: scalar} $params */
+            $this->whereParams[] = $params;
+            return $this;
+        }
+
+        /** @var array<string,scalar>|list<array{0: string, 1: string, 2: scalar}> $params */
+        foreach ($params as $column => $param) {
+            if (is_array($param)) {
+                $this->whereParams[] = $param;
+                continue;
+            }
+
+            /**
+             * @var string $column
+             * @var scalar $param
+             */
+            $this->whereParams[] = [$column, '=', $param];
+        }
+
+        return $this;
+    }
+
+    /** @return Select<T> */
+    public function orderBy(string $column, DirectionEnum|string $direction = DirectionEnum::Asc): self
+    {
+        if (is_string($direction)) {
+            $direction = DirectionEnum::from($direction);
+        }
+
+        $this->orderBy[] = [$column, $direction];
 
         return $this;
     }
@@ -54,17 +97,13 @@ class Select
         }
     }
 
-    /** @param array<string|scalar>|list<array{0: string, 1: string, 2: scalar}> $params */
-    private function addWhereParams(array $params): void
+    public function getSql(): string
     {
-        foreach ($params as $column => $param) {
-            if (is_array($param)) {
-                $this->whereParams[] = $param;
-                continue;
-            }
-
-            $this->whereParams[] = [$column, '=', $param];
-        }
+        return 'SELECT '
+            . implode(',', $this->getColumns())
+            . ' FROM ' . $this->schema->table
+            . $this->getWhereQuery()
+            . $this->getOrderByQuery();
     }
 
     private function query(): PDOStatement
@@ -74,23 +113,27 @@ class Select
         return $pdoStatement;
     }
 
-    private function getSql(): string
-    {
-        return 'SELECT ' . implode(',', $this->getColumns()) . ' FROM ' . $this->schema->table . $this->getWhereQuery();
-    }
-
     /** @return array<string, string> */
     private function getColumns(): array
     {
         return array_map(fn($column) => $column->columnName, $this->schema->columns);
     }
 
-    public function getWhereQuery(): string
+    private function getWhereQuery(): string
     {
         if (count($this->whereParams) === 0) {
             return '';
         }
 
-        return ' WHERE ' . implode(' AND ', array_map(fn(array $column): string => $column[0] . $column[1] . ' ?', $this->whereParams));
+        return ' WHERE ' . implode(' AND ', array_map(fn(array $column): string => $column[0] . $column[1] . '?', $this->whereParams));
+    }
+
+    private function getOrderByQuery(): string
+    {
+        if (count($this->orderBy) === 0) {
+            return '';
+        }
+
+        return ' ORDER BY ' . implode(', ', array_map(fn(array $column): string => $column[0] . ' ' . $column[1]->value, $this->orderBy));
     }
 }
