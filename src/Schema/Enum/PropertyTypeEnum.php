@@ -20,6 +20,7 @@ enum PropertyTypeEnum
     case DateTimeImmutable;
     case Enum;
     case Relation;
+    case Extension;
 
     public static function fromTypeName(string $typeName): self
     {

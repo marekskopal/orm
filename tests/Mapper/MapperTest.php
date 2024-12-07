@@ -17,6 +17,7 @@ use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Extension\MapperExtension;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
 use MarekSkopal\ORM\Utils\ValidationUtils;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -240,5 +241,19 @@ final class MapperTest extends TestCase
         $mapper->setQueryProvider($queryProvider);
 
         $mapper->mapToProperty($entitySchema, $columnSchema, 1);
+    }
+
+    public function testMapColumnExtension(): void
+    {
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $queryProvider = $this->createMock(QueryProvider::class);
+
+        $columnSchema = new ColumnSchema('price', PropertyTypeEnum::Extension, 'price', 'decimal', extensionClass: MapperExtension::class);
+        $entitySchema = EntitySchemaFixture::create(columns: ['price' => $columnSchema]);
+
+        $mapper = new Mapper($schemaProvider);
+        $mapper->setQueryProvider($queryProvider);
+        $result = $mapper->mapToProperty($entitySchema, $columnSchema, 1.0);
+        self::assertSame(2.0, $result);
     }
 }

@@ -17,7 +17,7 @@ use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Utils\ValidationUtils;
 use Ramsey\Uuid\Uuid;
 
-class Mapper
+class Mapper implements MapperInterface
 {
     private QueryProvider $queryProvider;
 
@@ -56,6 +56,9 @@ class Mapper
                 ValidationUtils::checkString($value),
             ) : null,
             PropertyTypeEnum::Relation => $this->mapRelationToProperty($entitySchema, $columnSchema, (int) $value),
+            PropertyTypeEnum::Extension => $columnSchema->extensionClass !== null ?
+                new $columnSchema->extensionClass()->mapToProperty($entitySchema, $columnSchema, $value) :
+                null,
         };
     }
 
@@ -79,6 +82,9 @@ class Mapper
             PropertyTypeEnum::DateTimeImmutable => $this->mapDateTimeToColumn($columnSchema, ValidationUtils::checkDatetime($value)),
             PropertyTypeEnum::Enum => ValidationUtils::checkEnum($value)->value,
             PropertyTypeEnum::Relation => $this->mapRelationToColumn($columnSchema, ValidationUtils::checkObject($value)),
+            PropertyTypeEnum::Extension => $columnSchema->extensionClass !== null ?
+                new $columnSchema->extensionClass()->mapToColumn($columnSchema, $value) :
+                null,
         };
     }
 
