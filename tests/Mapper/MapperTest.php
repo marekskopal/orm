@@ -187,7 +187,7 @@ final class MapperTest extends TestCase
         $schemaProvider->method('getPrimaryColumnSchema')->willReturn($primaryColumnSchema);
         $select = $this->createMock(Select::class);
         $select->method('where')->willReturnSelf();
-        $select->method('fetch')->willReturn(UserFixture::create());
+        $select->method('fetchOne')->willReturn(UserFixture::create());
         $queryProvider = $this->createMock(QueryProvider::class);
         $queryProvider->method('select')->willReturn($select);
 
@@ -208,7 +208,7 @@ final class MapperTest extends TestCase
         $schemaProvider->method('getPrimaryColumnSchema')->willReturn($primaryColumnSchema);
         $select = $this->createMock(Select::class);
         $select->method('where')->willReturnSelf();
-        $select->method('fetch')->willReturn(UserFixture::create());
+        $select->method('fetchOne')->willReturn(UserFixture::create());
         $queryProvider = $this->createMock(QueryProvider::class);
         $queryProvider->method('select')->willReturn($select);
 
@@ -235,7 +235,7 @@ final class MapperTest extends TestCase
         $schemaProvider->method('getPrimaryColumnSchema')->willReturn($primaryColumnSchema);
         $select = $this->createMock(Select::class);
         $select->method('where')->willReturnSelf();
-        $select->method('fetch')->willReturn(null);
+        $select->method('fetchOne')->willReturn(null);
         $queryProvider = $this->createMock(QueryProvider::class);
         $queryProvider->method('select')->willReturn($select);
 

@@ -125,7 +125,7 @@ class Mapper implements MapperInterface
     {
         $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
 
-        $entity = $this->queryProvider->select($entityClass)->where([$primaryColumnSchema->columnName, '=', $value])->fetch();
+        $entity = $this->queryProvider->select($entityClass)->where([$primaryColumnSchema->columnName, '=', $value])->fetchOne();
         if ($entity === null) {
             throw new \RuntimeException(sprintf('Entity "%s" with id "%d" not found', $entityClass, $value));
         }

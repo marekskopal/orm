@@ -80,7 +80,7 @@ class Select
     }
 
     /** @return T|null */
-    public function fetch(): ?object
+    public function fetchOne(): ?object
     {
         $result = $this->query()->fetch(mode: PDO::FETCH_ASSOC);
         // @phpstan-ignore-next-line return.type

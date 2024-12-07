@@ -33,7 +33,7 @@ abstract class AbstractRepository implements RepositoryInterface
      * @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where
      * @return Iterator<T>
      */
-    public function find(array $where = []): Iterator
+    public function findAll(array $where = []): Iterator
     {
         return $this->select()->where($where)->fetchAll();
     }
@@ -44,7 +44,7 @@ abstract class AbstractRepository implements RepositoryInterface
      */
     public function findOne(array $where = []): ?object
     {
-        return $this->select()->where($where)->fetch();
+        return $this->select()->where($where)->fetchOne();
     }
 
     /** @param T $entity */

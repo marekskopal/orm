@@ -113,7 +113,7 @@ final class IntegrationTest extends TestCase
         $userNotFound = $repository->findOne(['id' => 3]);
         self::assertNull($userNotFound);
 
-        $users = iterator_to_array($repository->find());
+        $users = iterator_to_array($repository->findAll());
         self::assertCount(2, $users);
     }
 
@@ -182,7 +182,7 @@ final class IntegrationTest extends TestCase
 
         self::assertSame(3, $user->id);
 
-        $users = $repository->find();
+        $users = $repository->findAll();
         self::assertCount(3, iterator_to_array($users));
     }
 
@@ -215,7 +215,7 @@ final class IntegrationTest extends TestCase
         self::assertInstanceOf(UserFixture::class, $user);
         $repository->delete($user);
 
-        $users = iterator_to_array($repository->find());
+        $users = iterator_to_array($repository->findAll());
         self::assertCount(1, $users);
         self::assertSame(2, $users[0]->id);
     }

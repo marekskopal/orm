@@ -16,7 +16,7 @@ interface RepositoryInterface
      * @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where
      * @return iterable<T>
      */
-    public function find(array $where = []): iterable;
+    public function findAll(array $where = []): iterable;
 
     /**
      * @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where
