@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Query;
 
+use BackedEnum;
+use DateTimeInterface;
 use Iterator;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
@@ -11,10 +13,17 @@ use MarekSkopal\ORM\Schema\EntitySchema;
 use PDO;
 use PDOStatement;
 
-/** @template T of object */
+/**
+ * @template T of object
+ * @phpstan-type WhereValues scalar|DateTimeInterface|BackedEnum|Select<object>
+ * @phpstan-type WhereList array<string,WhereValues>
+ * @phpstan-type WhereParams array{0: string, 1: string, 2: WhereValues}
+ * @phpstan-type WhereListParams list<WhereParams>
+ * @phpstan-type Where WhereList|WhereParams|WhereListParams
+ */
 class Select
 {
-    /** @var list<array{0: string, 1: string, 2: scalar}> */
+    /** @var WhereListParams */
     private array $whereParams = [];
 
     /** @var list<array{0: string, 1: DirectionEnum}> */
@@ -37,7 +46,7 @@ class Select
     }
 
     /**
-     * @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $params
+     * @param Where $params
      * @return Select<T>
      */
     public function where(array $params = []): self
@@ -52,12 +61,12 @@ class Select
             && is_string($params[1] ?? null)
             && is_scalar($params[2] ?? null)
         ) {
-            /** @var array{0: string, 1: string, 2: scalar} $params */
+            /** @var WhereParams $params */
             $this->whereParams[] = $params;
             return $this;
         }
 
-        /** @var array<string,scalar>|list<array{0: string, 1: string, 2: scalar}> $params */
+        /** @var WhereList|WhereListParams $params */
         foreach ($params as $column => $param) {
             if (is_array($param)) {
                 $this->whereParams[] = $param;
@@ -66,7 +75,7 @@ class Select
 
             /**
              * @var string $column
-             * @var scalar $param
+             * @var WhereValues $param
              */
             $this->whereParams[] = [$column, '=', $param];
         }

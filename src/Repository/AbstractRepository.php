@@ -12,6 +12,7 @@ use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 /**
  * @template T of object
  * @implements RepositoryInterface<T>
+ * @phpstan-import-type Where from Select
  */
 abstract class AbstractRepository implements RepositoryInterface
 {
@@ -30,7 +31,7 @@ abstract class AbstractRepository implements RepositoryInterface
     }
 
     /**
-     * @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where
+     * @param Where $where
      * @return Iterator<T>
      */
     public function findAll(array $where = []): Iterator
@@ -39,7 +40,7 @@ abstract class AbstractRepository implements RepositoryInterface
     }
 
     /**
-     * @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where
+     * @param Where $where
      * @return T|null
      */
     public function findOne(array $where = []): ?object

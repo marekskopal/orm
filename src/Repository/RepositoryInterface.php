@@ -6,20 +6,23 @@ namespace MarekSkopal\ORM\Repository;
 
 use MarekSkopal\ORM\Query\Select;
 
-/** @template T of object */
+/**
+ * @template T of object
+ * @phpstan-import-type Where from Select
+ */
 interface RepositoryInterface
 {
     /** @return Select<T> */
     public function select(): Select;
 
     /**
-     * @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where
+     * @param Where $where
      * @return iterable<T>
      */
     public function findAll(array $where = []): iterable;
 
     /**
-     * @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where
+     * @param Where $where
      * @return T|null
      */
     public function findOne(array $where = []): ?object;

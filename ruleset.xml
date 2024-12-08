@@ -222,6 +222,8 @@
 					@phpcsSuppress,
 					@dataProvider,
 					@link,
+					@phpstan-type,
+					@phpstan-import-type,
 					@var,
 					@param,
 					@return,
