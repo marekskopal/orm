@@ -60,4 +60,49 @@ final class SelectTest extends TestCase
             $select->getSql(),
         );
     }
+
+    public function testColumns(): void
+    {
+        $pdo = $this->createMock(PDO::class);
+        $entityFactory = $this->createMock(EntityFactory::class);
+        $entitySchema = EntitySchemaFixture::create();
+
+        $select = new Select($pdo, $entityFactory, UserFixture::class, $entitySchema);
+
+        $select->columns(['id', 'first_name']);
+        self::assertSame(
+            'SELECT id,first_name FROM users',
+            $select->getSql(),
+        );
+    }
+
+    public function testLimit(): void
+    {
+        $pdo = $this->createMock(PDO::class);
+        $entityFactory = $this->createMock(EntityFactory::class);
+        $entitySchema = EntitySchemaFixture::create();
+
+        $select = new Select($pdo, $entityFactory, UserFixture::class, $entitySchema);
+
+        $select->limit(10);
+        self::assertSame(
+            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type FROM users LIMIT 10',
+            $select->getSql(),
+        );
+    }
+
+    public function testOffset(): void
+    {
+        $pdo = $this->createMock(PDO::class);
+        $entityFactory = $this->createMock(EntityFactory::class);
+        $entitySchema = EntitySchemaFixture::create();
+
+        $select = new Select($pdo, $entityFactory, UserFixture::class, $entitySchema);
+
+        $select->offset(10);
+        self::assertSame(
+            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type FROM users OFFSET 10',
+            $select->getSql(),
+        );
+    }
 }

@@ -20,6 +20,13 @@ class Select
     /** @var list<array{0: string, 1: DirectionEnum}> */
     private array $orderBy = [];
 
+    /** @var list<string> */
+    private array $columns = [];
+
+    private ?int $limit = null;
+
+    private ?int $offset = null;
+
     /** @param class-string<T> $entityClass */
     public function __construct(
         private readonly PDO $pdo,
@@ -79,6 +86,30 @@ class Select
         return $this;
     }
 
+    /**
+     * @param list<string> $columns
+     * @return Select<T>
+     */
+    public function columns(array $columns): self
+    {
+        $this->columns = $columns;
+        return $this;
+    }
+
+    /** @return Select<T> */
+    public function limit(int $limit): self
+    {
+        $this->limit = $limit;
+        return $this;
+    }
+
+    /** @return Select<T> */
+    public function offset(int $offset): self
+    {
+        $this->offset = $offset;
+        return $this;
+    }
+
     /** @return T|null */
     public function fetchOne(): ?object
     {
@@ -97,13 +128,42 @@ class Select
         }
     }
 
+    /** @return array<string, mixed>|null */
+    public function fetchAssocOne(): ?array
+    {
+        $result = $this->query()->fetch(mode: PDO::FETCH_ASSOC);
+        // @phpstan-ignore-next-line return.type
+        return $result === false ? null : $result;
+    }
+
+    /** @return Iterator<array<string, mixed>> */
+    public function fetchAssocAll(): Iterator
+    {
+        $query = $this->query();
+        while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
+            // @phpstan-ignore-next-line return.type
+            yield $row;
+        }
+    }
+
+    public function count(): int
+    {
+        $this->columns(['count(*) as c']);
+
+        /** @var array{c: int} $result */
+        $result = $this->query()->fetch(mode: PDO::FETCH_ASSOC);
+        return $result['c'];
+    }
+
     public function getSql(): string
     {
         return 'SELECT '
             . implode(',', $this->getColumns())
             . ' FROM ' . $this->schema->table
             . $this->getWhereQuery()
-            . $this->getOrderByQuery();
+            . $this->getOrderByQuery()
+            . $this->getLimitQuery()
+            . $this->getOffsetQuery();
     }
 
     private function query(): PDOStatement
@@ -113,9 +173,13 @@ class Select
         return $pdoStatement;
     }
 
-    /** @return array<string, string> */
+    /** @return array<string> */
     private function getColumns(): array
     {
+        if (count($this->columns) > 0) {
+            return $this->columns;
+        }
+
         return array_map(fn($column) => $column->columnName, $this->schema->columns);
     }
 
@@ -135,5 +199,23 @@ class Select
         }
 
         return ' ORDER BY ' . implode(', ', array_map(fn(array $column): string => $column[0] . ' ' . $column[1]->value, $this->orderBy));
+    }
+
+    private function getLimitQuery(): string
+    {
+        if ($this->limit === null) {
+            return '';
+        }
+
+        return ' LIMIT ' . $this->limit;
+    }
+
+    private function getOffsetQuery(): string
+    {
+        if ($this->offset === null) {
+            return '';
+        }
+
+        return ' OFFSET ' . $this->offset;
     }
 }
