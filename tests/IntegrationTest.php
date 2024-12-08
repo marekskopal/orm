@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Tests;
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\Entity;
 use MarekSkopal\ORM\Attribute\ManyToOne;
+use MarekSkopal\ORM\Attribute\OneToMany;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\SqliteDatabase;
 use MarekSkopal\ORM\Entity\EntityCache;
@@ -75,6 +76,7 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(ClassScanner::class)]
 #[UsesClass(NameUtils::class)]
 #[UsesClass(ValidationUtils::class)]
+#[UsesClass(OneToMany::class)]
 final class IntegrationTest extends TestCase
 {
     public function testSelectEntity(): void

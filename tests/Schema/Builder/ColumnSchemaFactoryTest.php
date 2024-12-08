@@ -6,12 +6,14 @@ namespace MarekSkopal\ORM\Tests\Schema\Builder;
 
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ManyToOne;
+use MarekSkopal\ORM\Attribute\OneToMany;
 use MarekSkopal\ORM\Schema\Builder\ColumnSchemaFactory;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Enum\CaseEnum;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Code;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
@@ -27,6 +29,7 @@ use ReflectionProperty;
 #[UsesClass(PropertyTypeEnum::class)]
 #[UsesClass(CaseUtils::class)]
 #[UsesClass(ManyToOne::class)]
+#[UsesClass(OneToMany::class)]
 class ColumnSchemaFactoryTest extends TestCase
 {
     public function testCreateFromColumnString(): void
@@ -138,6 +141,30 @@ class ColumnSchemaFactoryTest extends TestCase
             columnType: 'int',
             relationType: RelationEnum::ManyToOne,
             relationEntityClass: AddressFixture::class,
+        );
+
+        self::assertEquals($columnSchemaExpected, $columnSchema);
+    }
+
+    public function testCreateFromOneToMany(): void
+    {
+        $columnSchemaFactory = new ColumnSchemaFactory();
+
+        $columnSchema = $columnSchemaFactory->create(
+            new ReflectionProperty(
+                AddressWithUsersFixture::class,
+                'users',
+            ),
+            CaseEnum::SnakeCase,
+        );
+
+        $columnSchemaExpected = new ColumnSchema(
+            propertyName: 'users',
+            propertyType: PropertyTypeEnum::Relation,
+            columnName: 'users',
+            columnType: 'int',
+            relationType: RelationEnum::OneToMany,
+            relationEntityClass: UserFixture::class,
         );
 
         self::assertEquals($columnSchemaExpected, $columnSchema);

@@ -6,6 +6,7 @@ namespace MarekSkopal\ORM\Schema\Builder;
 
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ManyToOne;
+use MarekSkopal\ORM\Attribute\OneToMany;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Enum\CaseEnum;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
@@ -28,6 +29,9 @@ class ColumnSchemaFactory
                 case ManyToOne::class:
                     /** @var ReflectionAttribute<ManyToOne> $attribute */
                     return $this->createFromManyToOneAttribute($attribute, $reflectionProperty, $columnCase);
+                case OneToMany::class:
+                    /** @var ReflectionAttribute<OneToMany> $attribute */
+                    return $this->createFromOneToManyAttribute($attribute, $reflectionProperty, $columnCase);
             }
         }
 
@@ -71,6 +75,25 @@ class ColumnSchemaFactory
             columnName: $attributeInstance->name ?? CaseUtils::toCase($columnCase, $reflectionProperty->getName() . 'Id'),
             columnType: 'int',
             relationType: RelationEnum::ManyToOne,
+            relationEntityClass: $attributeInstance->entityClass,
+        );
+    }
+
+    /** @param ReflectionAttribute<OneToMany> $attribute */
+    private function createFromOneToManyAttribute(
+        ReflectionAttribute $attribute,
+        ReflectionProperty $reflectionProperty,
+        CaseEnum $columnCase,
+    ): ColumnSchema
+    {
+        $attributeInstance = $attribute->newInstance();
+
+        return new ColumnSchema(
+            propertyName: $reflectionProperty->getName(),
+            propertyType: PropertyTypeEnum::Relation,
+            columnName: CaseUtils::toCase($columnCase, $reflectionProperty->getName()),
+            columnType: 'int',
+            relationType: RelationEnum::OneToMany,
             relationEntityClass: $attributeInstance->entityClass,
         );
     }
