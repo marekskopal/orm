@@ -21,6 +21,7 @@ readonly class Column
         public ?string $name = null,
         public bool $primary = false,
         public bool $nullable = false,
+        public mixed $default = null,
         public ?string $enum = null,
         public ?string $extension = null,
         public array $extensionOptions = [],

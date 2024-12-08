@@ -10,7 +10,7 @@ use Attribute;
 readonly class ManyToOne
 {
     /** @param class-string<object> $entityClass */
-    public function __construct(public string $entityClass, public ?string $name = null,)
+    public function __construct(public string $entityClass, public ?string $name = null, public bool $nullable = false)
     {
     }
 }
