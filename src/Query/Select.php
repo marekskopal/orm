@@ -32,6 +32,9 @@ class Select
     /** @var list<string> */
     private array $columns = [];
 
+    /** @var list<string> */
+    private array $groupBy = [];
+
     private ?int $limit = null;
 
     private ?int $offset = null;
@@ -105,6 +108,16 @@ class Select
         return $this;
     }
 
+    /**
+     * @param list<string> $columns
+     * @return Select<T>
+     */
+    public function groupBy(array $columns): self
+    {
+        $this->groupBy = $columns;
+        return $this;
+    }
+
     /** @return Select<T> */
     public function limit(int $limit): self
     {
@@ -170,6 +183,7 @@ class Select
             . implode(',', $this->getColumns())
             . ' FROM ' . $this->schema->table
             . $this->getWhereQuery()
+            . $this->getGroupByQuery()
             . $this->getOrderByQuery()
             . $this->getLimitQuery()
             . $this->getOffsetQuery();
@@ -208,6 +222,15 @@ class Select
         }
 
         return ' ORDER BY ' . implode(', ', array_map(fn(array $column): string => $column[0] . ' ' . $column[1]->value, $this->orderBy));
+    }
+
+    private function getGroupByQuery(): string
+    {
+        if (count($this->groupBy) === 0) {
+            return '';
+        }
+
+        return ' GROUP BY ' . implode(', ', $this->groupBy);
     }
 
     private function getLimitQuery(): string
