@@ -18,9 +18,9 @@ abstract class AbstractRepository implements RepositoryInterface
 {
     /** @param class-string<T> $entityClass */
     public function __construct(
-        private readonly string $entityClass,
-        private readonly QueryProvider $queryProvider,
-        private readonly SchemaProvider $schemaProvider,
+        protected readonly string $entityClass,
+        protected readonly QueryProvider $queryProvider,
+        protected readonly SchemaProvider $schemaProvider,
     ) {
     }
 
