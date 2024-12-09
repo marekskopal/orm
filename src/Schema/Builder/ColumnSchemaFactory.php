@@ -22,16 +22,15 @@ class ColumnSchemaFactory
     {
         $attributes = $reflectionProperty->getAttributes();
         foreach ($attributes as $attribute) {
-            switch ($attribute->getName()) {
-                case Column::class:
-                    /** @var ReflectionAttribute<Column> $attribute */
-                    return $this->createFromColumnAttribute($attribute, $reflectionProperty, $columnCase);
-                case ManyToOne::class:
-                    /** @var ReflectionAttribute<ManyToOne> $attribute */
-                    return $this->createFromManyToOneAttribute($attribute, $reflectionProperty, $columnCase);
-                case OneToMany::class:
-                    /** @var ReflectionAttribute<OneToMany> $attribute */
-                    return $this->createFromOneToManyAttribute($attribute, $reflectionProperty, $columnCase);
+            $attributeInstance = $attribute->newInstance();
+            if ($attributeInstance instanceof Column) {
+                return $this->createFromColumnAttribute($attribute, $reflectionProperty, $columnCase);
+            }
+            if ($attributeInstance instanceof ManyToOne) {
+                return $this->createFromManyToOneAttribute($attribute, $reflectionProperty, $columnCase);
+            }
+            if ($attributeInstance instanceof OneToMany) {
+                return $this->createFromOneToManyAttribute($attribute, $reflectionProperty, $columnCase);
             }
         }
 
