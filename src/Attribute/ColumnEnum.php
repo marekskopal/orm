@@ -11,13 +11,8 @@ use BackedEnum;
 class ColumnEnum extends Column
 {
     /** @param class-string<BackedEnum>|null $enum */
-    public function __construct(
-        public ?string $enum,
-        public ?string $name = null,
-        public bool $nullable = false,
-        public mixed $default = null,
-    )
+    public function __construct(?string $enum, ?string $name = null, bool $nullable = false, mixed $default = null,)
     {
-        parent::__construct(type: 'enum', name: $name, nullable: $nullable, default: $default);
+        parent::__construct(type: 'enum', name: $name, nullable: $nullable, default: $default, enum: $enum);
     }
 }

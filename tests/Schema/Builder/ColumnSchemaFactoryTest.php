@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Tests\Schema\Builder;
 
 use MarekSkopal\ORM\Attribute\Column;
+use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
 use MarekSkopal\ORM\Schema\Builder\ColumnSchemaFactory;
@@ -15,6 +16,7 @@ use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Code;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
 use MarekSkopal\ORM\Utils\CaseUtils;
@@ -30,6 +32,7 @@ use ReflectionProperty;
 #[UsesClass(CaseUtils::class)]
 #[UsesClass(ManyToOne::class)]
 #[UsesClass(OneToMany::class)]
+#[UsesClass(ColumnEnum::class)]
 class ColumnSchemaFactoryTest extends TestCase
 {
     public function testCreateFromColumnString(): void
@@ -117,6 +120,51 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyType: PropertyTypeEnum::Uuid,
             columnName: 'code',
             columnType: 'uuid',
+        );
+
+        self::assertEquals($columnSchemaExpected, $columnSchema);
+    }
+
+    public function testCreateFromColumnDatetimeImmutable(): void
+    {
+        $columnSchemaFactory = new ColumnSchemaFactory();
+
+        $columnSchema = $columnSchemaFactory->create(
+            new ReflectionProperty(
+                UserFixture::class,
+                'createdAt',
+            ),
+            CaseEnum::SnakeCase,
+        );
+
+        $columnSchemaExpected = new ColumnSchema(
+            propertyName: 'createdAt',
+            propertyType: PropertyTypeEnum::DateTimeImmutable,
+            columnName: 'created_at',
+            columnType: 'timestamp',
+        );
+
+        self::assertEquals($columnSchemaExpected, $columnSchema);
+    }
+
+    public function testCreateFromColumnEnum(): void
+    {
+        $columnSchemaFactory = new ColumnSchemaFactory();
+
+        $columnSchema = $columnSchemaFactory->create(
+            new ReflectionProperty(
+                UserFixture::class,
+                'type',
+            ),
+            CaseEnum::SnakeCase,
+        );
+
+        $columnSchemaExpected = new ColumnSchema(
+            propertyName: 'type',
+            propertyType: PropertyTypeEnum::Enum,
+            columnName: 'type',
+            columnType: 'enum',
+            enumClass: UserTypeEnum::class,
         );
 
         self::assertEquals($columnSchemaExpected, $columnSchema);

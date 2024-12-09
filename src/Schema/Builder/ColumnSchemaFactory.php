@@ -24,12 +24,15 @@ class ColumnSchemaFactory
         foreach ($attributes as $attribute) {
             $attributeInstance = $attribute->newInstance();
             if ($attributeInstance instanceof Column) {
+                /** @var ReflectionAttribute<Column> $attribute */
                 return $this->createFromColumnAttribute($attribute, $reflectionProperty, $columnCase);
             }
             if ($attributeInstance instanceof ManyToOne) {
+                /** @var ReflectionAttribute<ManyToOne> $attribute */
                 return $this->createFromManyToOneAttribute($attribute, $reflectionProperty, $columnCase);
             }
             if ($attributeInstance instanceof OneToMany) {
+                /** @var ReflectionAttribute<OneToMany> $attribute */
                 return $this->createFromOneToManyAttribute($attribute, $reflectionProperty, $columnCase);
             }
         }

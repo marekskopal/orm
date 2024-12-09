@@ -6,6 +6,7 @@ namespace MarekSkopal\ORM\Tests\Fixtures\Entity;
 
 use DateTimeImmutable;
 use MarekSkopal\ORM\Attribute\Column;
+use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Repository\UserRepositoryFixture;
@@ -29,7 +30,7 @@ final class UserFixture
         public string $email,
         #[Column(type: 'tinyint(1)')]
         public bool $isActive,
-        #[Column(type: 'enum', enum: UserTypeEnum::class)]
+        #[ColumnEnum(enum: UserTypeEnum::class)]
         public UserTypeEnum $type,
     ) {
     }

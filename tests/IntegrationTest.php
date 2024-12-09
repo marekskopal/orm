@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Tests;
 
 use MarekSkopal\ORM\Attribute\Column;
+use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
@@ -47,6 +48,7 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(ORM::class)]
 #[UsesClass(Column::class)]
+#[UsesClass(ColumnEnum::class)]
 #[UsesClass(Entity::class)]
 #[UsesClass(ManyToOne::class)]
 #[UsesClass(AbstractDatabase::class)]
