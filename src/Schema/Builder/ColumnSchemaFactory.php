@@ -35,7 +35,7 @@ class ColumnSchemaFactory
             }
         }
 
-        throw new \RuntimeException('Column attribute not found');
+        throw new \RuntimeException(sprintf('Column attribute not found on property "%s".', $reflectionProperty->getName()));
     }
 
     /** @param ReflectionAttribute<Column> $attribute */

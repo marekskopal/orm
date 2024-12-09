@@ -23,7 +23,17 @@ class EntitySchemaFactory
         $columns = [];
         $properties = $reflectionClass->getProperties();
         foreach ($properties as $property) {
-            $columns[$property->getName()] = new ColumnSchemaFactory()->create($property, $columnCase);
+            try {
+                $columns[$property->getName()] = new ColumnSchemaFactory()->create($property, $columnCase);
+            } catch (\RuntimeException) {
+                throw new \RuntimeException(
+                    sprintf(
+                        'Column attribute not found on property "%s" on class "%s".',
+                        $property->getName(),
+                        $reflectionClass->getName(),
+                    ),
+                );
+            }
         }
 
         return new EntitySchema(
