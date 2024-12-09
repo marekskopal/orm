@@ -8,7 +8,7 @@ use Attribute;
 use BackedEnum;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-readonly class ColumnEnum extends Column
+class ColumnEnum extends Column
 {
     /** @param class-string<BackedEnum>|null $enum */
     public function __construct(

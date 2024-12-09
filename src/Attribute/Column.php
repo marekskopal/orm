@@ -9,7 +9,7 @@ use BackedEnum;
 use MarekSkopal\ORM\Mapper\MapperInterface;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-readonly class Column
+class Column
 {
     /**
      * @param class-string<BackedEnum>|null $enum

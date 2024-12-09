@@ -7,7 +7,7 @@ namespace MarekSkopal\ORM\Attribute;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-readonly class OneToMany
+class OneToMany
 {
     /** @param class-string<object> $entityClass */
     public function __construct(public string $entityClass)
