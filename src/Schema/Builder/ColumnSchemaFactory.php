@@ -48,7 +48,9 @@ class ColumnSchemaFactory
 
         return new ColumnSchema(
             propertyName: $attributeInstance->name ?? $reflectionProperty->getName(),
-            propertyType: $this->getPropertyTypeFromReflectionProperty($reflectionProperty),
+            propertyType: $attributeInstance->extension !== null ? PropertyTypeEnum::Extension : $this->getPropertyTypeFromReflectionProperty(
+                $reflectionProperty,
+            ),
             columnName: CaseUtils::toCase($columnCase, $reflectionProperty->getName()),
             columnType: $attributeInstance->type,
             isPrimary: $attributeInstance->primary,
