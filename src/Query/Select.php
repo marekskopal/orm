@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Query;
 
-use BackedEnum;
-use DateTimeInterface;
 use Iterator;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
@@ -15,16 +13,11 @@ use PDOStatement;
 
 /**
  * @template T of object
- * @phpstan-type WhereValues scalar|DateTimeInterface|BackedEnum|Select<object>
- * @phpstan-type WhereList array<string,WhereValues>
- * @phpstan-type WhereParams array{0: string, 1: string, 2: WhereValues}
- * @phpstan-type WhereListParams list<WhereParams>
- * @phpstan-type Where WhereList|WhereParams|WhereListParams
+ * @phpstan-import-type Where from WhereBuilder
  */
 class Select
 {
-    /** @var WhereListParams */
-    private array $whereParams = [];
+    private readonly WhereBuilder $whereBuilder;
 
     /** @var list<array{0: string, 1: DirectionEnum}> */
     private array $orderBy = [];
@@ -46,42 +39,16 @@ class Select
         private readonly string $entityClass,
         private readonly EntitySchema $schema,
     ) {
+        $this->whereBuilder = new WhereBuilder();
     }
 
     /**
      * @param Where $params
      * @return Select<T>
      */
-    public function where(array $params = []): self
+    public function where(array|callable $params): self
     {
-        if (count($params) === 0) {
-            return $this;
-        }
-
-        if (
-            count($params) === 3
-            && is_string($params[0] ?? null)
-            && is_string($params[1] ?? null)
-            && is_scalar($params[2] ?? null)
-        ) {
-            /** @var WhereParams $params */
-            $this->whereParams[] = $params;
-            return $this;
-        }
-
-        /** @var WhereList|WhereListParams $params */
-        foreach ($params as $column => $param) {
-            if (is_array($param)) {
-                $this->whereParams[] = $param;
-                continue;
-            }
-
-            /**
-             * @var string $column
-             * @var WhereValues $param
-             */
-            $this->whereParams[] = [$column, '=', $param];
-        }
+        $this->whereBuilder->where($params);
 
         return $this;
     }
@@ -189,10 +156,15 @@ class Select
             . $this->getOffsetQuery();
     }
 
+    public function getWhereBuilder(): WhereBuilder
+    {
+        return $this->whereBuilder;
+    }
+
     private function query(): PDOStatement
     {
         $pdoStatement = $this->pdo->prepare($this->getSql());
-        $pdoStatement->execute(array_map(fn(array $column) => $column[2], $this->whereParams));
+        $pdoStatement->execute($this->whereBuilder->getParams());
         return $pdoStatement;
     }
 
@@ -208,11 +180,12 @@ class Select
 
     private function getWhereQuery(): string
     {
-        if (count($this->whereParams) === 0) {
+        $where = $this->whereBuilder->build();
+        if ($where === '') {
             return '';
         }
 
-        return ' WHERE ' . implode(' AND ', array_map(fn(array $column): string => $column[0] . $column[1] . '?', $this->whereParams));
+        return ' WHERE ' . $where;
     }
 
     private function getOrderByQuery(): string

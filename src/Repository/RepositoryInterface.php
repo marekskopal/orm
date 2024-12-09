@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Repository;
 
 use MarekSkopal\ORM\Query\Select;
+use MarekSkopal\ORM\Query\WhereBuilder;
 
 /**
  * @template T of object
- * @phpstan-import-type Where from Select
+ * @phpstan-import-type Where from WhereBuilder
  */
 interface RepositoryInterface
 {
@@ -19,13 +20,13 @@ interface RepositoryInterface
      * @param Where $where
      * @return iterable<T>
      */
-    public function findAll(array $where = []): iterable;
+    public function findAll(array|callable $where = []): iterable;
 
     /**
      * @param Where $where
      * @return T|null
      */
-    public function findOne(array $where = []): ?object;
+    public function findOne(array|callable $where = []): ?object;
 
     /** @param T $entity */
     public function persist(object $entity): void;

@@ -24,6 +24,7 @@ use MarekSkopal\ORM\Query\Insert;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Update;
+use MarekSkopal\ORM\Query\WhereBuilder;
 use MarekSkopal\ORM\Repository\AbstractRepository;
 use MarekSkopal\ORM\Schema\Builder\ClassScanner\ClassScanner;
 use MarekSkopal\ORM\Schema\Builder\ColumnSchemaFactory;
@@ -77,6 +78,7 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(NameUtils::class)]
 #[UsesClass(ValidationUtils::class)]
 #[UsesClass(OneToMany::class)]
+#[UsesClass(WhereBuilder::class)]
 final class IntegrationTest extends TestCase
 {
     public function testSelectEntity(): void

@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Tests\Query;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
 use MarekSkopal\ORM\Query\Select;
+use MarekSkopal\ORM\Query\WhereBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
@@ -20,6 +21,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(Select::class)]
 #[UsesClass(EntitySchema::class)]
 #[UsesClass(ColumnSchema::class)]
+#[UsesClass(WhereBuilder::class)]
 final class SelectTest extends TestCase
 {
     /** @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where */

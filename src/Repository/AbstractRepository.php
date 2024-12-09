@@ -7,12 +7,13 @@ namespace MarekSkopal\ORM\Repository;
 use Iterator;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
+use MarekSkopal\ORM\Query\WhereBuilder;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 
 /**
  * @template T of object
  * @implements RepositoryInterface<T>
- * @phpstan-import-type Where from Select
+ * @phpstan-import-type Where from WhereBuilder
  */
 abstract class AbstractRepository implements RepositoryInterface
 {
@@ -34,7 +35,7 @@ abstract class AbstractRepository implements RepositoryInterface
      * @param Where $where
      * @return Iterator<T>
      */
-    public function findAll(array $where = []): Iterator
+    public function findAll(array|callable $where = []): Iterator
     {
         return $this->select()->where($where)->fetchAll();
     }
@@ -43,7 +44,7 @@ abstract class AbstractRepository implements RepositoryInterface
      * @param Where $where
      * @return T|null
      */
-    public function findOne(array $where = []): ?object
+    public function findOne(array|callable $where = []): ?object
     {
         return $this->select()->where($where)->fetchOne();
     }
