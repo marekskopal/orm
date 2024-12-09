@@ -86,14 +86,14 @@ class Select
     }
 
     /** @return Select<T> */
-    public function limit(int $limit): self
+    public function limit(?int $limit): self
     {
         $this->limit = $limit;
         return $this;
     }
 
     /** @return Select<T> */
-    public function offset(int $offset): self
+    public function offset(?int $offset): self
     {
         $this->offset = $offset;
         return $this;
