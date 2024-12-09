@@ -6,9 +6,10 @@ namespace MarekSkopal\ORM\Query;
 
 use BackedEnum;
 use DateTimeInterface;
+use Ramsey\Uuid\UuidInterface;
 
 /**
- * @phpstan-type WhereValues scalar|DateTimeInterface|BackedEnum|Select<object>|array<scalar|DateTimeInterface|BackedEnum>
+ * @phpstan-type WhereValues scalar|DateTimeInterface|UuidInterface|BackedEnum|Select<object>|array<scalar|DateTimeInterface|UuidInterface|BackedEnum>
  * @phpstan-type WhereList array<string,WhereValues>
  * @phpstan-type WhereParams array{0: string, 1: string, 2: WhereValues}
  * @phpstan-type WhereListParams list<WhereParams>
@@ -90,7 +91,7 @@ class WhereBuilder
         return $where;
     }
 
-    /** @return list<WhereValues> */
+    /** @return list<scalar> */
     public function getParams(): array
     {
         return array_merge(
@@ -126,7 +127,7 @@ class WhereBuilder
 
     /**
      * @param list<WhereParams|WhereBuilder> $params
-     * @return list<WhereValues>
+     * @return list<scalar>
      */
     private function getParamsValues(array $params): array
     {
@@ -138,20 +139,10 @@ class WhereBuilder
                 continue;
             }
 
-            $conditionValue = $condition[2];
+            $conditionValue = $this->getScalarParamsValues($condition[2]);
 
             if (is_array($conditionValue)) {
                 $values = array_merge($values, array_values($conditionValue));
-                continue;
-            }
-
-            if ($conditionValue instanceof Select) {
-                $values = array_merge($values, $conditionValue->getWhereBuilder()->getParams());
-                continue;
-            }
-
-            if ($conditionValue instanceof DateTimeInterface) {
-                $values[] = $conditionValue->format('Y-m-d H:i:s');
                 continue;
             }
 
@@ -159,5 +150,34 @@ class WhereBuilder
         }
 
         return $values;
+    }
+
+    /**
+     * @param WhereValues $conditionValue
+     * @return scalar|array<scalar>
+     */
+    private function getScalarParamsValues(string|int|float|bool|object|array $conditionValue): string|int|float|bool|array
+    {
+        if (is_array($conditionValue)) {
+            return $this->getScalarParamsValues($conditionValue);
+        }
+
+        if ($conditionValue instanceof Select) {
+            return $conditionValue->getWhereBuilder()->getParams();
+        }
+
+        if ($conditionValue instanceof DateTimeInterface) {
+            return $conditionValue->format('Y-m-d H:i:s');
+        }
+
+        if ($conditionValue instanceof UuidInterface) {
+            return $conditionValue->toString();
+        }
+
+        if ($conditionValue instanceof BackedEnum) {
+            return $conditionValue->value;
+        }
+
+        return $conditionValue;
     }
 }
