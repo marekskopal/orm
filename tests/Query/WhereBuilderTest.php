@@ -4,11 +4,22 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Query;
 
+use MarekSkopal\ORM\Entity\EntityFactory;
+use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\WhereBuilder;
+use MarekSkopal\ORM\Schema\ColumnSchema;
+use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
+use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(WhereBuilder::class)]
+#[UsesClass(Select::class)]
+#[UsesClass(ColumnSchema::class)]
+#[UsesClass(EntitySchema::class)]
 final class WhereBuilderTest extends TestCase
 {
     public function testBuild(): void
@@ -141,6 +152,32 @@ final class WhereBuilderTest extends TestCase
 
         self::assertSame(
             'id IN (?,?,?)',
+            $whereBuilder->build(),
+        );
+    }
+
+    public function testBuildInSelect(): void
+    {
+        $whereBuilder = new WhereBuilder();
+
+        $pdo = $this->createMock(PDO::class);
+        $entityFactory = $this->createMock(EntityFactory::class);
+        $entitySchema = EntitySchemaFixture::create();
+
+        $select = new Select($pdo, $entityFactory, UserFixture::class, $entitySchema);
+        $select->columns(['id'])
+            ->where([
+                'first_name' => 'John',
+            ]);
+
+        $whereBuilder->where([
+            'id',
+            'IN',
+            $select,
+        ]);
+
+        self::assertSame(
+            'id IN (' . $select->getSql() . ')',
             $whereBuilder->build(),
         );
     }

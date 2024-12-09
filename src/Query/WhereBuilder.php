@@ -9,7 +9,7 @@ use DateTimeInterface;
 use Ramsey\Uuid\UuidInterface;
 
 /**
- * @phpstan-type WhereValues scalar|DateTimeInterface|UuidInterface|BackedEnum|Select<object>|array<scalar|DateTimeInterface|UuidInterface|BackedEnum>
+ * @phpstan-type WhereValues scalar|DateTimeInterface|UuidInterface|BackedEnum|Select<covariant object>|array<scalar|DateTimeInterface|UuidInterface|BackedEnum>
  * @phpstan-type WhereList array<string,WhereValues>
  * @phpstan-type WhereParams array{0: string, 1: string, 2: WhereValues}
  * @phpstan-type WhereListParams list<WhereParams>
@@ -111,12 +111,21 @@ class WhereBuilder
                 continue;
             }
 
-            if (strtolower($condition[1]) === 'in' && is_array($condition[2])) {
-                $query[] = $condition[0] . ' ' . $condition[1] . ' (' . implode(
-                    ',',
-                    array_map(fn ($value): string => '?', $condition[2]),
-                ) . ')';
-                continue;
+            if (strtolower($condition[1]) === 'in') {
+                if (is_array($condition[2])) {
+                    $query[] = $condition[0] . ' ' . $condition[1] . ' (' . implode(
+                        ',',
+                        array_map(fn($value): string => '?', $condition[2]),
+                    ) . ')';
+                    continue;
+                }
+
+                if ($condition[2] instanceof Select) {
+                    $query[] = $condition[0] . ' ' . $condition[1] . ' (' . $condition[2]->getSql() . ')';
+                    continue;
+                }
+
+                throw new \InvalidArgumentException('IN condition must have array or Select as value');
             }
 
             $query[] = $condition[0] . $condition[1] . '?';
