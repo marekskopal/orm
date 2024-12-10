@@ -6,13 +6,16 @@ namespace MarekSkopal\ORM\Tests\Query;
 
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
+use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
-use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Schema\AddressEntitySchemaFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Schema\UserEntityWithAddressSchemaFixture;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\TestWith;
@@ -23,6 +26,7 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(EntitySchema::class)]
 #[UsesClass(ColumnSchema::class)]
 #[UsesClass(WhereBuilder::class)]
+#[UsesClass(Join::class)]
 final class SelectTest extends TestCase
 {
     /** @var Select<UserFixture> */
@@ -34,9 +38,13 @@ final class SelectTest extends TestCase
         $entityFactory = $this->createMock(EntityFactory::class);
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $schemaProvider->method('getEntitySchema')
-            ->willReturn(EntitySchemaFixture::create());
+            ->willReturn(
+                UserEntityWithAddressSchemaFixture::create(),
+                UserEntityWithAddressSchemaFixture::create(),
+                AddressEntitySchemaFixture::create(),
+            );
 
-        $this->select = new Select($pdo, $entityFactory, UserFixture::class, $schemaProvider);
+        $this->select = new Select($pdo, $entityFactory, UserWithAddressFixture::class, $schemaProvider);
     }
 
     /** @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where */
@@ -50,7 +58,7 @@ final class SelectTest extends TestCase
 
         $select->where($where);
         self::assertSame(
-            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type FROM users WHERE ' . $expectedWhereSql,
+            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type,address_id,second_address_id FROM users WHERE ' . $expectedWhereSql,
             $select->getSql(),
         );
     }
@@ -65,7 +73,24 @@ final class SelectTest extends TestCase
 
         $select->orderBy($column, $direction);
         self::assertSame(
-            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type FROM users ORDER BY ' . $expectedOrderBySql,
+            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type,address_id,second_address_id FROM users ORDER BY ' . $expectedOrderBySql,
+            $select->getSql(),
+        );
+    }
+
+    #[TestWith(['address.street', DirectionEnum::Asc, 'addresses.street ASC', 'addresses ON addresses.id=users.address_id'])]
+    public function testOrderByRelation(
+        string $column,
+        DirectionEnum|string $direction,
+        string $expectedOrderBySql,
+        string $expectedJoinSql,
+    ): void
+    {
+        $select = $this->select;
+
+        $select->orderBy($column, $direction);
+        self::assertSame(
+            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type,address_id,second_address_id FROM users LEFT JOIN ' . $expectedJoinSql . ' ORDER BY ' . $expectedOrderBySql,
             $select->getSql(),
         );
     }
@@ -87,7 +112,7 @@ final class SelectTest extends TestCase
 
         $select->limit(10);
         self::assertSame(
-            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type FROM users LIMIT 10',
+            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type,address_id,second_address_id FROM users LIMIT 10',
             $select->getSql(),
         );
     }
@@ -98,7 +123,19 @@ final class SelectTest extends TestCase
 
         $select->offset(10);
         self::assertSame(
-            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type FROM users OFFSET 10',
+            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type,address_id,second_address_id FROM users OFFSET 10',
+            $select->getSql(),
+        );
+    }
+
+    public function testParseColumns(): void
+    {
+        $select = $this->select;
+
+        $select->parseColumn('address.id');
+
+        self::assertSame(
+            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type,address_id,second_address_id FROM users LEFT JOIN addresses ON addresses.id=users.address_id',
             $select->getSql(),
         );
     }

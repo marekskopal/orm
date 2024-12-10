@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Tests\Fixtures\Schema;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Repository\UserRepositoryFixture;
 
@@ -62,6 +63,13 @@ class UserEntitySchemaFixture
                     propertyType: PropertyTypeEnum::Bool,
                     columnName: 'is_active',
                     columnType: 'tinyint',
+                ),
+                'type' => new ColumnSchema(
+                    propertyName: 'type',
+                    propertyType: PropertyTypeEnum::Enum,
+                    columnName: 'type',
+                    columnType: 'enum',
+                    enumClass: UserTypeEnum::class,
                 ),
             ],
         );

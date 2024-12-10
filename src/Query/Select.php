@@ -37,6 +37,7 @@ class Select
 
     private ?int $offset = null;
 
+    /** @var array<string, Join> */
     private array $joins = [];
 
     /** @param class-string<T> $entityClass */
@@ -68,7 +69,7 @@ class Select
             $direction = DirectionEnum::from(strtoupper($direction));
         }
 
-        $this->orderBy[] = [$column, $direction];
+        $this->orderBy[] = [$this->parseColumn($column), $direction];
 
         return $this;
     }
@@ -109,7 +110,11 @@ class Select
 
     public function join(string $column, string $referenceTable, string $referenceColumn): self
     {
-        $this->joins[] = new Join($referenceTable, $referenceColumn, $column);
+        if (isset($this->joins[$column])) {
+            return $this;
+        }
+
+        $this->joins[$column] = new Join($column, $referenceTable, $referenceColumn);
         return $this;
     }
 
@@ -174,6 +179,29 @@ class Select
     public function getWhereBuilder(): WhereBuilder
     {
         return $this->whereBuilder;
+    }
+
+    /** @internal */
+    public function parseColumn(string $column): string
+    {
+        $parts = explode('.', $column);
+
+        if (count($parts) === 1) {
+            return $column;
+        }
+
+        $entitySchema = $this->schemaProvider->getEntitySchema($this->entityClass);
+        $columnSchema = $entitySchema->getColumnByPropertyName($parts[0]);
+        if ($columnSchema->relationEntityClass === null) {
+            throw new \InvalidArgumentException('Column is not relation');
+        }
+
+        $relationEntitySchema = $this->schemaProvider->getEntitySchema($columnSchema->relationEntityClass);
+        $relationColumnSchema = $relationEntitySchema->getColumnByColumnName($parts[1]);
+
+        $this->join($columnSchema->columnName, $relationEntitySchema->table, $relationEntitySchema->getPrimaryColumn()->columnName);
+
+        return $relationEntitySchema->table . '.' . $relationColumnSchema->columnName;
     }
 
     private function query(): PDOStatement
@@ -245,7 +273,7 @@ class Select
             return '';
         }
 
-        return implode(
+        return ' ' . implode(
             ' ',
             array_map(
                 fn(Join $join): string => 'LEFT JOIN ' . $join->referenceTable . ' ON ' . $join->referenceTable . '.' . $join->referenceColumn . '=' . $this->schema->table . '.' . $join->column,

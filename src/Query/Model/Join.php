@@ -6,7 +6,7 @@ namespace MarekSkopal\ORM\Query\Model;
 
 readonly class Join
 {
-    public function __construct(public string $column, public string $referenceTable, public string $referenceColumn,)
+    public function __construct(public string $column, public string $referenceTable, public string $referenceColumn)
     {
     }
 }

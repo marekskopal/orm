@@ -45,7 +45,7 @@ final class WhereBuilderTest extends TestCase
 
         $this->select = new Select($pdo, $entityFactory, UserFixture::class, $schemaProvider);
 
-        $this->whereBuilder = new WhereBuilder($this->select, $schemaProvider, UserFixture::class,);
+        $this->whereBuilder = new WhereBuilder($this->select);
     }
 
     public function testBuild(): void

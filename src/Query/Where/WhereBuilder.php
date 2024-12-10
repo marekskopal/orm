@@ -7,7 +7,6 @@ namespace MarekSkopal\ORM\Query\Where;
 use BackedEnum;
 use DateTimeInterface;
 use MarekSkopal\ORM\Query\Select;
-use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use Ramsey\Uuid\UuidInterface;
 
 /**
@@ -26,16 +25,8 @@ class WhereBuilder
     /** @var list<WhereBuilder> */
     private array $orWhere = [];
 
-    /**
-     * @template T of object
-     * @param Select<T> $select
-     * @param class-string<T> $entityClass
-     */
-    public function __construct(
-        private readonly Select $select,
-        private readonly SchemaProvider $schemaProvider,
-        private readonly string $entityClass,
-    )
+    /** @param Select<object> $select */
+    public function __construct(private readonly Select $select,)
     {
     }
 
@@ -44,7 +35,7 @@ class WhereBuilder
     {
         if (is_callable($params)) {
             /** @var WhereBuilderCallable $params */
-            $this->where[] = $params(new WhereBuilder($this->select, $this->schemaProvider, $this->entityClass));
+            $this->where[] = $params(new WhereBuilder($this->select));
             return $this;
         }
 
@@ -85,7 +76,7 @@ class WhereBuilder
     /** @param Where $params */
     public function orWhere(array|callable $params): self
     {
-        $this->orWhere[] = new WhereBuilder($this->select, $this->schemaProvider, $this->entityClass)->where($params);
+        $this->orWhere[] = new WhereBuilder($this->select)->where($params);
 
         return $this;
     }
@@ -126,7 +117,7 @@ class WhereBuilder
                 continue;
             }
 
-            $column = $this->parseRelationColumn($condition[0]);
+            $column = $this->select->parseColumn($condition[0]);
 
             if (strtolower($condition[1]) === 'in') {
                 if (is_array($condition[2])) {
@@ -149,27 +140,6 @@ class WhereBuilder
         }
 
         return implode(' AND ', $query);
-    }
-
-    private function parseRelationColumn(string $column): string
-    {
-        $parts = explode('.', $column);
-
-        if (count($parts) === 1) {
-            return $column;
-        }
-
-        $entitySchema = $this->schemaProvider->getEntitySchema($this->entityClass);
-        $columnSchema = $entitySchema->getColumnByPropertyName($parts[0]);
-        if ($columnSchema->relationEntityClass === null) {
-            throw new \InvalidArgumentException('Column is not relation');
-        }
-
-        $relationEntitySchema = $this->schemaProvider->getEntitySchema($columnSchema->relationEntityClass);
-
-        $this->select->join($parts[0], $relationEntitySchema->table, $relationEntitySchema->getPrimaryColumn()->columnName);
-
-        return $relationEntitySchema->table . '.' . $relationEntitySchema->getPrimaryColumn()->columnName;
     }
 
     /**
