@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Fixtures\Entity;
 
+use DateTimeImmutable;
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
@@ -19,7 +20,7 @@ class UserWithAddressFixture
 
     public function __construct(
         #[Column(type: 'timestamp')]
-        public \DateTimeImmutable $createdAt,
+        public DateTimeImmutable $createdAt,
         #[Column(type: 'varchar(255)')]
         public string $firstName,
         #[Column(type: 'varchar(255)', nullable: true)]

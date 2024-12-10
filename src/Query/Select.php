@@ -9,7 +9,6 @@ use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
 use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
-use MarekSkopal\ORM\Query\Where\WhereBuilderFactory;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use PDO;
@@ -161,8 +160,6 @@ class Select
 
     public function getSql(): string
     {
-
-
         return 'SELECT '
             . implode(',', $this->getColumns())
             . ' FROM ' . $this->schema->table
@@ -248,6 +245,12 @@ class Select
             return '';
         }
 
-        return implode(' ', array_map(fn(Join $join): string => 'LEFT JOIN ' . $join->referenceTable . ' ON ' . $join->referenceTable . '.' . $join->referenceColumn . '=' . $this->schema->table . '.' .  $join->column, $this->joins));
+        return implode(
+            ' ',
+            array_map(
+                fn(Join $join): string => 'LEFT JOIN ' . $join->referenceTable . ' ON ' . $join->referenceTable . '.' . $join->referenceColumn . '=' . $this->schema->table . '.' . $join->column,
+                $this->joins,
+            ),
+        );
     }
 }

@@ -36,11 +36,15 @@ readonly class EntitySchema
 
     public function getColumnByPropertyName(string $propertyName): ColumnSchema
     {
-        return $this->columns[$propertyName] ?? throw new \InvalidArgumentException(sprintf('Column schema for property "%s" not found.', $propertyName));
+        return $this->columns[$propertyName] ?? throw new \InvalidArgumentException(
+            sprintf('Column schema for property "%s" not found.', $propertyName),
+        );
     }
 
     public function getColumnByColumnName(string $columnName): ColumnSchema
     {
-        return array_find($this->columns, fn($column) => $column->columnName === $columnName) ?? throw new \InvalidArgumentException(sprintf('Column schema for column "%s" not found.', $columnName));
+        return array_find($this->columns, fn($column) => $column->columnName === $columnName) ?? throw new \InvalidArgumentException(
+            sprintf('Column schema for column "%s" not found.', $columnName),
+        );
     }
 }

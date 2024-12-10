@@ -6,7 +6,6 @@ namespace MarekSkopal\ORM\Query\Where;
 
 use BackedEnum;
 use DateTimeInterface;
-use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use Ramsey\Uuid\UuidInterface;
@@ -32,7 +31,11 @@ class WhereBuilder
      * @param Select<T> $select
      * @param class-string<T> $entityClass
      */
-    public function __construct(private readonly Select $select, private readonly SchemaProvider $schemaProvider, private readonly string $entityClass)
+    public function __construct(
+        private readonly Select $select,
+        private readonly SchemaProvider $schemaProvider,
+        private readonly string $entityClass,
+    )
     {
     }
 

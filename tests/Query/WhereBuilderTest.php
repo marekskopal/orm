@@ -37,7 +37,11 @@ final class WhereBuilderTest extends TestCase
         $entityFactory = $this->createMock(EntityFactory::class);
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $schemaProvider->method('getEntitySchema')
-            ->willReturn(UserEntityWithAddressSchemaFixture::create(), UserEntityWithAddressSchemaFixture::create(), AddressEntitySchemaFixture::create());
+            ->willReturn(
+                UserEntityWithAddressSchemaFixture::create(),
+                UserEntityWithAddressSchemaFixture::create(),
+                AddressEntitySchemaFixture::create(),
+            );
 
         $this->select = new Select($pdo, $entityFactory, UserFixture::class, $schemaProvider);
 
@@ -164,7 +168,7 @@ final class WhereBuilderTest extends TestCase
 
     public function testBuildIn(): void
     {
-        $whereBuilder =  $this->whereBuilder;
+        $whereBuilder = $this->whereBuilder;
 
         $whereBuilder->where([
             'id',
