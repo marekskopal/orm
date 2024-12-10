@@ -194,6 +194,31 @@ class ColumnSchemaFactoryTest extends TestCase
         self::assertEquals($columnSchemaExpected, $columnSchema);
     }
 
+    public function testCreateFromManyToOneNullable(): void
+    {
+        $columnSchemaFactory = new ColumnSchemaFactory();
+
+        $columnSchema = $columnSchemaFactory->create(
+            new ReflectionProperty(
+                UserWithAddressFixture::class,
+                'secondAddress',
+            ),
+            CaseEnum::SnakeCase,
+        );
+
+        $columnSchemaExpected = new ColumnSchema(
+            propertyName: 'secondAddress',
+            propertyType: PropertyTypeEnum::Relation,
+            columnName: 'second_address_id',
+            columnType: 'int',
+            relationType: RelationEnum::ManyToOne,
+            relationEntityClass: AddressFixture::class,
+            isNullable: true,
+        );
+
+        self::assertEquals($columnSchemaExpected, $columnSchema);
+    }
+
     public function testCreateFromOneToMany(): void
     {
         $columnSchemaFactory = new ColumnSchemaFactory();

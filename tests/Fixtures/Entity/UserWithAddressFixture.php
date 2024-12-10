@@ -25,6 +25,8 @@ class UserWithAddressFixture
         public bool $isActive,
         #[ManyToOne(entityClass: AddressFixture::class)]
         public AddressFixture $address,
+        #[ManyToOne(entityClass: AddressFixture::class, nullable: true)]
+        public AddressFixture $secondAddress,
     ) {
     }
 }

@@ -78,6 +78,7 @@ class ColumnSchemaFactory
             propertyType: PropertyTypeEnum::Relation,
             columnName: $attributeInstance->name ?? CaseUtils::toCase($columnCase, $reflectionProperty->getName() . 'Id'),
             columnType: 'int',
+            isNullable: $attributeInstance->nullable,
             relationType: RelationEnum::ManyToOne,
             relationEntityClass: $attributeInstance->entityClass,
         );
