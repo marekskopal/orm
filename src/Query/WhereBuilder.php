@@ -168,7 +168,12 @@ class WhereBuilder
     private function getScalarParamsValues(string|int|float|bool|object|array $conditionValue): string|int|float|bool|array
     {
         if (is_array($conditionValue)) {
-            return $this->getScalarParamsValues($conditionValue);
+            return array_map(
+                fn (string|int|float|bool|object $conditionValueItem): string|int|float|bool => $this->getScalarParamsValues(
+                    $conditionValueItem,
+                ),
+                $conditionValue,
+            );
         }
 
         if ($conditionValue instanceof Select) {

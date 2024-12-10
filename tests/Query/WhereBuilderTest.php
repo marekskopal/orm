@@ -156,6 +156,22 @@ final class WhereBuilderTest extends TestCase
         );
     }
 
+    public function testGetParamsIn(): void
+    {
+        $whereBuilder = new WhereBuilder();
+
+        $whereBuilder->where([
+            'id',
+            'IN',
+            [1, 2, 3],
+        ]);
+
+        self::assertSame(
+            [1, 2, 3],
+            $whereBuilder->getParams(),
+        );
+    }
+
     public function testBuildInSelect(): void
     {
         $whereBuilder = new WhereBuilder();
