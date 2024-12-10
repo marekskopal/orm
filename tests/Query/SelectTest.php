@@ -7,9 +7,10 @@ namespace MarekSkopal\ORM\Tests\Query;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
 use MarekSkopal\ORM\Query\Select;
-use MarekSkopal\ORM\Query\WhereBuilder;
+use MarekSkopal\ORM\Query\Where\WhereBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
 use PDO;
@@ -24,6 +25,20 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(WhereBuilder::class)]
 final class SelectTest extends TestCase
 {
+    /** @var Select<UserFixture> */
+    private Select $select;
+
+    protected function setUp(): void
+    {
+        $pdo = $this->createMock(PDO::class);
+        $entityFactory = $this->createMock(EntityFactory::class);
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $schemaProvider->method('getEntitySchema')
+            ->willReturn(EntitySchemaFixture::create());
+
+        $this->select = new Select($pdo, $entityFactory, UserFixture::class, $schemaProvider);
+    }
+
     /** @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where */
     #[TestWith([['id' => 1], 'id=?'])]
     #[TestWith([['id', '=', 1], 'id=?'])]
@@ -31,11 +46,7 @@ final class SelectTest extends TestCase
     #[TestWith([[['id', '=', 1], ['first_name', '!=', 'John']], 'id=? AND first_name!=?'])]
     public function testWhere(array $where, string $expectedWhereSql): void
     {
-        $pdo = $this->createMock(PDO::class);
-        $entityFactory = $this->createMock(EntityFactory::class);
-        $entitySchema = EntitySchemaFixture::create();
-
-        $select = new Select($pdo, $entityFactory, UserFixture::class, $entitySchema);
+        $select = $this->select;
 
         $select->where($where);
         self::assertSame(
@@ -50,11 +61,7 @@ final class SelectTest extends TestCase
     #[TestWith(['id', DirectionEnum::Desc, 'id DESC'])]
     public function testOrderBy(string $column, DirectionEnum|string $direction, string $expectedOrderBySql): void
     {
-        $pdo = $this->createMock(PDO::class);
-        $entityFactory = $this->createMock(EntityFactory::class);
-        $entitySchema = EntitySchemaFixture::create();
-
-        $select = new Select($pdo, $entityFactory, UserFixture::class, $entitySchema);
+        $select = $this->select;
 
         $select->orderBy($column, $direction);
         self::assertSame(
@@ -65,11 +72,7 @@ final class SelectTest extends TestCase
 
     public function testColumns(): void
     {
-        $pdo = $this->createMock(PDO::class);
-        $entityFactory = $this->createMock(EntityFactory::class);
-        $entitySchema = EntitySchemaFixture::create();
-
-        $select = new Select($pdo, $entityFactory, UserFixture::class, $entitySchema);
+        $select = $this->select;
 
         $select->columns(['id', 'first_name']);
         self::assertSame(
@@ -80,11 +83,7 @@ final class SelectTest extends TestCase
 
     public function testLimit(): void
     {
-        $pdo = $this->createMock(PDO::class);
-        $entityFactory = $this->createMock(EntityFactory::class);
-        $entitySchema = EntitySchemaFixture::create();
-
-        $select = new Select($pdo, $entityFactory, UserFixture::class, $entitySchema);
+        $select = $this->select;
 
         $select->limit(10);
         self::assertSame(
@@ -95,11 +94,7 @@ final class SelectTest extends TestCase
 
     public function testOffset(): void
     {
-        $pdo = $this->createMock(PDO::class);
-        $entityFactory = $this->createMock(EntityFactory::class);
-        $entitySchema = EntitySchemaFixture::create();
-
-        $select = new Select($pdo, $entityFactory, UserFixture::class, $entitySchema);
+        $select = $this->select;
 
         $select->offset(10);
         self::assertSame(

@@ -25,13 +25,25 @@ class UserEntitySchemaFixture
                     columnName: 'id',
                     columnType: 'int',
                     isPrimary: true,
-                    isAutoIncrement: true,
+                ),
+                'createdAt' => new ColumnSchema(
+                    propertyName: 'createdAt',
+                    propertyType: PropertyTypeEnum::DateTimeImmutable,
+                    columnName: 'created_at',
+                    columnType: 'datetime',
                 ),
                 'firstName' => new ColumnSchema(
                     propertyName: 'firstName',
                     propertyType: PropertyTypeEnum::String,
                     columnName: 'first_name',
                     columnType: 'varchar',
+                ),
+                'middleName' => new ColumnSchema(
+                    propertyName: 'middleName',
+                    propertyType: PropertyTypeEnum::String,
+                    columnName: 'middle_name',
+                    columnType: 'varchar',
+                    isNullable: true,
                 ),
                 'lastName' => new ColumnSchema(
                     propertyName: 'lastName',

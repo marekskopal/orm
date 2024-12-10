@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Tests\Query;
 
 use MarekSkopal\ORM\Entity\EntityFactory;
+use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Select;
-use MarekSkopal\ORM\Query\WhereBuilder;
+use MarekSkopal\ORM\Query\Where\WhereBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
-use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Schema\AddressEntitySchemaFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Schema\UserEntityWithAddressSchemaFixture;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -20,11 +23,30 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(Select::class)]
 #[UsesClass(ColumnSchema::class)]
 #[UsesClass(EntitySchema::class)]
+#[UsesClass(Join::class)]
 final class WhereBuilderTest extends TestCase
 {
+    /** @var Select<UserFixture> */
+    private Select $select;
+
+    private WhereBuilder $whereBuilder;
+
+    protected function setUp(): void
+    {
+        $pdo = $this->createMock(PDO::class);
+        $entityFactory = $this->createMock(EntityFactory::class);
+        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $schemaProvider->method('getEntitySchema')
+            ->willReturn(UserEntityWithAddressSchemaFixture::create(), UserEntityWithAddressSchemaFixture::create(), AddressEntitySchemaFixture::create());
+
+        $this->select = new Select($pdo, $entityFactory, UserFixture::class, $schemaProvider);
+
+        $this->whereBuilder = new WhereBuilder($this->select, $schemaProvider, UserFixture::class,);
+    }
+
     public function testBuild(): void
     {
-        $whereBuilder = new WhereBuilder();
+        $whereBuilder = $this->whereBuilder;
 
         $whereBuilder->where([
             'id' => 1,
@@ -40,7 +62,7 @@ final class WhereBuilderTest extends TestCase
 
     public function testGetParams(): void
     {
-        $whereBuilder = new WhereBuilder();
+        $whereBuilder = $this->whereBuilder;
 
         $whereBuilder->where([
             'id' => 1,
@@ -56,7 +78,7 @@ final class WhereBuilderTest extends TestCase
 
     public function testBuildOr(): void
     {
-        $whereBuilder = new WhereBuilder();
+        $whereBuilder = $this->whereBuilder;
 
         $whereBuilder->where([
             'id' => 1,
@@ -74,7 +96,7 @@ final class WhereBuilderTest extends TestCase
 
     public function testBuildOrOr(): void
     {
-        $whereBuilder = new WhereBuilder();
+        $whereBuilder = $this->whereBuilder;
 
         $whereBuilder->where([
             'id' => 1,
@@ -96,7 +118,7 @@ final class WhereBuilderTest extends TestCase
     {
         // id=1 AND ((first_name='John' AND last_name='Doe') OR (first_name='Jane' AND last_name='Doe'))
 
-        $whereBuilder = new WhereBuilder();
+        $whereBuilder = $this->whereBuilder;
 
         $whereBuilder->where([
             'id' => 1,
@@ -119,7 +141,7 @@ final class WhereBuilderTest extends TestCase
 
     public function testGetParamsSub(): void
     {
-        $whereBuilder = new WhereBuilder();
+        $whereBuilder = $this->whereBuilder;
 
         $whereBuilder->where([
             'id' => 1,
@@ -142,7 +164,7 @@ final class WhereBuilderTest extends TestCase
 
     public function testBuildIn(): void
     {
-        $whereBuilder = new WhereBuilder();
+        $whereBuilder =  $this->whereBuilder;
 
         $whereBuilder->where([
             'id',
@@ -158,7 +180,7 @@ final class WhereBuilderTest extends TestCase
 
     public function testGetParamsIn(): void
     {
-        $whereBuilder = new WhereBuilder();
+        $whereBuilder = $this->whereBuilder;
 
         $whereBuilder->where([
             'id',
@@ -174,13 +196,9 @@ final class WhereBuilderTest extends TestCase
 
     public function testBuildInSelect(): void
     {
-        $whereBuilder = new WhereBuilder();
+        $whereBuilder = $this->whereBuilder;
 
-        $pdo = $this->createMock(PDO::class);
-        $entityFactory = $this->createMock(EntityFactory::class);
-        $entitySchema = EntitySchemaFixture::create();
-
-        $select = new Select($pdo, $entityFactory, UserFixture::class, $entitySchema);
+        $select = $this->select;
         $select->columns(['id'])
             ->where([
                 'first_name' => 'John',
@@ -194,6 +212,20 @@ final class WhereBuilderTest extends TestCase
 
         self::assertSame(
             'id IN (' . $select->getSql() . ')',
+            $whereBuilder->build(),
+        );
+    }
+
+    public function testBuildRelation(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where([
+            'address.id' => 1,
+        ]);
+
+        self::assertSame(
+            'addresses.id=?',
             $whereBuilder->build(),
         );
     }

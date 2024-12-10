@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Repository;
 
 use MarekSkopal\ORM\Query\Select;
-use MarekSkopal\ORM\Query\WhereBuilder;
+use MarekSkopal\ORM\Query\Where\WhereBuilder;
 
 /**
  * @template T of object

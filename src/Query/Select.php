@@ -7,7 +7,11 @@ namespace MarekSkopal\ORM\Query;
 use Iterator;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
+use MarekSkopal\ORM\Query\Model\Join;
+use MarekSkopal\ORM\Query\Where\WhereBuilder;
+use MarekSkopal\ORM\Query\Where\WhereBuilderFactory;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use PDO;
 use PDOStatement;
 
@@ -17,6 +21,8 @@ use PDOStatement;
  */
 class Select
 {
+    private readonly EntitySchema $schema;
+
     private readonly WhereBuilder $whereBuilder;
 
     /** @var list<array{0: string, 1: DirectionEnum}> */
@@ -32,14 +38,17 @@ class Select
 
     private ?int $offset = null;
 
+    private array $joins = [];
+
     /** @param class-string<T> $entityClass */
     public function __construct(
         private readonly PDO $pdo,
         private readonly EntityFactory $entityFactory,
         private readonly string $entityClass,
-        private readonly EntitySchema $schema,
+        private readonly SchemaProvider $schemaProvider,
     ) {
-        $this->whereBuilder = new WhereBuilder();
+        $this->schema = $this->schemaProvider->getEntitySchema($entityClass);
+        $this->whereBuilder = new WhereBuilder($this, $this->schemaProvider, $entityClass);
     }
 
     /**
@@ -99,6 +108,12 @@ class Select
         return $this;
     }
 
+    public function join(string $column, string $referenceTable, string $referenceColumn): self
+    {
+        $this->joins[] = new Join($referenceTable, $referenceColumn, $column);
+        return $this;
+    }
+
     /** @return T|null */
     public function fetchOne(): ?object
     {
@@ -146,9 +161,12 @@ class Select
 
     public function getSql(): string
     {
+
+
         return 'SELECT '
             . implode(',', $this->getColumns())
             . ' FROM ' . $this->schema->table
+            . $this->getJoinsQuery()
             . $this->getWhereQuery()
             . $this->getGroupByQuery()
             . $this->getOrderByQuery()
@@ -222,5 +240,14 @@ class Select
         }
 
         return ' OFFSET ' . $this->offset;
+    }
+
+    private function getJoinsQuery(): string
+    {
+        if (count($this->joins) === 0) {
+            return '';
+        }
+
+        return implode(' ', array_map(fn(Join $join): string => 'LEFT JOIN ' . $join->referenceTable . ' ON ' . $join->referenceTable . '.' . $join->referenceColumn . '=' . $this->schema->table . '.' .  $join->column, $this->joins));
     }
 }

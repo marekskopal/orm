@@ -27,13 +27,25 @@ class UserEntityWithAddressSchemaFixture
                     columnName: 'id',
                     columnType: 'int',
                     isPrimary: true,
-                    isAutoIncrement: true,
+                ),
+                'createdAt' => new ColumnSchema(
+                    propertyName: 'createdAt',
+                    propertyType: PropertyTypeEnum::DateTimeImmutable,
+                    columnName: 'created_at',
+                    columnType: 'datetime',
                 ),
                 'firstName' => new ColumnSchema(
                     propertyName: 'firstName',
                     propertyType: PropertyTypeEnum::String,
                     columnName: 'first_name',
                     columnType: 'varchar',
+                ),
+                'middleName' => new ColumnSchema(
+                    propertyName: 'middleName',
+                    propertyType: PropertyTypeEnum::String,
+                    columnName: 'middle_name',
+                    columnType: 'varchar',
+                    isNullable: true,
                 ),
                 'lastName' => new ColumnSchema(
                     propertyName: 'lastName',
@@ -60,6 +72,15 @@ class UserEntityWithAddressSchemaFixture
                     columnType: 'int',
                     relationType: RelationEnum::ManyToOne,
                     relationEntityClass: AddressFixture::class,
+                ),
+                'secondAddress' => new ColumnSchema(
+                    propertyName: 'address',
+                    propertyType: PropertyTypeEnum::Relation,
+                    columnName: 'second_address_id',
+                    columnType: 'int',
+                    relationType: RelationEnum::ManyToOne,
+                    relationEntityClass: AddressFixture::class,
+                    isNullable: true,
                 ),
             ],
         );

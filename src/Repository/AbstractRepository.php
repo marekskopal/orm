@@ -7,7 +7,7 @@ namespace MarekSkopal\ORM\Repository;
 use Iterator;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
-use MarekSkopal\ORM\Query\WhereBuilder;
+use MarekSkopal\ORM\Query\Where\WhereBuilder;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 
 /**

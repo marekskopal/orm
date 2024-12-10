@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
-namespace MarekSkopal\ORM\Query;
+namespace MarekSkopal\ORM\Query\Where;
 
 use BackedEnum;
 use DateTimeInterface;
+use MarekSkopal\ORM\Query\QueryProvider;
+use MarekSkopal\ORM\Query\Select;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use Ramsey\Uuid\UuidInterface;
 
 /**
@@ -24,12 +27,21 @@ class WhereBuilder
     /** @var list<WhereBuilder> */
     private array $orWhere = [];
 
+    /**
+     * @template T of object
+     * @param Select<T> $select
+     * @param class-string<T> $entityClass
+     */
+    public function __construct(private readonly Select $select, private readonly SchemaProvider $schemaProvider, private readonly string $entityClass)
+    {
+    }
+
     /** @param Where $params */
     public function where(array|callable $params): self
     {
         if (is_callable($params)) {
             /** @var WhereBuilderCallable $params */
-            $this->where[] = $params(new WhereBuilder());
+            $this->where[] = $params(new WhereBuilder($this->select, $this->schemaProvider, $this->entityClass));
             return $this;
         }
 
@@ -70,7 +82,7 @@ class WhereBuilder
     /** @param Where $params */
     public function orWhere(array|callable $params): self
     {
-        $this->orWhere[] = new WhereBuilder()->where($params);
+        $this->orWhere[] = new WhereBuilder($this->select, $this->schemaProvider, $this->entityClass)->where($params);
 
         return $this;
     }
@@ -111,9 +123,11 @@ class WhereBuilder
                 continue;
             }
 
+            $column = $this->parseRelationColumn($condition[0]);
+
             if (strtolower($condition[1]) === 'in') {
                 if (is_array($condition[2])) {
-                    $query[] = $condition[0] . ' ' . $condition[1] . ' (' . implode(
+                    $query[] = $column . ' ' . $condition[1] . ' (' . implode(
                         ',',
                         array_map(fn($value): string => '?', $condition[2]),
                     ) . ')';
@@ -121,17 +135,38 @@ class WhereBuilder
                 }
 
                 if ($condition[2] instanceof Select) {
-                    $query[] = $condition[0] . ' ' . $condition[1] . ' (' . $condition[2]->getSql() . ')';
+                    $query[] = $column . ' ' . $condition[1] . ' (' . $condition[2]->getSql() . ')';
                     continue;
                 }
 
                 throw new \InvalidArgumentException('IN condition must have array or Select as value');
             }
 
-            $query[] = $condition[0] . $condition[1] . '?';
+            $query[] = $column . $condition[1] . '?';
         }
 
         return implode(' AND ', $query);
+    }
+
+    private function parseRelationColumn(string $column): string
+    {
+        $parts = explode('.', $column);
+
+        if (count($parts) === 1) {
+            return $column;
+        }
+
+        $entitySchema = $this->schemaProvider->getEntitySchema($this->entityClass);
+        $columnSchema = $entitySchema->getColumnByPropertyName($parts[0]);
+        if ($columnSchema->relationEntityClass === null) {
+            throw new \InvalidArgumentException('Column is not relation');
+        }
+
+        $relationEntitySchema = $this->schemaProvider->getEntitySchema($columnSchema->relationEntityClass);
+
+        $this->select->join($parts[0], $relationEntitySchema->table, $relationEntitySchema->getPrimaryColumn()->columnName);
+
+        return $relationEntitySchema->table . '.' . $relationEntitySchema->getPrimaryColumn()->columnName;
     }
 
     /**
@@ -162,7 +197,7 @@ class WhereBuilder
     }
 
     /**
-     * @param WhereValues $conditionValue
+     * @param BackedEnum $conditionValue
      * @return scalar|array<scalar>
      */
     private function getScalarParamsValues(string|int|float|bool|object|array $conditionValue): string|int|float|bool|array

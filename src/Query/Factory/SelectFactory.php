@@ -30,7 +30,7 @@ readonly class SelectFactory
             $this->database->getPdo(),
             $this->entityFactory,
             $entityClass,
-            $this->schemaProvider->getEntitySchema($entityClass),
+            $this->schemaProvider,
         );
     }
 }
