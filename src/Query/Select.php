@@ -57,7 +57,7 @@ class Select
     public function orderBy(string $column, DirectionEnum|string $direction = DirectionEnum::Asc): self
     {
         if (is_string($direction)) {
-            $direction = DirectionEnum::from($direction);
+            $direction = DirectionEnum::from(strtoupper($direction));
         }
 
         $this->orderBy[] = [$column, $direction];
