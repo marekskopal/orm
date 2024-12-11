@@ -157,6 +157,36 @@ final class IntegrationTest extends TestCase
         self::assertEquals(1, $address->id);
     }
 
+    public function testSelectEntityRelationOneToMany(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_users_with_address.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(AddressWithUsersFixture::class);
+
+        $address = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(AddressWithUsersFixture::class, $address);
+        self::assertEquals(1, count(iterator_to_array($address->users)));
+    }
+
     public function testInsertEntity(): void
     {
         $database = new SqliteDatabase(':memory:');

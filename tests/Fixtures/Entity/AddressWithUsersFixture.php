@@ -21,7 +21,7 @@ final class AddressWithUsersFixture
         public string $city,
         #[Column(type: 'varchar(255)')]
         public string $country,
-        #[OneToMany(entityClass: UserWithAddressFixture::class)]
+        #[OneToMany(entityClass: UserWithAddressFixture::class, relationColumnName: 'address_id')]
         public Iterator $users,
     ) {
     }

@@ -215,7 +215,15 @@ final class MapperTest extends TestCase
         $mapper = new Mapper($schemaProvider);
         $mapper->setQueryProvider($queryProvider);
 
-        $columnSchema = new ColumnSchema('users', PropertyTypeEnum::Relation, 'users', 'int', RelationEnum::OneToMany, UserFixture::class);
+        $columnSchema = new ColumnSchema(
+            'users',
+            PropertyTypeEnum::Relation,
+            'users',
+            'int',
+            RelationEnum::OneToMany,
+            UserFixture::class,
+            'address_id',
+        );
         $entitySchema = EntitySchemaFixture::create(columns: ['users' => $columnSchema]);
 
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 1);

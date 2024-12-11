@@ -24,6 +24,7 @@ readonly class ColumnSchema
         public string $columnType,
         public ?RelationEnum $relationType = null,
         public ?string $relationEntityClass = null,
+        public ?string $relationColumnName = null,
         public bool $isPrimary = false,
         public bool $isAutoIncrement = false,
         public bool $isNullable = false,

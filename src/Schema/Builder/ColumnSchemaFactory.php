@@ -12,6 +12,7 @@ use MarekSkopal\ORM\Schema\Enum\CaseEnum;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Utils\CaseUtils;
+use MarekSkopal\ORM\Utils\NameUtils;
 use ReflectionAttribute;
 use ReflectionNamedType;
 use ReflectionProperty;
@@ -100,6 +101,10 @@ class ColumnSchemaFactory
             columnType: 'int',
             relationType: RelationEnum::OneToMany,
             relationEntityClass: $attributeInstance->entityClass,
+            relationColumnName: $attributeInstance->relationColumnName ?? CaseUtils::toCase(
+                $columnCase,
+                NameUtils::getRelationColumnName($attributeInstance->entityClass),
+            ),
         );
     }
 

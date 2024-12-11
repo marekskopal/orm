@@ -64,7 +64,7 @@ class Mapper implements MapperInterface
             PropertyTypeEnum::Enum => $columnSchema->enumClass !== null ? $columnSchema->enumClass::from(
                 ValidationUtils::checkString($value),
             ) : null,
-            PropertyTypeEnum::Relation => $this->mapRelationToProperty($entitySchema, $columnSchema, (int) $value),
+            PropertyTypeEnum::Relation => $this->mapRelationToProperty($columnSchema, (int) $value),
             PropertyTypeEnum::Extension => $columnSchema->extensionClass !== null ?
                 $this->extensionMapperProvider->getExtensionMapper($columnSchema->extensionClass)->mapToProperty(
                     $entitySchema,
@@ -101,12 +101,16 @@ class Mapper implements MapperInterface
         };
     }
 
-    private function mapRelationToProperty(EntitySchema $entitySchema, ColumnSchema $columnSchema, int $value): object
+    private function mapRelationToProperty(ColumnSchema $columnSchema, int $value): object
     {
         $relationEntityClass = $columnSchema->relationEntityClass ?? throw new \RuntimeException('Relation entity class not found');
 
         return match ($columnSchema->relationType) {
-            RelationEnum::OneToMany => $this->mapRelationOneToManyToProperty($entitySchema->table, $relationEntityClass, $value),
+            RelationEnum::OneToMany => $this->mapRelationOneToManyToProperty(
+                $relationEntityClass,
+                $columnSchema->relationColumnName,
+                $value,
+            ),
             RelationEnum::ManyToOne => $this->mapRelationManyToOneToProperty($relationEntityClass, $value),
             default => throw new \RuntimeException('Relation type not found'),
         };
@@ -117,9 +121,9 @@ class Mapper implements MapperInterface
      * @param class-string<T> $entityClass
      * @return Iterator<T>
      */
-    private function mapRelationOneToManyToProperty(string $table, string $entityClass, int $value): Iterator
+    private function mapRelationOneToManyToProperty(string $entityClass, string $columnName, int $value): Iterator
     {
-        return $this->queryProvider->select($entityClass)->where([$table . '_id', '=', $value])->fetchAll();
+        return $this->queryProvider->select($entityClass)->where([$columnName, '=', $value])->fetchAll();
     }
 
     /**

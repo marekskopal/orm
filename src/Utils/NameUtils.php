@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Utils;
 
+use ReflectionClass;
+
 final class NameUtils
 {
     public static function getTableName(string $name): string
@@ -18,6 +20,11 @@ final class NameUtils
         }
 
         return $name . 's';
+    }
+
+    public static function getRelationColumnName(string $relationClass): string
+    {
+        return lcfirst((new ReflectionClass($relationClass))->getShortName()) . 'Id';
     }
 
     public static function escape(string $name): string

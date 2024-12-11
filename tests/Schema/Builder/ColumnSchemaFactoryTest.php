@@ -237,6 +237,7 @@ class ColumnSchemaFactoryTest extends TestCase
             columnType: 'int',
             relationType: RelationEnum::OneToMany,
             relationEntityClass: UserWithAddressFixture::class,
+            relationColumnName: 'address_id',
         );
 
         self::assertEquals($columnSchemaExpected, $columnSchema);
