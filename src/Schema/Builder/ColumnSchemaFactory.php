@@ -20,6 +20,7 @@ use ReflectionProperty;
 
 class ColumnSchemaFactory
 {
+    /** @param ReflectionClass<object> $reflectionClass */
     public function __construct(private readonly ReflectionClass $reflectionClass)
     {
     }

@@ -17,13 +17,14 @@ class EntityCache
      */
     public function getEntity(string $entityClass, int $id): ?object
     {
-        return $this->entities[$entityClass][$id] ?? null;
+        /** @var T|null $entity */
+        $entity = $this->entities[$entityClass][$id] ?? null;
+        return $entity;
     }
 
-    /** @param object{id: int} $entity */
-    public function addEntity(object $entity): void
+    public function addEntity(object $entity, int $id): void
     {
-        $this->entities[$entity::class][$entity->id] = $entity;
+        $this->entities[$entity::class][$id] = $entity;
     }
 
     public function clear(): void

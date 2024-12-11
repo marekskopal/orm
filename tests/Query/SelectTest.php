@@ -12,7 +12,6 @@ use MarekSkopal\ORM\Query\Where\WhereBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
-use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\AddressEntitySchemaFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\UserEntityWithAddressSchemaFixture;
@@ -31,7 +30,7 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(NameUtils::class)]
 final class SelectTest extends TestCase
 {
-    /** @var Select<UserFixture> */
+    /** @var Select<UserWithAddressFixture> */
     private Select $select;
 
     private const string BaseSql = 'SELECT `u`.`id`,`u`.`created_at`,`u`.`first_name`,`u`.`middle_name`,`u`.`last_name`,`u`.`email`,`u`.`is_active`,`u`.`type`,`u`.`address_id`,`u`.`second_address_id` FROM `users` `u`';

@@ -14,6 +14,7 @@ use ReflectionClass;
 
 class EntitySchemaFactory
 {
+    /** @var array<string, string> */
     private array $tableAliases = [];
 
     /** @param ReflectionClass<object> $reflectionClass */

@@ -25,7 +25,7 @@ class WhereBuilder
     /** @var list<WhereBuilder> */
     private array $orWhere = [];
 
-    /** @param Select<object> $select */
+    /** @param Select<covariant object> $select */
     public function __construct(private readonly Select $select,)
     {
     }
@@ -66,6 +66,7 @@ class WhereBuilder
             /**
              * @var string $column
              * @var WhereValues $param
+             * @phpstan-ignore-next-line varTag.nativeType
              */
             $this->where[] = [$column, '=', $param];
         }
@@ -170,13 +171,14 @@ class WhereBuilder
     }
 
     /**
-     * @param BackedEnum $conditionValue
+     * @param WhereValues $conditionValue
      * @return scalar|array<scalar>
      */
     private function getScalarParamsValues(string|int|float|bool|object|array $conditionValue): string|int|float|bool|array
     {
         if (is_array($conditionValue)) {
             return array_map(
+                // @phpstan-ignore-next-line return.type
                 fn (string|int|float|bool|object $conditionValueItem): string|int|float|bool => $this->getScalarParamsValues(
                     $conditionValueItem,
                 ),

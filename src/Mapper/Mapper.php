@@ -43,7 +43,7 @@ class Mapper implements MapperInterface
             $value === null
             && (
                 $columnSchema->propertyType !== PropertyTypeEnum::Relation
-                || $columnSchema->propertyType === PropertyTypeEnum::Relation && $columnSchema->relationType === RelationEnum::ManyToOne
+                || $columnSchema->relationType === RelationEnum::ManyToOne
             )
         ) {
             if (!$columnSchema->isNullable) {
@@ -108,7 +108,7 @@ class Mapper implements MapperInterface
         return match ($columnSchema->relationType) {
             RelationEnum::OneToMany => $this->mapRelationOneToManyToProperty(
                 $relationEntityClass,
-                $columnSchema->relationColumnName,
+                $columnSchema->relationColumnName ?? throw new \RuntimeException('Relation column name not found'),
                 $value,
             ),
             RelationEnum::ManyToOne => $this->mapRelationManyToOneToProperty($relationEntityClass, $value),

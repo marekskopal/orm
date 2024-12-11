@@ -58,7 +58,7 @@ class EntityFactory
             $entity->{$property->getName()} = $this->mapper->mapToProperty($entitySchema, $columnSchema, $value);
         }
 
-        $this->entityCache->addEntity($entity);
+        $this->entityCache->addEntity($entity, $primaryValue);
 
         return $entity;
     }
