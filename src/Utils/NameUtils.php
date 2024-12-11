@@ -11,7 +11,8 @@ final class NameUtils
     public static function getTableName(string $name): string
     {
         $lastChar = substr($name, -1);
-        if ($lastChar === 'y') {
+        $secondLastChar = substr($name, -2, 1);
+        if ($lastChar === 'y' && !in_array($secondLastChar, ['a', 'e', 'i', 'o', 'u'], true)) {
             return substr($name, 0, -1) . 'ies';
         }
 

@@ -16,6 +16,7 @@ class NameUtilsTest extends TestCase
     #[TestWith(['name' => 'user', 'expected' => 'users'])]
     #[TestWith(['name' => 'city', 'expected' => 'cities'])]
     #[TestWith(['name' => 'address', 'expected' => 'addresses'])]
+    #[TestWith(['name' => 'key', 'expected' => 'keys'])]
     public function testGetTableName(string $name, string $expected): void
     {
         self::assertSame($expected, NameUtils::getTableName($name));
