@@ -39,7 +39,13 @@ class Mapper implements MapperInterface
         string|int|float|null $value,
     ): string|int|float|bool|object|null
     {
-        if ($value === null) {
+        if (
+            $value === null
+            && (
+                $columnSchema->propertyType !== PropertyTypeEnum::Relation
+                || $columnSchema->propertyType === PropertyTypeEnum::Relation && $columnSchema->relationType === RelationEnum::ManyToOne
+            )
+        ) {
             if (!$columnSchema->isNullable) {
                 throw new \RuntimeException(sprintf('Column "%s" is not nullable', $columnSchema->columnName));
             }

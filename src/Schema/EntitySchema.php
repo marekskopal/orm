@@ -32,6 +32,15 @@ readonly class EntitySchema
     }
 
     /** @return array<string, ColumnSchema> */
+    public function getSelectableColumns(): array
+    {
+        return array_filter(
+            $this->columns,
+            fn(ColumnSchema $column): bool => $column->relationType === null || $column->relationType === RelationEnum::ManyToOne,
+        );
+    }
+
+    /** @return array<string, ColumnSchema> */
     public function getInsertableColumns(): array
     {
         return array_filter(

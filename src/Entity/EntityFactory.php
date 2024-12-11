@@ -41,7 +41,7 @@ class EntityFactory
         $properties = [];
         foreach ($constructorParameters as $parameter) {
             $columnSchema = $entitySchema->columns[$parameter->getName()];
-            $properties[] = $this->mapper->mapToProperty($entitySchema, $columnSchema, $values[$columnSchema->columnName]);
+            $properties[] = $this->mapper->mapToProperty($entitySchema, $columnSchema, $values[$columnSchema->columnName] ?? null);
         }
 
         $entity = new $entityClass(...$properties);
@@ -53,7 +53,7 @@ class EntityFactory
             $entity->{$property->getName()} = $this->mapper->mapToProperty(
                 $entitySchema,
                 $columnSchema,
-                $values[$columnSchema->columnName],
+                $values[$columnSchema->columnName] ?? null,
             );
         }
 

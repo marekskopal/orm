@@ -13,7 +13,6 @@ use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Enum\CaseEnum;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
-use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Code;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
@@ -188,7 +187,7 @@ class ColumnSchemaFactoryTest extends TestCase
             columnName: 'address_id',
             columnType: 'int',
             relationType: RelationEnum::ManyToOne,
-            relationEntityClass: AddressFixture::class,
+            relationEntityClass: AddressWithUsersFixture::class,
         );
 
         self::assertEquals($columnSchemaExpected, $columnSchema);
@@ -212,7 +211,7 @@ class ColumnSchemaFactoryTest extends TestCase
             columnName: 'second_address_id',
             columnType: 'int',
             relationType: RelationEnum::ManyToOne,
-            relationEntityClass: AddressFixture::class,
+            relationEntityClass: AddressWithUsersFixture::class,
             isNullable: true,
         );
 
@@ -237,7 +236,7 @@ class ColumnSchemaFactoryTest extends TestCase
             columnName: 'users',
             columnType: 'int',
             relationType: RelationEnum::OneToMany,
-            relationEntityClass: UserFixture::class,
+            relationEntityClass: UserWithAddressFixture::class,
         );
 
         self::assertEquals($columnSchemaExpected, $columnSchema);

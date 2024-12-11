@@ -33,10 +33,10 @@ class UserWithAddressFixture
         public bool $isActive,
         #[ColumnEnum(enum: UserTypeEnum::class)]
         public UserTypeEnum $type,
-        #[ManyToOne(entityClass: AddressFixture::class)]
-        public AddressFixture $address,
-        #[ManyToOne(entityClass: AddressFixture::class, nullable: true)]
-        public ?AddressFixture $secondAddress,
+        #[ManyToOne(entityClass: AddressWithUsersFixture::class)]
+        public AddressWithUsersFixture $address,
+        #[ManyToOne(entityClass: AddressWithUsersFixture::class, nullable: true)]
+        public ?AddressWithUsersFixture $secondAddress,
     ) {
     }
 }

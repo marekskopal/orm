@@ -228,7 +228,7 @@ class Select
 
         return array_map(
             fn(ColumnSchema $column): string => NameUtils::escape($this->schema->tableAlias) . '.' . NameUtils::escape($column->columnName),
-            $this->schema->columns,
+            $this->schema->getSelectableColumns(),
         );
     }
 

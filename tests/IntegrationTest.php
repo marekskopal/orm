@@ -36,7 +36,7 @@ use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
-use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
 use MarekSkopal\ORM\Utils\CaseUtils;
@@ -153,7 +153,7 @@ final class IntegrationTest extends TestCase
         self::assertEquals(1, $userById->id);
 
         $address = $userById->address;
-        self::assertInstanceOf(AddressFixture::class, $address);
+        self::assertInstanceOf(AddressWithUsersFixture::class, $address);
         self::assertEquals(1, $address->id);
     }
 
