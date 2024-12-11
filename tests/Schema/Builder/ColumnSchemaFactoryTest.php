@@ -13,15 +13,18 @@ use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Enum\CaseEnum;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\Address;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Code;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
 use MarekSkopal\ORM\Utils\CaseUtils;
+use MarekSkopal\ORM\Utils\NameUtils;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 use ReflectionProperty;
 
 #[CoversClass(ColumnSchemaFactory::class)]
@@ -32,11 +35,12 @@ use ReflectionProperty;
 #[UsesClass(ManyToOne::class)]
 #[UsesClass(OneToMany::class)]
 #[UsesClass(ColumnEnum::class)]
+#[UsesClass(NameUtils::class)]
 class ColumnSchemaFactoryTest extends TestCase
 {
     public function testCreateFromColumnString(): void
     {
-        $columnSchemaFactory = new ColumnSchemaFactory();
+        $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
             new ReflectionProperty(
@@ -58,7 +62,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromColumnStringNullable(): void
     {
-        $columnSchemaFactory = new ColumnSchemaFactory();
+        $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
             new ReflectionProperty(
@@ -81,7 +85,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromColumnInt(): void
     {
-        $columnSchemaFactory = new ColumnSchemaFactory();
+        $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
             new ReflectionProperty(
@@ -104,7 +108,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromColumnUuid(): void
     {
-        $columnSchemaFactory = new ColumnSchemaFactory();
+        $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(Code::class));
 
         $columnSchema = $columnSchemaFactory->create(
             new ReflectionProperty(
@@ -126,7 +130,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromColumnDatetimeImmutable(): void
     {
-        $columnSchemaFactory = new ColumnSchemaFactory();
+        $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
             new ReflectionProperty(
@@ -148,7 +152,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromColumnEnum(): void
     {
-        $columnSchemaFactory = new ColumnSchemaFactory();
+        $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
             new ReflectionProperty(
@@ -171,7 +175,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromManyToOne(): void
     {
-        $columnSchemaFactory = new ColumnSchemaFactory();
+        $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserWithAddressFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
             new ReflectionProperty(
@@ -195,7 +199,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromManyToOneNullable(): void
     {
-        $columnSchemaFactory = new ColumnSchemaFactory();
+        $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserWithAddressFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
             new ReflectionProperty(
@@ -220,7 +224,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromOneToMany(): void
     {
-        $columnSchemaFactory = new ColumnSchemaFactory();
+        $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(AddressWithUsersFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
             new ReflectionProperty(
@@ -237,6 +241,31 @@ class ColumnSchemaFactoryTest extends TestCase
             columnType: 'int',
             relationType: RelationEnum::OneToMany,
             relationEntityClass: UserWithAddressFixture::class,
+            relationColumnName: 'address_id',
+        );
+
+        self::assertEquals($columnSchemaExpected, $columnSchema);
+    }
+
+    public function testCreateFromOneToManyOverrided(): void
+    {
+        $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(Address::class));
+
+        $columnSchema = $columnSchemaFactory->create(
+            new ReflectionProperty(
+                Address::class,
+                'users',
+            ),
+            CaseEnum::SnakeCase,
+        );
+
+        $columnSchemaExpected = new ColumnSchema(
+            propertyName: 'users',
+            propertyType: PropertyTypeEnum::Relation,
+            columnName: 'users',
+            columnType: 'int',
+            relationType: RelationEnum::OneToMany,
+            relationEntityClass: UserFixture::class,
             relationColumnName: 'address_id',
         );
 

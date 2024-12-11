@@ -22,11 +22,13 @@ class EntitySchemaFactory
         $attributes = $reflectionClass->getAttributes(Entity::class);
         $attribute = $attributes[0]->newInstance();
 
+        $columnSchemaFactory = new ColumnSchemaFactory($reflectionClass);
+
         $columns = [];
         $properties = $reflectionClass->getProperties();
         foreach ($properties as $property) {
             try {
-                $columns[$property->getName()] = new ColumnSchemaFactory()->create($property, $columnCase);
+                $columns[$property->getName()] = $columnSchemaFactory->create($property, $columnCase);
             } catch (\RuntimeException) {
                 throw new \RuntimeException(
                     sprintf(

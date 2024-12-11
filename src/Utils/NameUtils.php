@@ -23,9 +23,14 @@ final class NameUtils
         return $name . 's';
     }
 
-    public static function getRelationColumnName(string $relationClass): string
+    /** @param ReflectionClass<object>|class-string<object> $reflectionClass */
+    public static function getRelationColumnName(ReflectionClass|string $reflectionClass): string
     {
-        return lcfirst((new ReflectionClass($relationClass))->getShortName()) . 'Id';
+        if (is_string($reflectionClass)) {
+            $reflectionClass = new ReflectionClass($reflectionClass);
+        }
+
+        return lcfirst($reflectionClass->getShortName()) . 'Id';
     }
 
     public static function escape(string $name): string

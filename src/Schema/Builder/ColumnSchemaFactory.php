@@ -14,11 +14,16 @@ use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
 use ReflectionAttribute;
+use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionProperty;
 
 class ColumnSchemaFactory
 {
+    public function __construct(private readonly ReflectionClass $reflectionClass)
+    {
+    }
+
     public function create(ReflectionProperty $reflectionProperty, CaseEnum $columnCase): ColumnSchema
     {
         $attributes = $reflectionProperty->getAttributes();
@@ -103,7 +108,7 @@ class ColumnSchemaFactory
             relationEntityClass: $attributeInstance->entityClass,
             relationColumnName: $attributeInstance->relationColumnName ?? CaseUtils::toCase(
                 $columnCase,
-                NameUtils::getRelationColumnName($attributeInstance->entityClass),
+                NameUtils::getRelationColumnName($this->reflectionClass),
             ),
         );
     }

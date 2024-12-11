@@ -9,6 +9,7 @@ use MarekSkopal\ORM\Utils\NameUtils;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 #[CoversClass(NameUtils::class)]
 class NameUtilsTest extends TestCase
@@ -22,10 +23,12 @@ class NameUtilsTest extends TestCase
         self::assertSame($expected, NameUtils::getTableName($name));
     }
 
-    #[TestWith(['relationClass' => UserFixture::class, 'expected' => 'userFixtureId'])]
-    public function testGetRelationColumnName(string $relationClass, string $expected): void
+    /** @param ReflectionClass<object>|class-string<object> $reflectionClass */
+    #[TestWith(['reflectionClass' => UserFixture::class, 'expected' => 'userFixtureId'])]
+    #[TestWith(['reflectionClass' => new ReflectionClass(UserFixture::class), 'expected' => 'userFixtureId'])]
+    public function testGetRelationColumnName(ReflectionClass|string $reflectionClass, string $expected): void
     {
-        self::assertSame($expected, NameUtils::getRelationColumnName($relationClass));
+        self::assertSame($expected, NameUtils::getRelationColumnName($reflectionClass));
     }
 
     #[TestWith(['name' => 'address', 'expected' => '`address`'])]
