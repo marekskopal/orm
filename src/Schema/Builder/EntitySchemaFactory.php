@@ -14,6 +14,8 @@ use ReflectionClass;
 
 class EntitySchemaFactory
 {
+    private array $tableAliases = [];
+
     /** @param ReflectionClass<object> $reflectionClass */
     public function create(ReflectionClass $reflectionClass, CaseEnum $tableCase, CaseEnum $columnCase): EntitySchema
     {
@@ -36,11 +38,28 @@ class EntitySchemaFactory
             }
         }
 
+        $table = $attribute->table ?? NameUtils::getTableName(CaseUtils::toCase($tableCase, $reflectionClass->getShortName()));
+
         return new EntitySchema(
             entityClass: $reflectionClass->getName(),
             repositoryClass: $attribute->repositoryClass ?? Repository::class,
-            table: $attribute->table ?? NameUtils::getTableName(CaseUtils::toCase($tableCase, $reflectionClass->getShortName())),
+            table: $table,
+            tableAlias: $this->getTableAlias($table),
             columns: $columns,
         );
+    }
+
+    private function getTableAlias(string $table): string
+    {
+        for ($i = 0; $i < strlen($table); $i++) {
+            $alias = substr($table, 0, $i + 1);
+
+            if (!isset($this->tableAliases[$alias])) {
+                $this->tableAliases[$alias] = $table;
+                return $alias;
+            }
+        }
+
+        return $table;
     }
 }

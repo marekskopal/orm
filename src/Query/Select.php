@@ -49,7 +49,7 @@ class Select
         private readonly SchemaProvider $schemaProvider,
     ) {
         $this->schema = $this->schemaProvider->getEntitySchema($entityClass);
-        $this->whereBuilder = new WhereBuilder($this, $this->schemaProvider, $entityClass);
+        $this->whereBuilder = new WhereBuilder($this);
     }
 
     /**
@@ -81,7 +81,7 @@ class Select
      */
     public function columns(array $columns): self
     {
-        $this->columns = $columns;
+        $this->columns = array_map(fn(string $column): string => $this->parseColumn($column), $columns);
         return $this;
     }
 
@@ -91,7 +91,7 @@ class Select
      */
     public function groupBy(array $columns): self
     {
-        $this->groupBy = $columns;
+        $this->groupBy = array_map(fn(string $column): string => $this->parseColumn($column), $columns);
         return $this;
     }
 
@@ -109,13 +109,14 @@ class Select
         return $this;
     }
 
-    public function join(string $column, string $referenceTable, string $referenceColumn): self
+    /** @return Select<T> */
+    public function join(string $column, string $referenceTable, string $referenceTableAlias, string $referenceColumn): self
     {
         if (isset($this->joins[$column])) {
             return $this;
         }
 
-        $this->joins[$column] = new Join($column, $referenceTable, $referenceColumn);
+        $this->joins[$column] = new Join($column, $referenceTable, $referenceTableAlias, $referenceColumn);
         return $this;
     }
 
@@ -168,7 +169,7 @@ class Select
     {
         return 'SELECT '
             . implode(',', $this->getColumns())
-            . ' FROM ' . $this->schema->table
+            . ' FROM ' . $this->schema->table . ' ' . $this->schema->tableAlias
             . $this->getJoinsQuery()
             . $this->getWhereQuery()
             . $this->getGroupByQuery()
@@ -188,7 +189,7 @@ class Select
         $parts = explode('.', $column);
 
         if (count($parts) === 1) {
-            return $column;
+            return $this->schema->tableAlias . '.' . $column;
         }
 
         $entitySchema = $this->schemaProvider->getEntitySchema($this->entityClass);
@@ -200,9 +201,14 @@ class Select
         $relationEntitySchema = $this->schemaProvider->getEntitySchema($columnSchema->relationEntityClass);
         $relationColumnSchema = $relationEntitySchema->getColumnByColumnName($parts[1]);
 
-        $this->join($columnSchema->columnName, $relationEntitySchema->table, $relationEntitySchema->getPrimaryColumn()->columnName);
+        $this->join(
+            column: $columnSchema->columnName,
+            referenceTable: $relationEntitySchema->table,
+            referenceTableAlias: $relationEntitySchema->tableAlias,
+            referenceColumn: $relationEntitySchema->getPrimaryColumn()->columnName,
+        );
 
-        return $relationEntitySchema->table . '.' . $relationColumnSchema->columnName;
+        return $relationEntitySchema->tableAlias . '.' . $relationColumnSchema->columnName;
     }
 
     private function query(): PDOStatement
@@ -219,11 +225,7 @@ class Select
             return $this->columns;
         }
 
-        if (count($this->joins) > 0) {
-            return array_map(fn(ColumnSchema $column): string => $this->schema->table . '.' . $column->columnName, $this->schema->columns);
-        }
-
-        return array_map(fn(ColumnSchema $column): string => $column->columnName, $this->schema->columns);
+        return array_map(fn(ColumnSchema $column): string => $this->schema->tableAlias . '.' . $column->columnName, $this->schema->columns);
     }
 
     private function getWhereQuery(): string
@@ -281,7 +283,7 @@ class Select
         return ' ' . implode(
             ' ',
             array_map(
-                fn(Join $join): string => 'LEFT JOIN ' . $join->referenceTable . ' ON ' . $join->referenceTable . '.' . $join->referenceColumn . '=' . $this->schema->table . '.' . $join->column,
+                fn(Join $join): string => 'LEFT JOIN ' . $join->referenceTable . ' ' . $join->refenceTableAlias . ' ON ' . $join->refenceTableAlias . '.' . $join->referenceColumn . '=' . $this->schema->tableAlias . '.' . $join->column,
                 $this->joins,
             ),
         );

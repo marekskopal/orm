@@ -19,6 +19,7 @@ class UserEntitySchemaFixture
             entityClass: UserFixture::class,
             repositoryClass: UserRepositoryFixture::class,
             table: 'users',
+            tableAlias: 'u',
             columns: [
                 'id' => new ColumnSchema(
                     propertyName: 'id',

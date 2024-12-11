@@ -21,6 +21,7 @@ class UserEntityWithAddressSchemaFixture
             entityClass: UserWithAddressFixture::class,
             repositoryClass: UserRepositoryWithAddressFixture::class,
             table: 'users',
+            tableAlias: 'u',
             columns: [
                 'id' => new ColumnSchema(
                     propertyName: 'id',

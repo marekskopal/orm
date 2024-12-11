@@ -30,6 +30,7 @@ class EntitySchemaFixture
             entityClass: $entityClass ?? UserFixture::class,
             repositoryClass: $repositoryClass ?? UserRepositoryFixture::class,
             table: $table ?? 'users',
+            tableAlias: 'u',
             columns: $columns ?? [
                 'id' => new ColumnSchema(
                     propertyName: 'id',

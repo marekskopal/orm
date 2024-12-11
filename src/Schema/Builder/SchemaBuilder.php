@@ -52,6 +52,8 @@ class SchemaBuilder
     {
         $entitiesSchema = [];
 
+        $entitySchemaFactory = new EntitySchemaFactory();
+
         foreach ($this->entityPaths as $path) {
             $phpFiles = Finder::findFiles($path . '/**/*.php');
 
@@ -66,7 +68,7 @@ class SchemaBuilder
                         continue;
                     }
 
-                    $entitiesSchema[$class] = new EntitySchemaFactory()->create($reflectionClass, $this->tableCase, $this->columnCase);
+                    $entitiesSchema[$class] = $entitySchemaFactory->create($reflectionClass, $this->tableCase, $this->columnCase);
                 }
             }
         }

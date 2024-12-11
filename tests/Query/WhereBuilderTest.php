@@ -59,7 +59,7 @@ final class WhereBuilderTest extends TestCase
         ]);
 
         self::assertSame(
-            'id=? AND first_name=? AND last_name=?',
+            'u.id=? AND u.first_name=? AND u.last_name=?',
             $whereBuilder->build(),
         );
     }
@@ -93,7 +93,7 @@ final class WhereBuilderTest extends TestCase
         ]);
 
         self::assertSame(
-            'id=? OR first_name=? AND last_name=?',
+            'u.id=? OR u.first_name=? AND u.last_name=?',
             $whereBuilder->build(),
         );
     }
@@ -113,7 +113,7 @@ final class WhereBuilderTest extends TestCase
         );
 
         self::assertSame(
-            'id=? OR first_name=? OR last_name=?',
+            'u.id=? OR u.first_name=? OR u.last_name=?',
             $whereBuilder->build(),
         );
     }
@@ -138,7 +138,7 @@ final class WhereBuilderTest extends TestCase
             ]),);
 
         self::assertSame(
-            'id=? AND (first_name=? AND last_name=? OR first_name=? AND last_name=?)',
+            'u.id=? AND (u.first_name=? AND u.last_name=? OR u.first_name=? AND u.last_name=?)',
             $whereBuilder->build(),
         );
     }
@@ -177,7 +177,7 @@ final class WhereBuilderTest extends TestCase
         ]);
 
         self::assertSame(
-            'id IN (?,?,?)',
+            'u.id IN (?,?,?)',
             $whereBuilder->build(),
         );
     }
@@ -215,7 +215,7 @@ final class WhereBuilderTest extends TestCase
         ]);
 
         self::assertSame(
-            'id IN (' . $select->getSql() . ')',
+            'u.id IN (' . $select->getSql() . ')',
             $whereBuilder->build(),
         );
     }
@@ -229,7 +229,7 @@ final class WhereBuilderTest extends TestCase
         ]);
 
         self::assertSame(
-            'addresses.id=?',
+            'a.id=?',
             $whereBuilder->build(),
         );
     }

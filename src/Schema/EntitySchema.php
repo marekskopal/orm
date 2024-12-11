@@ -15,7 +15,13 @@ readonly class EntitySchema
      * @param class-string<RepositoryInterface<covariant T>> $repositoryClass
      * @param array<string, ColumnSchema> $columns
      */
-    public function __construct(public string $entityClass, public string $repositoryClass, public string $table, public array $columns)
+    public function __construct(
+        public string $entityClass,
+        public string $repositoryClass,
+        public string $table,
+        public string $tableAlias,
+        public array $columns,
+    )
     {
     }
 

@@ -48,37 +48,37 @@ final class SelectTest extends TestCase
     }
 
     /** @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where */
-    #[TestWith([['id' => 1], 'id=?'])]
-    #[TestWith([['id', '=', 1], 'id=?'])]
-    #[TestWith([['id' => 1, 'first_name' => 'John'], 'id=? AND first_name=?'])]
-    #[TestWith([[['id', '=', 1], ['first_name', '!=', 'John']], 'id=? AND first_name!=?'])]
+    #[TestWith([['id' => 1], 'u.id=?'])]
+    #[TestWith([['id', '=', 1], 'u.id=?'])]
+    #[TestWith([['id' => 1, 'first_name' => 'John'], 'u.id=? AND u.first_name=?'])]
+    #[TestWith([[['id', '=', 1], ['first_name', '!=', 'John']], 'u.id=? AND u.first_name!=?'])]
     public function testWhere(array $where, string $expectedWhereSql): void
     {
         $select = $this->select;
 
         $select->where($where);
         self::assertSame(
-            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type,address_id,second_address_id FROM users WHERE ' . $expectedWhereSql,
+            'SELECT u.id,u.created_at,u.first_name,u.middle_name,u.last_name,u.email,u.is_active,u.type,u.address_id,u.second_address_id FROM users u WHERE ' . $expectedWhereSql,
             $select->getSql(),
         );
     }
 
-    #[TestWith(['id', 'ASC', 'id ASC'])]
-    #[TestWith(['id', 'DESC', 'id DESC'])]
-    #[TestWith(['id', DirectionEnum::Asc, 'id ASC'])]
-    #[TestWith(['id', DirectionEnum::Desc, 'id DESC'])]
+    #[TestWith(['id', 'ASC', 'u.id ASC'])]
+    #[TestWith(['id', 'DESC', 'u.id DESC'])]
+    #[TestWith(['id', DirectionEnum::Asc, 'u.id ASC'])]
+    #[TestWith(['id', DirectionEnum::Desc, 'u.id DESC'])]
     public function testOrderBy(string $column, DirectionEnum|string $direction, string $expectedOrderBySql): void
     {
         $select = $this->select;
 
         $select->orderBy($column, $direction);
         self::assertSame(
-            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type,address_id,second_address_id FROM users ORDER BY ' . $expectedOrderBySql,
+            'SELECT u.id,u.created_at,u.first_name,u.middle_name,u.last_name,u.email,u.is_active,u.type,u.address_id,u.second_address_id FROM users u ORDER BY ' . $expectedOrderBySql,
             $select->getSql(),
         );
     }
 
-    #[TestWith(['address.street', DirectionEnum::Asc, 'addresses.street ASC', 'addresses ON addresses.id=users.address_id'])]
+    #[TestWith(['address.street', DirectionEnum::Asc, 'a.street ASC', 'addresses a ON a.id=u.address_id'])]
     public function testOrderByRelation(
         string $column,
         DirectionEnum|string $direction,
@@ -90,7 +90,7 @@ final class SelectTest extends TestCase
 
         $select->orderBy($column, $direction);
         self::assertSame(
-            'SELECT users.id,users.created_at,users.first_name,users.middle_name,users.last_name,users.email,users.is_active,users.type,users.address_id,users.second_address_id FROM users LEFT JOIN ' . $expectedJoinSql . ' ORDER BY ' . $expectedOrderBySql,
+            'SELECT u.id,u.created_at,u.first_name,u.middle_name,u.last_name,u.email,u.is_active,u.type,u.address_id,u.second_address_id FROM users u LEFT JOIN ' . $expectedJoinSql . ' ORDER BY ' . $expectedOrderBySql,
             $select->getSql(),
         );
     }
@@ -101,7 +101,7 @@ final class SelectTest extends TestCase
 
         $select->columns(['id', 'first_name']);
         self::assertSame(
-            'SELECT id,first_name FROM users',
+            'SELECT u.id,u.first_name FROM users u',
             $select->getSql(),
         );
     }
@@ -112,7 +112,7 @@ final class SelectTest extends TestCase
 
         $select->limit(10);
         self::assertSame(
-            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type,address_id,second_address_id FROM users LIMIT 10',
+            'SELECT u.id,u.created_at,u.first_name,u.middle_name,u.last_name,u.email,u.is_active,u.type,u.address_id,u.second_address_id FROM users u LIMIT 10',
             $select->getSql(),
         );
     }
@@ -123,7 +123,7 @@ final class SelectTest extends TestCase
 
         $select->offset(10);
         self::assertSame(
-            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type,address_id,second_address_id FROM users OFFSET 10',
+            'SELECT u.id,u.created_at,u.first_name,u.middle_name,u.last_name,u.email,u.is_active,u.type,u.address_id,u.second_address_id FROM users u OFFSET 10',
             $select->getSql(),
         );
     }
@@ -135,7 +135,7 @@ final class SelectTest extends TestCase
         $select->parseColumn('address.id');
 
         self::assertSame(
-            'SELECT users.id,users.created_at,users.first_name,users.middle_name,users.last_name,users.email,users.is_active,users.type,users.address_id,users.second_address_id FROM users LEFT JOIN addresses ON addresses.id=users.address_id',
+            'SELECT u.id,u.created_at,u.first_name,u.middle_name,u.last_name,u.email,u.is_active,u.type,u.address_id,u.second_address_id FROM users u LEFT JOIN addresses a ON a.id=u.address_id',
             $select->getSql(),
         );
     }
