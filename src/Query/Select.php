@@ -12,6 +12,7 @@ use MarekSkopal\ORM\Query\Where\WhereBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
+use MarekSkopal\ORM\Utils\NameUtils;
 use PDO;
 use PDOStatement;
 
@@ -169,7 +170,7 @@ class Select
     {
         return 'SELECT '
             . implode(',', $this->getColumns())
-            . ' FROM ' . $this->schema->table . ' ' . $this->schema->tableAlias
+            . ' FROM ' . NameUtils::escape($this->schema->table) . ' ' . NameUtils::escape($this->schema->tableAlias)
             . $this->getJoinsQuery()
             . $this->getWhereQuery()
             . $this->getGroupByQuery()
@@ -189,7 +190,7 @@ class Select
         $parts = explode('.', $column);
 
         if (count($parts) === 1) {
-            return $this->schema->tableAlias . '.' . $column;
+            return NameUtils::escape($this->schema->tableAlias) . '.' . NameUtils::escape($column);
         }
 
         $entitySchema = $this->schemaProvider->getEntitySchema($this->entityClass);
@@ -208,7 +209,7 @@ class Select
             referenceColumn: $relationEntitySchema->getPrimaryColumn()->columnName,
         );
 
-        return $relationEntitySchema->tableAlias . '.' . $relationColumnSchema->columnName;
+        return NameUtils::escape($relationEntitySchema->tableAlias) . '.' . NameUtils::escape($relationColumnSchema->columnName);
     }
 
     private function query(): PDOStatement
@@ -225,7 +226,10 @@ class Select
             return $this->columns;
         }
 
-        return array_map(fn(ColumnSchema $column): string => $this->schema->tableAlias . '.' . $column->columnName, $this->schema->columns);
+        return array_map(
+            fn(ColumnSchema $column): string => NameUtils::escape($this->schema->tableAlias) . '.' . NameUtils::escape($column->columnName),
+            $this->schema->columns,
+        );
     }
 
     private function getWhereQuery(): string
@@ -283,7 +287,17 @@ class Select
         return ' ' . implode(
             ' ',
             array_map(
-                fn(Join $join): string => 'LEFT JOIN ' . $join->referenceTable . ' ' . $join->refenceTableAlias . ' ON ' . $join->refenceTableAlias . '.' . $join->referenceColumn . '=' . $this->schema->tableAlias . '.' . $join->column,
+                fn(Join $join): string => 'LEFT JOIN ' . NameUtils::escape($join->referenceTable) . ' ' . NameUtils::escape(
+                    $join->refenceTableAlias,
+                ) . ' ON ' . NameUtils::escape(
+                    $join->refenceTableAlias,
+                ) . '.' . NameUtils::escape(
+                    $join->referenceColumn,
+                ) . '=' . NameUtils::escape(
+                    $this->schema->tableAlias,
+                ) . '.' . NameUtils::escape(
+                    $join->column,
+                ),
                 $this->joins,
             ),
         );

@@ -14,6 +14,7 @@ use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\AddressEntitySchemaFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\UserEntityWithAddressSchemaFixture;
+use MarekSkopal\ORM\Utils\NameUtils;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -24,6 +25,7 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(ColumnSchema::class)]
 #[UsesClass(EntitySchema::class)]
 #[UsesClass(Join::class)]
+#[UsesClass(NameUtils::class)]
 final class WhereBuilderTest extends TestCase
 {
     /** @var Select<UserFixture> */
@@ -59,7 +61,7 @@ final class WhereBuilderTest extends TestCase
         ]);
 
         self::assertSame(
-            'u.id=? AND u.first_name=? AND u.last_name=?',
+            '`u`.`id`=? AND `u`.`first_name`=? AND `u`.`last_name`=?',
             $whereBuilder->build(),
         );
     }
@@ -93,7 +95,7 @@ final class WhereBuilderTest extends TestCase
         ]);
 
         self::assertSame(
-            'u.id=? OR u.first_name=? AND u.last_name=?',
+            '`u`.`id`=? OR `u`.`first_name`=? AND `u`.`last_name`=?',
             $whereBuilder->build(),
         );
     }
@@ -113,7 +115,7 @@ final class WhereBuilderTest extends TestCase
         );
 
         self::assertSame(
-            'u.id=? OR u.first_name=? OR u.last_name=?',
+            '`u`.`id`=? OR `u`.`first_name`=? OR `u`.`last_name`=?',
             $whereBuilder->build(),
         );
     }
@@ -138,7 +140,7 @@ final class WhereBuilderTest extends TestCase
             ]),);
 
         self::assertSame(
-            'u.id=? AND (u.first_name=? AND u.last_name=? OR u.first_name=? AND u.last_name=?)',
+            '`u`.`id`=? AND (`u`.`first_name`=? AND `u`.`last_name`=? OR `u`.`first_name`=? AND `u`.`last_name`=?)',
             $whereBuilder->build(),
         );
     }
@@ -177,7 +179,7 @@ final class WhereBuilderTest extends TestCase
         ]);
 
         self::assertSame(
-            'u.id IN (?,?,?)',
+            '`u`.`id` IN (?,?,?)',
             $whereBuilder->build(),
         );
     }
@@ -215,7 +217,7 @@ final class WhereBuilderTest extends TestCase
         ]);
 
         self::assertSame(
-            'u.id IN (' . $select->getSql() . ')',
+            '`u`.`id` IN (' . $select->getSql() . ')',
             $whereBuilder->build(),
         );
     }
@@ -229,7 +231,7 @@ final class WhereBuilderTest extends TestCase
         ]);
 
         self::assertSame(
-            'a.id=?',
+            '`a`.`id`=?',
             $whereBuilder->build(),
         );
     }

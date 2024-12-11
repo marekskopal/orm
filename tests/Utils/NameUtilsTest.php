@@ -19,4 +19,10 @@ class NameUtilsTest extends TestCase
     {
         self::assertSame($expected, NameUtils::getTableName($name));
     }
+
+    #[TestWith(['name' => 'address', 'expected' => '`address`'])]
+    public function testEscape(string $name, string $expected): void
+    {
+        self::assertSame($expected, NameUtils::escape($name));
+    }
 }
