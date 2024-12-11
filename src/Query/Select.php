@@ -158,7 +158,7 @@ class Select
 
     public function count(): int
     {
-        $this->columns(['count(*) as c']);
+        $this->columns = ['count(*) as c'];
 
         /** @var array{c: int} $result */
         $result = $this->query()->fetch(mode: PDO::FETCH_ASSOC);
