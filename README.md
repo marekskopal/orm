@@ -26,7 +26,6 @@ $database = new MysqlDatabase('localhost', 'root', 'password', 'database');
 $schema = new SchemaBuilder()
     ->addEntityPath(__DIR__ . '/Entity')
     ->build();
-
     
 $orm = new ORM($database, $schema);
 
@@ -48,3 +47,118 @@ $orm->getRepository(User::class)->persist($user);
 //Delete entity
 $orm->getRepository(User::class)->delete($user);
 ```
+
+## Entity Declaration
+
+You can declare entities by adding `Entity` attribute to class and `Column` attribute to class properties.
+
+```php
+use MarekSkopal\ORM\Attribute\Column;
+use MarekSkopal\ORM\Attribute\ColumnEnum;
+use MarekSkopal\ORM\Attribute\Entity;
+
+#[Entity]
+final class User
+{
+    #[Column(type: 'int', primary: true)]
+    public int $id;
+
+    public function __construct(
+        #[Column(type: 'timestamp')]
+        public DateTimeImmutable $createdAt,
+        #[Column(type: 'varchar(255)')]
+        public string $name
+        #[Column(type: 'varchar(255)', nullable: true)]
+        public string $email,
+        #[Column(type: 'tinyint(1)')]
+        public bool $isActive,
+        #[ColumnEnum(enum: UserTypeEnum::class)]
+        public UserTypeEnum $type,
+    ) {
+    }
+```
+
+Table and column names are derived from class name and parameters, but can be customized by providing additional parameters to attributes.
+
+```php
+#[Entity(table: 'users')]
+final class User
+{
+    #[Column(type: 'varchar(255)', name: 'lastest_name')]
+    public string $lastName;
+}
+```
+
+### Relationships
+
+You can define relationships between entities by adding `ManyToOne` or `OneToMany` attributes to class properties.
+
+```php
+#[Entity]
+final class User
+{
+    #[ManyToOne(entityClass: Address::class)]
+    public Address $address;
+
+    #[OneToMany(entityClass: User::class)]
+    public \Iterator $children;
+}
+```
+
+### Dates
+
+You can use `DateTime` or `DateTimeImmutable` properties in entities. The library will automatically convert datetime or timestamp columns values to those to objects.
+
+```php
+#[Entity]
+final class User
+{
+    #[Column(type: 'timestamp')]
+    public DateTimeImmutable $createdAt;
+    
+    #[Column(type: 'datetime')]
+    public DateTime $updatedAt;
+}
+```
+
+### Enums
+
+You can use native PHP enums in entities. The library will automatically convert enum column values to enum objects.
+
+```php
+use MarekSkopal\ORM\Attribute\ColumnEnum;
+
+#[Entity]
+final class User
+{
+    #[ColumnEnum(enum: UserTypeEnum::class)]
+    public UserTypeEnum $type;
+}
+```
+
+## Repository declaration
+
+You can declare you repositories by extending `AbstractRepository` class and providing repository class in `Entity` attribute on entity class.
+
+```php
+use MarekSkopal\ORM\Repository\AbstractRepository;
+
+/** @extends AbstractRepository<User> */
+class UserRepository extends AbstractRepository
+{
+
+}
+```
+
+```php
+#[Entity(repositoryClass: UserRepository::class)]
+final class User
+{
+
+}
+```
+
+## Queries
+
+### Select
+
