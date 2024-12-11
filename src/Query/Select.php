@@ -9,6 +9,7 @@ use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
 use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
+use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use PDO;
@@ -218,7 +219,11 @@ class Select
             return $this->columns;
         }
 
-        return array_map(fn($column) => $column->columnName, $this->schema->columns);
+        if (count($this->joins) > 0) {
+            return array_map(fn(ColumnSchema $column): string => $this->schema->table . '.' . $column->columnName, $this->schema->columns);
+        }
+
+        return array_map(fn(ColumnSchema $column): string => $column->columnName, $this->schema->columns);
     }
 
     private function getWhereQuery(): string

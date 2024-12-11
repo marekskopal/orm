@@ -90,7 +90,7 @@ final class SelectTest extends TestCase
 
         $select->orderBy($column, $direction);
         self::assertSame(
-            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type,address_id,second_address_id FROM users LEFT JOIN ' . $expectedJoinSql . ' ORDER BY ' . $expectedOrderBySql,
+            'SELECT users.id,users.created_at,users.first_name,users.middle_name,users.last_name,users.email,users.is_active,users.type,users.address_id,users.second_address_id FROM users LEFT JOIN ' . $expectedJoinSql . ' ORDER BY ' . $expectedOrderBySql,
             $select->getSql(),
         );
     }
@@ -135,7 +135,7 @@ final class SelectTest extends TestCase
         $select->parseColumn('address.id');
 
         self::assertSame(
-            'SELECT id,created_at,first_name,middle_name,last_name,email,is_active,type,address_id,second_address_id FROM users LEFT JOIN addresses ON addresses.id=users.address_id',
+            'SELECT users.id,users.created_at,users.first_name,users.middle_name,users.last_name,users.email,users.is_active,users.type,users.address_id,users.second_address_id FROM users LEFT JOIN addresses ON addresses.id=users.address_id',
             $select->getSql(),
         );
     }
