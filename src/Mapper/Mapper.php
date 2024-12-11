@@ -8,6 +8,7 @@ use DateTime;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Iterator;
+use MarekSkopal\ORM\Entity\EntityCache;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
@@ -23,7 +24,7 @@ class Mapper implements MapperInterface
 
     private readonly ExtensionMapperProvider $extensionMapperProvider;
 
-    public function __construct(private readonly SchemaProvider $schemaProvider)
+    public function __construct(private readonly SchemaProvider $schemaProvider, private readonly EntityCache $entityCache)
     {
         $this->extensionMapperProvider = new ExtensionMapperProvider();
     }
@@ -133,6 +134,11 @@ class Mapper implements MapperInterface
      */
     private function mapRelationManyToOneToProperty(string $entityClass, int $value): object
     {
+        $entity = $this->entityCache->getEntity($entityClass, $value);
+        if ($entity !== null) {
+            return $entity;
+        }
+
         $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
 
         $entity = $this->queryProvider->select($entityClass)->where([$primaryColumnSchema->columnName, '=', $value])->fetchOne();

@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Tests\Mapper;
 use DateTime;
 use DateTimeImmutable;
 use Iterator;
+use MarekSkopal\ORM\Entity\EntityCache;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Query\QueryProvider;
@@ -38,11 +39,12 @@ final class MapperTest extends TestCase
     {
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $queryProvider = $this->createMock(QueryProvider::class);
+        $entityCache = $this->createMock(EntityCache::class);
 
         $columnSchema = new ColumnSchema('name', PropertyTypeEnum::String, 'name', 'varchar');
         $entitySchema = EntitySchemaFixture::create(columns: ['name' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 'test');
         self::assertSame('test', $result);
@@ -52,11 +54,12 @@ final class MapperTest extends TestCase
     {
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $queryProvider = $this->createMock(QueryProvider::class);
+        $entityCache = $this->createMock(EntityCache::class);
 
         $columnSchema = new ColumnSchema('age', PropertyTypeEnum::Int, 'age', 'int');
         $entitySchema = EntitySchemaFixture::create(columns: ['age' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 25);
         self::assertSame(25, $result);
@@ -66,11 +69,12 @@ final class MapperTest extends TestCase
     {
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $queryProvider = $this->createMock(QueryProvider::class);
+        $entityCache = $this->createMock(EntityCache::class);
 
         $columnSchema = new ColumnSchema('price', PropertyTypeEnum::Float, 'price', 'float');
         $entitySchema = EntitySchemaFixture::create(columns: ['price' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 19.99);
         self::assertSame(19.99, $result);
@@ -80,11 +84,12 @@ final class MapperTest extends TestCase
     {
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $queryProvider = $this->createMock(QueryProvider::class);
+        $entityCache = $this->createMock(EntityCache::class);
 
         $columnSchema = new ColumnSchema('isActive', PropertyTypeEnum::Bool, 'is_active', 'tinyint');
         $entitySchema = EntitySchemaFixture::create(columns: ['isActive' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 1);
         self::assertTrue($result);
@@ -94,11 +99,12 @@ final class MapperTest extends TestCase
     {
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $queryProvider = $this->createMock(QueryProvider::class);
+        $entityCache = $this->createMock(EntityCache::class);
 
         $columnSchema = new ColumnSchema('code', PropertyTypeEnum::Uuid, 'code', 'uuid');
         $entitySchema = EntitySchemaFixture::create(columns: ['code' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 'f47ac10b-58cc-4372-a567-0e02b2c3d479');
         self::assertInstanceOf(LazyUuidFromString::class, $result);
@@ -109,11 +115,12 @@ final class MapperTest extends TestCase
     {
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $queryProvider = $this->createMock(QueryProvider::class);
+        $entityCache = $this->createMock(EntityCache::class);
 
         $columnSchema = new ColumnSchema('createdAt', PropertyTypeEnum::DateTime, 'created_at', 'timestamp');
         $entitySchema = EntitySchemaFixture::create(columns: ['createdAt' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 1704067200);
         self::assertInstanceOf(DateTime::class, $result);
@@ -124,11 +131,12 @@ final class MapperTest extends TestCase
     {
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $queryProvider = $this->createMock(QueryProvider::class);
+        $entityCache = $this->createMock(EntityCache::class);
 
         $columnSchema = new ColumnSchema('createdAt', PropertyTypeEnum::DateTime, 'created_at', 'datetime');
         $entitySchema = EntitySchemaFixture::create(columns: ['createdAt' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, '2024-01-01 00:00:00');
         self::assertInstanceOf(DateTime::class, $result);
@@ -139,11 +147,12 @@ final class MapperTest extends TestCase
     {
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $queryProvider = $this->createMock(QueryProvider::class);
+        $entityCache = $this->createMock(EntityCache::class);
 
         $columnSchema = new ColumnSchema('createdAt', PropertyTypeEnum::DateTimeImmutable, 'created_at', 'timestamp');
         $entitySchema = EntitySchemaFixture::create(columns: ['createdAt' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 1704067200);
         self::assertInstanceOf(DateTimeImmutable::class, $result);
@@ -154,11 +163,12 @@ final class MapperTest extends TestCase
     {
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $queryProvider = $this->createMock(QueryProvider::class);
+        $entityCache = $this->createMock(EntityCache::class);
 
         $columnSchema = new ColumnSchema('type', PropertyTypeEnum::Enum, 'type', 'enum', enumClass: UserTypeEnum::class);
         $entitySchema = EntitySchemaFixture::create(columns: ['type' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 'admin');
         self::assertInstanceOf(UserTypeEnum::class, $result);
@@ -169,11 +179,12 @@ final class MapperTest extends TestCase
     {
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $queryProvider = $this->createMock(QueryProvider::class);
+        $entityCache = $this->createMock(EntityCache::class);
 
         $columnSchema = new ColumnSchema('createdAt', PropertyTypeEnum::DateTimeImmutable, 'created_at', 'timestamp');
         $entitySchema = EntitySchemaFixture::create(columns: ['createdAt' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, '2024-01-01 00:00:00');
         self::assertInstanceOf(DateTimeImmutable::class, $result);
@@ -190,8 +201,9 @@ final class MapperTest extends TestCase
         $select->method('fetchOne')->willReturn(UserFixture::create());
         $queryProvider = $this->createMock(QueryProvider::class);
         $queryProvider->method('select')->willReturn($select);
+        $entityCache = $this->createMock(EntityCache::class);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
 
         $columnSchema = new ColumnSchema('user', PropertyTypeEnum::Relation, 'user_id', 'int', RelationEnum::ManyToOne, UserFixture::class);
@@ -211,8 +223,9 @@ final class MapperTest extends TestCase
         $select->method('fetchOne')->willReturn(UserFixture::create());
         $queryProvider = $this->createMock(QueryProvider::class);
         $queryProvider->method('select')->willReturn($select);
+        $entityCache = $this->createMock(EntityCache::class);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
 
         $columnSchema = new ColumnSchema(
@@ -246,8 +259,9 @@ final class MapperTest extends TestCase
         $select->method('fetchOne')->willReturn(null);
         $queryProvider = $this->createMock(QueryProvider::class);
         $queryProvider->method('select')->willReturn($select);
+        $entityCache = $this->createMock(EntityCache::class);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
 
         $mapper->mapToProperty($entitySchema, $columnSchema, 1);
@@ -257,11 +271,12 @@ final class MapperTest extends TestCase
     {
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $queryProvider = $this->createMock(QueryProvider::class);
+        $entityCache = $this->createMock(EntityCache::class);
 
         $columnSchema = new ColumnSchema('price', PropertyTypeEnum::Extension, 'price', 'decimal', extensionClass: MapperExtension::class);
         $entitySchema = EntitySchemaFixture::create(columns: ['price' => $columnSchema]);
 
-        $mapper = new Mapper($schemaProvider);
+        $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 1.0);
         self::assertSame(2.0, $result);
