@@ -213,22 +213,6 @@
     <rule ref="SlevomatCodingStandard.Commenting.DocCommentSpacing">
         <properties>
             <property name="linesCountBetweenAnnotationsGroups" value="0"/>
-            <property name="annotationsGroups" type="array">
-                <element value="
-                    @template,
-					@internal,
-					@deprecated,
-					@codeCoverageIgnore,
-					@phpcsSuppress,
-					@dataProvider,
-					@link,
-					@phpstan-type,
-					@phpstan-import-type,
-					@var,
-					@param,
-					@return,
-				"/>
-            </property>
         </properties>
     </rule>
     <rule ref="SlevomatCodingStandard.Commenting.EmptyComment"/>

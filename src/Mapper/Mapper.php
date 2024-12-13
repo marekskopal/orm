@@ -17,6 +17,7 @@ use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Utils\ValidationUtils;
 use Ramsey\Uuid\Uuid;
+use ReflectionClass;
 
 class Mapper implements MapperInterface
 {
@@ -124,7 +125,15 @@ class Mapper implements MapperInterface
      */
     private function mapRelationOneToManyToProperty(string $entityClass, string $columnName, int $value): Iterator
     {
-        return $this->queryProvider->select($entityClass)->where([$columnName, '=', $value])->fetchAll();
+        $reflector = new ReflectionClass(Collection::class);
+        /** @var Collection<T> $lazyCollection */
+        $lazyCollection = $reflector->newLazyGhost(function (Collection $object) use ($entityClass, $columnName, $value): void {
+            // @phpstan-ignore-next-line constructor.call
+            $object->__construct(
+                iterator_to_array($this->queryProvider->select($entityClass)->where([$columnName, '=', $value])->fetchAll()),
+            );
+        });
+        return $lazyCollection;
     }
 
     /**

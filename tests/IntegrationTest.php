@@ -14,6 +14,7 @@ use MarekSkopal\ORM\Database\SqliteDatabase;
 use MarekSkopal\ORM\Entity\EntityCache;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Entity\EntityReflection;
+use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\ORM;
 use MarekSkopal\ORM\Query\Delete;
@@ -81,6 +82,7 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(ValidationUtils::class)]
 #[UsesClass(OneToMany::class)]
 #[UsesClass(WhereBuilder::class)]
+#[UsesClass(Collection::class)]
 final class IntegrationTest extends TestCase
 {
     public function testSelectEntity(): void
@@ -184,7 +186,10 @@ final class IntegrationTest extends TestCase
 
         $address = $repository->findOne(['id' => 1]);
         self::assertInstanceOf(AddressWithUsersFixture::class, $address);
-        self::assertEquals(1, count(iterator_to_array($address->users)));
+        self::assertInstanceOf(Collection::class, $address->users);
+        self::assertEquals(1, count($address->users));
+        self::assertInstanceOf(UserWithAddressFixture::class, $address->users[0]);
+        self::assertEquals(1, $address->users[0]->id);
     }
 
     public function testInsertEntity(): void

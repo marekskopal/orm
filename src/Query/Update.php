@@ -81,9 +81,9 @@ class Update
             // @phpstan-ignore-next-line property.dynamicName
             ['id' => (int) $this->entity->{$this->schema->getPrimaryColumn()->propertyName}],
             array_map(
-                // @phpstan-ignore-next-line argument.type property.dynamicName
                 fn(ColumnSchema $column): string|int|float|null => $this->mapper->mapToColumn(
                     $column,
+                    // @phpstan-ignore-next-line argument.type property.dynamicName
                     $this->entity->{$column->propertyName},
                 ),
                 $this->schema->getInsertableColumns(),
