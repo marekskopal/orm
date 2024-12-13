@@ -125,7 +125,7 @@ class Select
     public function fetchOne(): ?object
     {
         $result = $this->query()->fetch(mode: PDO::FETCH_ASSOC);
-        // @phpstan-ignore-next-line return.type
+        // @phpstan-ignore-next-line argument.type
         return $result === false ? null : $this->entityFactory->create($this->entityClass, $result);
     }
 
@@ -134,7 +134,7 @@ class Select
     {
         $query = $this->query();
         while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
-            // @phpstan-ignore-next-line return.type
+            // @phpstan-ignore-next-line argument.type
             yield $this->entityFactory->create($this->entityClass, $row);
         }
     }
@@ -142,8 +142,8 @@ class Select
     /** @return array<string, mixed>|null */
     public function fetchAssocOne(): ?array
     {
+        /** @var array<string, mixed>|false $result */
         $result = $this->query()->fetch(mode: PDO::FETCH_ASSOC);
-        // @phpstan-ignore-next-line return.type
         return $result === false ? null : $result;
     }
 
@@ -152,7 +152,10 @@ class Select
     {
         $query = $this->query();
         while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
-            // @phpstan-ignore-next-line return.type
+            /**
+             * @var array<string, mixed> $row
+             * @phpstan-ignore-next-line varTag.nativeType
+             */
             yield $row;
         }
     }

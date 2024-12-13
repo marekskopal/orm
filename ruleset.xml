@@ -399,9 +399,6 @@
             <property name="spacesCountAroundEqualsSign" value="0"/>
         </properties>
     </rule>
-    <rule ref="SlevomatCodingStandard.TypeHints.DisallowMixedTypeHint">
-        <exclude-pattern>tests/</exclude-pattern>
-    </rule>
     <rule ref="SlevomatCodingStandard.TypeHints.LongTypeHints"/>
     <rule ref="SlevomatCodingStandard.TypeHints.NullableTypeForNullDefaultValue"/>
     <rule ref="SlevomatCodingStandard.TypeHints.NullTypeHintOnLastPosition"/>
