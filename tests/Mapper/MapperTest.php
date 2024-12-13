@@ -264,7 +264,9 @@ final class MapperTest extends TestCase
         $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
 
-        $mapper->mapToProperty($entitySchema, $columnSchema, 1);
+        $property = $mapper->mapToProperty($entitySchema, $columnSchema, 1);
+        // @phpstan-ignore-next-line property.nonObject expr.resultUnused
+        $property->id;
     }
 
     public function testMapColumnExtension(): void

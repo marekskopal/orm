@@ -148,12 +148,20 @@ class Mapper implements MapperInterface
             return $entity;
         }
 
-        $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
+        $reflector = new ReflectionClass($entityClass);
 
-        $entity = $this->queryProvider->select($entityClass)->where([$primaryColumnSchema->columnName, '=', $value])->fetchOne();
-        if ($entity === null) {
-            throw new \RuntimeException(sprintf('Entity "%s" with id "%d" not found', $entityClass, $value));
-        }
+        /** @var T $entity */
+        $entity = $reflector->newLazyProxy(function (object $object) use ($entityClass, $value): object {
+            $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
+
+            /** @var T|null $realEntity */
+            $realEntity = $this->queryProvider->select($entityClass)->where([$primaryColumnSchema->columnName, '=', $value])->fetchOne();
+            if ($realEntity === null) {
+                throw new \RuntimeException(sprintf('Entity "%s" with id "%d" not found', $entityClass, $value));
+            }
+
+            return $realEntity;
+        });
 
         return $entity;
     }
