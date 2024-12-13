@@ -152,6 +152,11 @@ class Mapper implements MapperInterface
 
         /** @var T $entity */
         $entity = $reflector->newLazyProxy(function (object $object) use ($entityClass, $value): object {
+            $entity = $this->entityCache->getEntity($entityClass, $value);
+            if ($entity !== null) {
+                return $entity;
+            }
+
             $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
 
             /** @var T|null $realEntity */
