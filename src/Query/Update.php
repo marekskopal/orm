@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Query;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Utils\NameUtils;
 use PDO;
 use PDOStatement;
 
@@ -44,9 +45,10 @@ class Update
 
         return implode(' ', [
             'UPDATE',
-            $this->schema->table,
+            NameUtils::escape($this->schema->table),
             'SET',
             $this->getSetQuery(),
+            $this->getWhereQuery(),
         ]);
     }
 
@@ -60,18 +62,32 @@ class Update
     private function getSetQuery(): string
     {
         return implode(',', array_map(
-            fn(ColumnSchema $column): string => $column->columnName . '=:' . $column->propertyName,
+            fn(ColumnSchema $column): string => NameUtils::escape($column->columnName) . '=:' . $column->propertyName,
             $this->schema->getInsertableColumns(),
         ));
+    }
+
+    private function getWhereQuery(): string
+    {
+        $primaryColumnSchema = $this->schema->getPrimaryColumn();
+
+        return 'WHERE ' . NameUtils::escape($primaryColumnSchema->columnName) . '=:' . $primaryColumnSchema->propertyName;
     }
 
     /** @return array<string, string|int|float|null> */
     private function getValues(): array
     {
-        return array_map(
-        // @phpstan-ignore-next-line argument.type property.dynamicName
-            fn(ColumnSchema $column): string|int|float|null => $this->mapper->mapToColumn($column, $this->entity->{$column->propertyName}),
-            $this->schema->getInsertableColumns(),
+        return array_merge(
+            // @phpstan-ignore-next-line property.dynamicName
+            ['id' => (int) $this->entity->{$this->schema->getPrimaryColumn()->propertyName}],
+            array_map(
+                // @phpstan-ignore-next-line argument.type property.dynamicName
+                fn(ColumnSchema $column): string|int|float|null => $this->mapper->mapToColumn(
+                    $column,
+                    $this->entity->{$column->propertyName},
+                ),
+                $this->schema->getInsertableColumns(),
+            ),
         );
     }
 }
