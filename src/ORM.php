@@ -52,6 +52,11 @@ readonly class ORM
         return new $repositoryClass($entityClass, $this->queryProvider, $this->schemaProvider);
     }
 
+    public function getQueryProvider(): QueryProvider
+    {
+        return $this->queryProvider;
+    }
+
     public function getEntityCache(): EntityCache
     {
         return $this->entityCache;

@@ -160,5 +160,85 @@ final class User
 
 ## Queries
 
+You can use `QueryProvider` to create queries.
+
+```php
+$queryProvider = $orm->getQueryProvider();
+```
+
 ### Select
+
+You can create select queries using `Select` builder.
+
+```php
+$user = $query = $queryProvider->select(User::class)
+    ->where(['id' => 1])
+    ->fetchOne();
+```
+
+#### Where
+
+You can use `where` method to filter results. 
+
+Multiple AND conditions can be crated either by passing array of conditions or by chaining `where` method.
+
+```php
+
+//Array of conditions
+$user = $queryProvider->select(User::class)
+    ->where([
+        'id' => 1,
+        'isActive' => true
+    ])
+    ->fetchOne();
+
+//Chained conditions
+$user = $queryProvider->select(User::class)
+    ->where(['id' => 1])
+    ->where(['isActive' => true])
+    ->fetchOne();
+```
+
+OR conditions can be created by using `orWhere` method.
+
+```php
+$user = $queryProvider->select(User::class)
+    ->where(['id' => 1])
+    ->orWhere(['first_name' => 'John'])
+    ->fetchOne();
+```
+
+You can also use `where` method with nested conditions by passing function.
+
+```php
+
+// Create nested condition: (id = 1 AND (first_name = 'John' OR last_name = 'Doe'))
+$user = $queryProvider->select(User::class)
+    ->where(['id' => 1])
+    ->where(function (Where $where) {
+        $where->where(['first_name' => 'John']);
+            ->orWhere(['last_name' => 'Doe']);
+    })
+    ->fetchOne();
+ ```   
+You can pass another instance of `Select` object to where method to create subquery.
+
+```php
+$subquery = $queryProvider->select(Address::class)
+    ->columns(['user_id'])
+    ->where(['city' => 'Brno']);
+    
+$user = $queryProvider->select(User::class)
+    ->where('address_id', 'in', $subquery)
+    ->fetchOne();
+```
+
+
+## Long-running applications
+
+If you are using ORM in long-running PHP applications like Roadrunner or Swoole, you should call `clear` method on ORM cache after each request to free memory.
+
+```php
+$orm->getEntityCache()->clear();
+```
 
