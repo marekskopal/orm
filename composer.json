@@ -2,6 +2,14 @@
     "name": "marekskopal/orm",
     "type": "library",
     "description": "ORM",
+    "keywords": [
+        "orm",
+        "sql",
+        "mysql",
+        "sqlite",
+        "query-builder",
+        "data-mapper"
+    ],
     "license": "MIT",
     "authors": [
         {
