@@ -28,6 +28,7 @@ readonly class ColumnSchema
         public bool $isPrimary = false,
         public bool $isAutoIncrement = false,
         public bool $isNullable = false,
+        public string|int|float|bool|null|\BackedEnum $default = null,
         public ?string $enumClass = null,
         public ?string $extensionClass = null,
         public array $extensionOptions = [],
