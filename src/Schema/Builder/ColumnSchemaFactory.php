@@ -65,6 +65,9 @@ class ColumnSchemaFactory
             columnType: $attributeInstance->type,
             isPrimary: $attributeInstance->primary,
             isNullable: $attributeInstance->nullable,
+            size: $attributeInstance->size,
+            precision: $attributeInstance->precision,
+            scale: $attributeInstance->scale,
             enumClass: $attributeInstance->enum,
             extensionClass: $attributeInstance->extension,
             extensionOptions: $attributeInstance->extensionOptions,
@@ -86,6 +89,7 @@ class ColumnSchemaFactory
             columnName: $attributeInstance->name ?? CaseUtils::toCase($columnCase, $reflectionProperty->getName() . 'Id'),
             columnType: 'int',
             isNullable: $attributeInstance->nullable,
+            size: 11,
             relationType: RelationEnum::ManyToOne,
             relationEntityClass: $attributeInstance->entityClass,
         );

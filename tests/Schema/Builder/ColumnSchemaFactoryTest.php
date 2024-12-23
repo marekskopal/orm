@@ -190,6 +190,7 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyType: PropertyTypeEnum::Relation,
             columnName: 'address_id',
             columnType: 'int',
+            size: 11,
             relationType: RelationEnum::ManyToOne,
             relationEntityClass: AddressWithUsersFixture::class,
         );
@@ -214,6 +215,7 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyType: PropertyTypeEnum::Relation,
             columnName: 'second_address_id',
             columnType: 'int',
+            size: 11,
             relationType: RelationEnum::ManyToOne,
             relationEntityClass: AddressWithUsersFixture::class,
             isNullable: true,
