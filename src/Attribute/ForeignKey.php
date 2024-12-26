@@ -10,7 +10,7 @@ use Attribute;
 class ForeignKey
 {
     /** @param class-string<object> $entityClass */
-    public function __construct(public string $entityClass)
+    public function __construct(public string $entityClass, public ?string $name = null, public bool $nullable = false)
     {
     }
 }

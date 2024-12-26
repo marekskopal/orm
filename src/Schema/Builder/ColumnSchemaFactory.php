@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Schema\Builder;
 
 use MarekSkopal\ORM\Attribute\Column;
+use MarekSkopal\ORM\Attribute\ForeignKey;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
 use MarekSkopal\ORM\Schema\ColumnSchema;
@@ -41,6 +42,10 @@ class ColumnSchemaFactory
             if ($attributeInstance instanceof OneToMany) {
                 /** @var ReflectionAttribute<OneToMany> $attribute */
                 return $this->createFromOneToManyAttribute($attribute, $reflectionProperty, $columnCase);
+            }
+            if ($attributeInstance instanceof ForeignKey) {
+                /** @var ReflectionAttribute<ForeignKey> $attribute */
+                return $this->createFromForeignKeyAttribute($attribute, $reflectionProperty, $columnCase);
             }
         }
 
@@ -115,6 +120,29 @@ class ColumnSchemaFactory
                 $columnCase,
                 NameUtils::getRelationColumnName($this->reflectionClass),
             ),
+        );
+    }
+
+    /** @param ReflectionAttribute<ForeignKey> $attribute */
+    private function createFromForeignKeyAttribute(
+        ReflectionAttribute $attribute,
+        ReflectionProperty $reflectionProperty,
+        CaseEnum $columnCase,
+    ): ColumnSchema
+    {
+        $attributeInstance = $attribute->newInstance();
+
+        return new ColumnSchema(
+            propertyName: $reflectionProperty->getName(),
+            propertyType: $this->getPropertyTypeFromReflectionProperty(
+                $reflectionProperty,
+            ),
+            columnName: $attributeInstance->name ?? CaseUtils::toCase($columnCase, $reflectionProperty->getName() . 'Id'),
+            columnType: 'int',
+            isNullable: $attributeInstance->nullable,
+            size: 11,
+            relationType: RelationEnum::ManyToOne,
+            relationEntityClass: $attributeInstance->entityClass,
         );
     }
 
