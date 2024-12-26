@@ -32,8 +32,11 @@ class ColumnSchemaFactory
         foreach ($attributes as $attribute) {
             $attributeInstance = $attribute->newInstance();
             if ($attributeInstance instanceof Column) {
+                /** @var ReflectionAttribute<ForeignKey>|null $foreignKeyAttribute */
+                $foreignKeyAttribute = $reflectionProperty->getAttributes(ForeignKey::class)[0] ?? null;
+
                 /** @var ReflectionAttribute<Column> $attribute */
-                return $this->createFromColumnAttribute($attribute, $reflectionProperty, $columnCase);
+                return $this->createFromColumnAttribute($attribute, $reflectionProperty, $columnCase, $foreignKeyAttribute);
             }
             if ($attributeInstance instanceof ManyToOne) {
                 /** @var ReflectionAttribute<ManyToOne> $attribute */
@@ -43,23 +46,24 @@ class ColumnSchemaFactory
                 /** @var ReflectionAttribute<OneToMany> $attribute */
                 return $this->createFromOneToManyAttribute($attribute, $reflectionProperty, $columnCase);
             }
-            if ($attributeInstance instanceof ForeignKey) {
-                /** @var ReflectionAttribute<ForeignKey> $attribute */
-                return $this->createFromForeignKeyAttribute($attribute, $reflectionProperty, $columnCase);
-            }
         }
 
         throw new \RuntimeException(sprintf('Column attribute not found on property "%s".', $reflectionProperty->getName()));
     }
 
-    /** @param ReflectionAttribute<Column> $attribute */
+    /**
+     * @param ReflectionAttribute<Column> $attribute
+     * @param ReflectionAttribute<ForeignKey>|null $foreignKeyAttribute
+     */
     private function createFromColumnAttribute(
         ReflectionAttribute $attribute,
         ReflectionProperty $reflectionProperty,
         CaseEnum $columnCase,
+        ?ReflectionAttribute $foreignKeyAttribute,
     ): ColumnSchema
     {
         $attributeInstance = $attribute->newInstance();
+        $foreignKeyAttributeInstance = $foreignKeyAttribute?->newInstance();
 
         return new ColumnSchema(
             propertyName: $attributeInstance->name ?? $reflectionProperty->getName(),
@@ -68,6 +72,8 @@ class ColumnSchemaFactory
             ),
             columnName: CaseUtils::toCase($columnCase, $reflectionProperty->getName()),
             columnType: $attributeInstance->type,
+            relationType: $foreignKeyAttribute !== null ? RelationEnum::ManyToOne : null,
+            relationEntityClass: $foreignKeyAttributeInstance?->entityClass,
             isPrimary: $attributeInstance->primary,
             isNullable: $attributeInstance->nullable,
             size: $attributeInstance->size,
@@ -120,29 +126,6 @@ class ColumnSchemaFactory
                 $columnCase,
                 NameUtils::getRelationColumnName($this->reflectionClass),
             ),
-        );
-    }
-
-    /** @param ReflectionAttribute<ForeignKey> $attribute */
-    private function createFromForeignKeyAttribute(
-        ReflectionAttribute $attribute,
-        ReflectionProperty $reflectionProperty,
-        CaseEnum $columnCase,
-    ): ColumnSchema
-    {
-        $attributeInstance = $attribute->newInstance();
-
-        return new ColumnSchema(
-            propertyName: $reflectionProperty->getName(),
-            propertyType: $this->getPropertyTypeFromReflectionProperty(
-                $reflectionProperty,
-            ),
-            columnName: $attributeInstance->name ?? CaseUtils::toCase($columnCase, $reflectionProperty->getName() . 'Id'),
-            columnType: 'int',
-            isNullable: $attributeInstance->nullable,
-            size: 11,
-            relationType: RelationEnum::ManyToOne,
-            relationEntityClass: $attributeInstance->entityClass,
         );
     }
 
