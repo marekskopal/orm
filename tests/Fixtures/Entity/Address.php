@@ -13,13 +13,13 @@ use MarekSkopal\ORM\Attribute\OneToMany;
 final class Address
 {
     public function __construct(
-        #[Column(type: 'int', primary: true)]
+        #[Column(type: 'int', primary: true, autoIncrement: true)]
         public int $id,
-        #[Column(type: 'varchar(255)')]
+        #[Column(type: 'string')]
         public string $street,
-        #[Column(type: 'varchar(255)')]
+        #[Column(type: 'string')]
         public string $city,
-        #[Column(type: 'varchar(255)')]
+        #[Column(type: 'string')]
         public string $country,
         #[OneToMany(entityClass: UserFixture::class)]
         public Iterator $users,

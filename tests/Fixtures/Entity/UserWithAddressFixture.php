@@ -9,27 +9,28 @@ use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
 use MarekSkopal\ORM\Attribute\ManyToOne;
+use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Repository\UserRepositoryWithAddressFixture;
 
 #[Entity(table: 'users', repositoryClass: UserRepositoryWithAddressFixture::class)]
 class UserWithAddressFixture
 {
-    #[Column(type: 'int', primary: true)]
+    #[Column(type: 'int', primary: true, autoIncrement: true)]
     public int $id;
 
     public function __construct(
-        #[Column(type: 'timestamp')]
+        #[Column(type: Type::Timestamp)]
         public DateTimeImmutable $createdAt,
-        #[Column(type: 'varchar(255)')]
+        #[Column(type: Type::String)]
         public string $firstName,
-        #[Column(type: 'varchar(255)', nullable: true)]
+        #[Column(type: Type::String, nullable: true)]
         public ?string $middleName,
-        #[Column(type: 'varchar(255)')]
+        #[Column(type: Type::String)]
         public string $lastName,
-        #[Column(type: 'varchar(255)')]
+        #[Column(type: Type::String)]
         public string $email,
-        #[Column(type: 'tinyint(1)')]
+        #[Column(type: Type::Boolean)]
         public bool $isActive,
         #[ColumnEnum(enum: UserTypeEnum::class)]
         public UserTypeEnum $type,

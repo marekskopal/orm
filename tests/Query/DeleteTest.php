@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Query;
 
+use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Query\Delete;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
@@ -28,7 +29,7 @@ class DeleteTest extends TestCase
             propertyName: 'id',
             propertyType: PropertyTypeEnum::Int,
             columnName: 'id',
-            columnType: 'int',
+            columnType: Type::Int,
         );
 
         $delete = new Delete($pdo, $entitySchema, $primaryColumnSchema);

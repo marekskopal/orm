@@ -8,6 +8,7 @@ use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ForeignKey;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
+use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Enum\CaseEnum;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
@@ -75,6 +76,7 @@ class ColumnSchemaFactory
             relationType: $foreignKeyAttribute !== null ? RelationEnum::ManyToOne : null,
             relationEntityClass: $foreignKeyAttributeInstance?->entityClass,
             isPrimary: $attributeInstance->primary,
+            isAutoIncrement: $attributeInstance->autoIncrement,
             isNullable: $attributeInstance->nullable,
             size: $attributeInstance->size,
             precision: $attributeInstance->precision,
@@ -98,7 +100,7 @@ class ColumnSchemaFactory
             propertyName: $reflectionProperty->getName(),
             propertyType: PropertyTypeEnum::Relation,
             columnName: $attributeInstance->name ?? CaseUtils::toCase($columnCase, $reflectionProperty->getName() . 'Id'),
-            columnType: 'int',
+            columnType: Type::Int,
             isNullable: $attributeInstance->nullable,
             size: 11,
             relationType: RelationEnum::ManyToOne,
@@ -119,7 +121,7 @@ class ColumnSchemaFactory
             propertyName: $reflectionProperty->getName(),
             propertyType: PropertyTypeEnum::Relation,
             columnName: CaseUtils::toCase($columnCase, $reflectionProperty->getName()),
-            columnType: 'int',
+            columnType: Type::Int,
             relationType: RelationEnum::OneToMany,
             relationEntityClass: $attributeInstance->entityClass,
             relationColumnName: $attributeInstance->relationColumnName ?? CaseUtils::toCase(

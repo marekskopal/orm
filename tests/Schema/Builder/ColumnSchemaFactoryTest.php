@@ -8,6 +8,7 @@ use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
+use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Schema\Builder\ColumnSchemaFactory;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Enum\CaseEnum;
@@ -54,7 +55,7 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyName: 'firstName',
             propertyType: PropertyTypeEnum::String,
             columnName: 'first_name',
-            columnType: 'varchar(255)',
+            columnType: Type::String,
         );
 
         self::assertEquals($columnSchemaExpected, $columnSchema);
@@ -76,7 +77,7 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyName: 'middleName',
             propertyType: PropertyTypeEnum::String,
             columnName: 'middle_name',
-            columnType: 'varchar(255)',
+            columnType: Type::String,
             isNullable: true,
         );
 
@@ -99,8 +100,9 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyName: 'id',
             propertyType: PropertyTypeEnum::Int,
             columnName: 'id',
-            columnType: 'int',
+            columnType: Type::Int,
             isPrimary: true,
+            isAutoIncrement: true,
         );
 
         self::assertEquals($columnSchemaExpected, $columnSchema);
@@ -122,7 +124,7 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyName: 'code',
             propertyType: PropertyTypeEnum::Uuid,
             columnName: 'code',
-            columnType: 'uuid',
+            columnType: Type::Uuid,
         );
 
         self::assertEquals($columnSchemaExpected, $columnSchema);
@@ -144,7 +146,7 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyName: 'createdAt',
             propertyType: PropertyTypeEnum::DateTimeImmutable,
             columnName: 'created_at',
-            columnType: 'timestamp',
+            columnType: Type::Timestamp,
         );
 
         self::assertEquals($columnSchemaExpected, $columnSchema);
@@ -166,7 +168,7 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyName: 'type',
             propertyType: PropertyTypeEnum::Enum,
             columnName: 'type',
-            columnType: 'enum',
+            columnType: Type::Enum,
             enumClass: UserTypeEnum::class,
         );
 
@@ -189,7 +191,7 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyName: 'address',
             propertyType: PropertyTypeEnum::Relation,
             columnName: 'address_id',
-            columnType: 'int',
+            columnType: Type::Int,
             size: 11,
             relationType: RelationEnum::ManyToOne,
             relationEntityClass: AddressWithUsersFixture::class,
@@ -214,7 +216,7 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyName: 'secondAddress',
             propertyType: PropertyTypeEnum::Relation,
             columnName: 'second_address_id',
-            columnType: 'int',
+            columnType: Type::Int,
             size: 11,
             relationType: RelationEnum::ManyToOne,
             relationEntityClass: AddressWithUsersFixture::class,
@@ -240,7 +242,7 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyName: 'users',
             propertyType: PropertyTypeEnum::Relation,
             columnName: 'users',
-            columnType: 'int',
+            columnType: Type::Int,
             relationType: RelationEnum::OneToMany,
             relationEntityClass: UserWithAddressFixture::class,
             relationColumnName: 'address_id',
@@ -265,7 +267,7 @@ class ColumnSchemaFactoryTest extends TestCase
             propertyName: 'users',
             propertyType: PropertyTypeEnum::Relation,
             columnName: 'users',
-            columnType: 'int',
+            columnType: Type::Int,
             relationType: RelationEnum::OneToMany,
             relationEntityClass: UserFixture::class,
             relationColumnName: 'address_id',

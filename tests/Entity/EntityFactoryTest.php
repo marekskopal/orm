@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use MarekSkopal\ORM\Entity\EntityCache;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Entity\EntityReflection;
+use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
@@ -46,7 +47,7 @@ final class EntityFactoryTest extends TestCase
             );
         $schemaProvider = $this->createMock(SchemaProvider::class);
         $schemaProvider->method('getPrimaryColumnSchema')
-            ->willReturn(new ColumnSchema('id', PropertyTypeEnum::Int, 'id', 'int'));
+            ->willReturn(new ColumnSchema('id', PropertyTypeEnum::Int, 'id', Type::Int));
         $schemaProvider->method('getEntitySchema')
             ->willReturn(EntitySchemaFixture::create());
 

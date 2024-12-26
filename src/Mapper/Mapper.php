@@ -9,6 +9,7 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use Iterator;
 use MarekSkopal\ORM\Entity\EntityCache;
+use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
@@ -211,14 +212,11 @@ class Mapper implements MapperInterface
 
     private function mapDateTimeToColumn(ColumnSchema $columnSchema, DateTimeInterface $value): string|int
     {
-        if ($columnSchema->columnType === 'timestamp') {
-            return $value->getTimestamp();
-        }
-
-        if ($columnSchema->columnType === 'date') {
-            return $value->format('Y-m-d');
-        }
-
-        return $value->format('Y-m-d H:i:s');
+        return match ($columnSchema->columnType) {
+            Type::Timestamp => $value->getTimestamp(),
+            Type::Date => $value->format('Y-m-d'),
+            Type::Time => $value->format('H:i:s'),
+            default => $value->format('Y-m-d H:i:s'),
+        };
     }
 }

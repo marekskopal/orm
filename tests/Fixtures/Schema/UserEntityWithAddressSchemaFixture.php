@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Fixtures\Schema;
 
+use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
@@ -27,58 +28,58 @@ class UserEntityWithAddressSchemaFixture
                     propertyName: 'id',
                     propertyType: PropertyTypeEnum::Int,
                     columnName: 'id',
-                    columnType: 'int',
+                    columnType: Type::Int,
                     isPrimary: true,
                 ),
                 'createdAt' => new ColumnSchema(
                     propertyName: 'createdAt',
                     propertyType: PropertyTypeEnum::DateTimeImmutable,
                     columnName: 'created_at',
-                    columnType: 'datetime',
+                    columnType: Type::DateTime,
                 ),
                 'firstName' => new ColumnSchema(
                     propertyName: 'firstName',
                     propertyType: PropertyTypeEnum::String,
                     columnName: 'first_name',
-                    columnType: 'varchar',
+                    columnType: Type::String,
                 ),
                 'middleName' => new ColumnSchema(
                     propertyName: 'middleName',
                     propertyType: PropertyTypeEnum::String,
                     columnName: 'middle_name',
-                    columnType: 'varchar',
+                    columnType: Type::String,
                     isNullable: true,
                 ),
                 'lastName' => new ColumnSchema(
                     propertyName: 'lastName',
                     propertyType: PropertyTypeEnum::String,
                     columnName: 'last_name',
-                    columnType: 'varchar',
+                    columnType: Type::String,
                 ),
                 'email' => new ColumnSchema(
                     propertyName: 'email',
                     propertyType: PropertyTypeEnum::String,
                     columnName: 'email',
-                    columnType: 'varchar',
+                    columnType: Type::String,
                 ),
                 'isActive' => new ColumnSchema(
                     propertyName: 'isActive',
                     propertyType: PropertyTypeEnum::Bool,
                     columnName: 'is_active',
-                    columnType: 'tinyint',
+                    columnType: Type::Boolean,
                 ),
                 'type' => new ColumnSchema(
                     propertyName: 'type',
                     propertyType: PropertyTypeEnum::Enum,
                     columnName: 'type',
-                    columnType: 'enum',
+                    columnType: Type::Enum,
                     enumClass: UserTypeEnum::class,
                 ),
                 'address' => new ColumnSchema(
                     propertyName: 'address',
                     propertyType: PropertyTypeEnum::Relation,
                     columnName: 'address_id',
-                    columnType: 'int',
+                    columnType: Type::Int,
                     relationType: RelationEnum::ManyToOne,
                     relationEntityClass: AddressFixture::class,
                 ),
@@ -86,7 +87,7 @@ class UserEntityWithAddressSchemaFixture
                     propertyName: 'address',
                     propertyType: PropertyTypeEnum::Relation,
                     columnName: 'second_address_id',
-                    columnType: 'int',
+                    columnType: Type::Int,
                     relationType: RelationEnum::ManyToOne,
                     relationEntityClass: AddressFixture::class,
                     isNullable: true,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Schema;
 
 use BackedEnum;
+use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Mapper\MapperInterface;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
@@ -21,7 +22,7 @@ readonly class ColumnSchema
         public string $propertyName,
         public PropertyTypeEnum $propertyType,
         public string $columnName,
-        public string $columnType,
+        public Type $columnType,
         public ?RelationEnum $relationType = null,
         public ?string $relationEntityClass = null,
         public ?string $relationColumnName = null,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Fixtures\Schema;
 
+use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
@@ -24,7 +25,7 @@ class AddressEntitySchemaFixture
                     propertyName: 'id',
                     propertyType: PropertyTypeEnum::Int,
                     columnName: 'id',
-                    columnType: 'int',
+                    columnType: Type::Int,
                     isPrimary: true,
                     isAutoIncrement: true,
                 ),
@@ -32,19 +33,19 @@ class AddressEntitySchemaFixture
                     propertyName: 'firstName',
                     propertyType: PropertyTypeEnum::String,
                     columnName: 'street',
-                    columnType: 'varchar',
+                    columnType: Type::String,
                 ),
                 'city' => new ColumnSchema(
-                    propertyName: 'lastName',
+                    propertyName: 'city',
                     propertyType: PropertyTypeEnum::String,
                     columnName: 'city',
-                    columnType: 'varchar',
+                    columnType: Type::String,
                 ),
                 'country' => new ColumnSchema(
-                    propertyName: 'lastName',
+                    propertyName: 'country',
                     propertyType: PropertyTypeEnum::String,
                     columnName: 'country',
-                    columnType: 'varchar',
+                    columnType: Type::String,
                 ),
             ],
         );
