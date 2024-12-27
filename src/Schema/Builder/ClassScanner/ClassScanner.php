@@ -34,7 +34,7 @@ class ClassScanner
             switch ($tokenName) {
                 case 'T_NAMESPACE':
                     for ($j = $i + 1; $j < $tokensCount; $j++) {
-                        if ($tokens[$j]->getTokenName() === 'T_NAME_QUALIFIED') {
+                        if ($tokens[$j]->getTokenName() === 'T_NAME_QUALIFIED' || $tokens[$j]->getTokenName() === 'T_STRING') {
                             $namespace = $tokens[$j]->text;
                             break;
                         }
