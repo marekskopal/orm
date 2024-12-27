@@ -11,11 +11,17 @@ enum Type: string
     case Float = 'float';
     case Double = 'double';
     case String = 'string';
+    case TinyText = 'tinytext';
     case Text = 'text';
+    case MediumText = 'mediumtext';
+    case LongText = 'longtext';
     case Boolean = 'boolean';
     case Uuid = 'uuid';
     case Binary = 'binary';
+    case TinyBlob = 'tinyblob';
     case Blob = 'blob';
+    case MediumBlob = 'mediumblob';
+    case LongBlob = 'longblob';
     case Date = 'date';
     case DateTime = 'datetime';
     case Time = 'time';
