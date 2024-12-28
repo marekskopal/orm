@@ -81,6 +81,7 @@ class ColumnSchemaFactory
             size: $attributeInstance->size,
             precision: $attributeInstance->precision,
             scale: $attributeInstance->scale,
+            default: $attributeInstance->default,
             enumClass: $attributeInstance->enum,
             extensionClass: $attributeInstance->extension,
             extensionOptions: $attributeInstance->extensionOptions,
