@@ -35,7 +35,7 @@ class Column
         public ?int $size = null,
         public ?int $precision = null,
         public ?int $scale = null,
-        public mixed $default = null,
+        public string|int|float|bool|BackedEnum|null $default = null,
         public ?string $enum = null,
         public ?string $extension = null,
         public array $extensionOptions = [],

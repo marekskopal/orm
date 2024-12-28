@@ -12,8 +12,12 @@ use MarekSkopal\ORM\Enum\Type;
 class ColumnEnum extends Column
 {
     /** @param class-string<BackedEnum>|null $enum */
-    public function __construct(?string $enum, ?string $name = null, bool $nullable = false, mixed $default = null,)
-    {
+    public function __construct(
+        ?string $enum,
+        ?string $name = null,
+        bool $nullable = false,
+        string|int|float|bool|BackedEnum|null $default = null,
+    ) {
         parent::__construct(type: Type::Enum, name: $name, nullable: $nullable, default: $default, enum: $enum);
     }
 }
