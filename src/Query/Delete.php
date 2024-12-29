@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Query;
 
+use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use PDO;
@@ -53,9 +54,14 @@ class Delete
 
     private function query(): PDOStatement
     {
-        $pdoStatement = $this->pdo->prepare($this->getSql());
-        $pdoStatement->execute($this->getIds());
-        return $pdoStatement;
+        try {
+            $sql = $this->getSql();
+            $pdoStatement = $this->pdo->prepare($sql);
+            $pdoStatement->execute($this->getIds());
+            return $pdoStatement;
+        } catch (\PDOException $e) {
+            throw new ExceptionFactory()->create($e, $sql);
+        }
     }
 
     private function getWhereQuery(): string

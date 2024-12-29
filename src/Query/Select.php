@@ -6,6 +6,7 @@ namespace MarekSkopal\ORM\Query;
 
 use Iterator;
 use MarekSkopal\ORM\Entity\EntityFactory;
+use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
 use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
@@ -217,9 +218,14 @@ class Select
 
     private function query(): PDOStatement
     {
-        $pdoStatement = $this->pdo->prepare($this->getSql());
-        $pdoStatement->execute($this->whereBuilder->getParams());
-        return $pdoStatement;
+        try {
+            $sql = $this->getSql();
+            $pdoStatement = $this->pdo->prepare($sql);
+            $pdoStatement->execute($this->whereBuilder->getParams());
+            return $pdoStatement;
+        } catch (\PDOException $e) {
+            throw new ExceptionFactory()->create($e, $sql);
+        }
     }
 
     /** @return array<string> */
