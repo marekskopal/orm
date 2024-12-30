@@ -8,6 +8,7 @@ use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Utils\NameUtils;
 use PDO;
 use PDOStatement;
 
@@ -46,7 +47,7 @@ class Insert
 
         return implode(' ', [
             'INSERT INTO',
-            $this->schema->table,
+            NameUtils::escape($this->schema->table),
             '(' . implode(',', $this->getColumns()) . ')',
             $this->getValuesQuery(),
         ]);
@@ -77,7 +78,7 @@ class Insert
     private function getColumns(): array
     {
         return array_map(
-            fn(ColumnSchema $column): string => $column->columnName,
+            fn(ColumnSchema $column): string => NameUtils::escape($column->columnName),
             $this->schema->getInsertableColumns(),
         );
     }
@@ -88,25 +89,25 @@ class Insert
         foreach ($this->entities as $entity) {
             $entitiesQuery[] = '(' . implode(
                 ',',
-                array_map(fn(ColumnSchema $column): string => ':' . $column->columnName, $this->schema->getInsertableColumns()),
+                array_map(fn(ColumnSchema $column): string => '?', $this->schema->getInsertableColumns()),
             ) . ')';
         }
 
         return 'VALUES ' . implode(',', $entitiesQuery);
     }
 
-    /** @return list<string> */
+    /** @return list<string|int|float|null> */
     private function getValues(): array
     {
         $values = [];
         foreach ($this->entities as $entity) {
-            $values += array_map(
+            $values = array_merge($values, array_values(array_map(
                 // @phpstan-ignore-next-line argument.type property.dynamicName
-                fn(ColumnSchema $column): string => (string) $this->mapper->mapToColumn($column, $entity->{$column->propertyName}),
+                fn(ColumnSchema $column): string|int|float|null => $this->mapper->mapToColumn($column, $entity->{$column->propertyName}),
                 $this->schema->getInsertableColumns(),
-            );
+            )));
         }
 
-        return array_values($values);
+        return $values;
     }
 }
