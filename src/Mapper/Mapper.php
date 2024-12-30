@@ -210,10 +210,9 @@ class Mapper implements MapperInterface
         return new DateTimeImmutable($value);
     }
 
-    private function mapDateTimeToColumn(ColumnSchema $columnSchema, DateTimeInterface $value): string|int
+    private function mapDateTimeToColumn(ColumnSchema $columnSchema, DateTimeInterface $value): string
     {
         return match ($columnSchema->columnType) {
-            Type::Timestamp => $value->getTimestamp(),
             Type::Date => $value->format('Y-m-d'),
             Type::Time => $value->format('H:i:s'),
             default => $value->format('Y-m-d H:i:s'),
