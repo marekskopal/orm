@@ -56,6 +56,7 @@ You can declare entities by adding `Entity` attribute to class and `Column` attr
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
+use MarekSkopal\ORM\Enum\Type
 
 #[Entity]
 final class User
@@ -64,13 +65,13 @@ final class User
     public int $id;
 
     public function __construct(
-        #[Column(type: 'timestamp')]
+        #[Column(type: Type::Timestamp)]
         public DateTimeImmutable $createdAt,
-        #[Column(type: 'varchar(255)')]
+        #[Column(type: Type::String)]
         public string $name
-        #[Column(type: 'varchar(255)', nullable: true)]
+        #[Column(type: Type::String, nullable: true, size: 50)]
         public string $email,
-        #[Column(type: 'tinyint(1)')]
+        #[Column(type: Type::Boolean)]
         public bool $isActive,
         #[ColumnEnum(enum: UserTypeEnum::class)]
         public UserTypeEnum $type,
@@ -84,7 +85,7 @@ Table and column names are derived from class name and parameters, but can be cu
 #[Entity(table: 'users')]
 final class User
 {
-    #[Column(type: 'varchar(255)', name: 'lastest_name')]
+    #[Column(type: Type::String, name: 'lastest_name')]
     public string $lastName;
 }
 ```
@@ -113,10 +114,10 @@ You can use `DateTime` or `DateTimeImmutable` properties in entities. The librar
 #[Entity]
 final class User
 {
-    #[Column(type: 'timestamp')]
+    #[Column(type: Type::Timestamp)]
     public DateTimeImmutable $createdAt;
     
-    #[Column(type: 'datetime')]
+    #[Column(type: Type::DateTime)]
     public DateTime $updatedAt;
 }
 ```
