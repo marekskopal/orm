@@ -32,7 +32,7 @@ class DeleteTest extends TestCase
             columnType: Type::Int,
         );
 
-        $delete = new Delete($pdo, $entitySchema, $primaryColumnSchema);
+        $delete = new Delete($pdo, UserFixture::class, $entitySchema, $primaryColumnSchema);
         $delete->entity(UserFixture::create());
 
         self::assertSame(

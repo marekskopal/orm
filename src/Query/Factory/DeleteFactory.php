@@ -23,6 +23,7 @@ readonly class DeleteFactory
     {
         return new Delete(
             $this->database->getPdo(),
+            $entity::class,
             $this->schemaProvider->getEntitySchema($entity::class),
             $this->schemaProvider->getPrimaryColumnSchema($entity::class),
         )->entity($entity);

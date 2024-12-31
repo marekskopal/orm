@@ -28,7 +28,7 @@ final class InsertTest extends TestCase
         $entitySchema = EntitySchemaFixture::create();
         $mapper = $this->createMock(Mapper::class);
 
-        $insert = new Insert($pdo, $entitySchema, $mapper);
+        $insert = new Insert($pdo, UserFixture::class, $entitySchema, $mapper);
         $insert->entity(UserFixture::create());
         $insert->entity(UserFixture::create());
 
@@ -46,7 +46,7 @@ final class InsertTest extends TestCase
         $entitySchema = EntitySchemaFixture::create();
         $mapper = $this->createMock(Mapper::class);
 
-        $insert = new Insert($pdo, $entitySchema, $mapper);
+        $insert = new Insert($pdo, UserFixture::class, $entitySchema, $mapper);
 
         $insert->getSql();
     }

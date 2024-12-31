@@ -28,7 +28,7 @@ final class UpdateTest extends TestCase
         $entitySchema = EntitySchemaFixture::create();
         $mapper = $this->createMock(Mapper::class);
 
-        $insert = new Update($pdo, $entitySchema, $mapper);
+        $insert = new Update($pdo, UserFixture::class, $entitySchema, $mapper);
         $insert->entity(UserFixture::create());
 
         self::assertSame(
@@ -45,7 +45,7 @@ final class UpdateTest extends TestCase
         $entitySchema = EntitySchemaFixture::create();
         $mapper = $this->createMock(Mapper::class);
 
-        $insert = new Update($pdo, $entitySchema, $mapper);
+        $insert = new Update($pdo, UserFixture::class, $entitySchema, $mapper);
 
         $insert->getSql();
     }

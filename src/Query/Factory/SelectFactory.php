@@ -28,8 +28,9 @@ readonly class SelectFactory
     {
         return new Select(
             $this->database->getPdo(),
-            $this->entityFactory,
             $entityClass,
+            $this->schemaProvider->getEntitySchema($entityClass),
+            $this->entityFactory,
             $this->schemaProvider,
         );
     }

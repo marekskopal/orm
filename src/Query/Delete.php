@@ -11,16 +11,19 @@ use PDO;
 use PDOStatement;
 
 /** @template T of object */
-class Delete
+class Delete extends AbstractQuery
 {
     /** @var list<T> */
     private array $entities = [];
 
+    /** @param class-string<T> $entityClass */
     public function __construct(
-        private readonly PDO $pdo,
-        private readonly EntitySchema $entitySchema,
+        PDO $pdo,
+        string $entityClass,
+        EntitySchema $schema,
         private readonly ColumnSchema $primaryColumnSchema,
     ) {
+        parent::__construct($pdo, $entityClass, $schema);
     }
 
     /**
@@ -47,7 +50,7 @@ class Delete
     {
         return implode(' ', [
             'DELETE FROM',
-            $this->entitySchema->table,
+            $this->schema->table,
             $this->getWhereQuery(),
         ]);
     }

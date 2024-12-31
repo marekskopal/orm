@@ -20,7 +20,10 @@ class Collection implements Iterator, ArrayAccess, Countable
     {
     }
 
-    /** @return T|false $item */
+    /**
+     * @return T|false $item
+     * @phpstan-ignore-next-line method.childReturnType
+     */
     public function current(): object|false
     {
         return current($this->items);

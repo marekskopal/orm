@@ -49,6 +49,7 @@ readonly class ORM
     {
         $repositoryClass = $this->schema->entities[$entityClass]->repositoryClass;
 
+        //@phpstan-ignore-next-line return.type
         return new $repositoryClass($entityClass, $this->queryProvider, $this->schemaProvider);
     }
 

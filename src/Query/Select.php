@@ -21,10 +21,8 @@ use PDOStatement;
  * @template T of object
  * @phpstan-import-type Where from WhereBuilder
  */
-class Select
+class Select extends AbstractQuery
 {
-    private readonly EntitySchema $schema;
-
     private readonly WhereBuilder $whereBuilder;
 
     /** @var list<array{0: string, 1: DirectionEnum}> */
@@ -45,12 +43,14 @@ class Select
 
     /** @param class-string<T> $entityClass */
     public function __construct(
-        private readonly PDO $pdo,
+        PDO $pdo,
+        string $entityClass,
+        EntitySchema $schema,
         private readonly EntityFactory $entityFactory,
-        private readonly string $entityClass,
         private readonly SchemaProvider $schemaProvider,
     ) {
-        $this->schema = $this->schemaProvider->getEntitySchema($entityClass);
+        parent::__construct($pdo, $entityClass, $schema);
+
         $this->whereBuilder = new WhereBuilder($this);
     }
 

@@ -43,11 +43,10 @@ final class SelectTest extends TestCase
         $schemaProvider->method('getEntitySchema')
             ->willReturn(
                 UserEntityWithAddressSchemaFixture::create(),
-                UserEntityWithAddressSchemaFixture::create(),
                 AddressEntitySchemaFixture::create(),
             );
 
-        $this->select = new Select($pdo, $entityFactory, UserWithAddressFixture::class, $schemaProvider);
+        $this->select = new Select($pdo, UserWithAddressFixture::class, UserEntityWithAddressSchemaFixture::create(), $entityFactory, $schemaProvider);
     }
 
     /** @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where */

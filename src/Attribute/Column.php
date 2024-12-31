@@ -13,6 +13,9 @@ use MarekSkopal\ORM\Mapper\MapperInterface;
 class Column
 {
     public Type $type {
+        get {
+            return $this->type;
+        }
         set(Type|string $value) {
             if (is_string($value)) {
                 $value = Type::from($value);
@@ -40,7 +43,6 @@ class Column
         public ?string $extension = null,
         public array $extensionOptions = [],
     ) {
-        //@phpstan-ignore-next-line assign.propertyType
         $this->type = $type;
     }
 }

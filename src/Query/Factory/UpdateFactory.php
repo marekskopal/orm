@@ -22,7 +22,7 @@ readonly class UpdateFactory
      */
     public function create(object $entity): Update
     {
-        return new Update($this->database->getPdo(), $this->schemaProvider->getEntitySchema($entity::class), $this->mapper)->entity(
+        return new Update($this->database->getPdo(), $entity::class, $this->schemaProvider->getEntitySchema($entity::class), $this->mapper)->entity(
             $entity,
         );
     }

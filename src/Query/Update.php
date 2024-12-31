@@ -13,13 +13,15 @@ use PDO;
 use PDOStatement;
 
 /** @template T of object */
-class Update
+class Update extends AbstractQuery
 {
     /** @var T */
     private object $entity;
 
-    public function __construct(private readonly PDO $pdo, private readonly EntitySchema $schema, private readonly Mapper $mapper)
+    /** @param class-string<T> $entityClass */
+    public function __construct(PDO $pdo, string $entityClass, EntitySchema $schema, private readonly Mapper $mapper)
     {
+        parent::__construct($pdo, $entityClass, $schema);
     }
 
     /**

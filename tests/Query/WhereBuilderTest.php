@@ -41,11 +41,10 @@ final class WhereBuilderTest extends TestCase
         $schemaProvider->method('getEntitySchema')
             ->willReturn(
                 UserEntityWithAddressSchemaFixture::create(),
-                UserEntityWithAddressSchemaFixture::create(),
                 AddressEntitySchemaFixture::create(),
             );
 
-        $this->select = new Select($pdo, $entityFactory, UserFixture::class, $schemaProvider);
+        $this->select = new Select($pdo, UserFixture::class, UserEntityWithAddressSchemaFixture::create(), $entityFactory, $schemaProvider);
 
         $this->whereBuilder = new WhereBuilder($this->select);
     }
