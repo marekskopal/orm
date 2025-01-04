@@ -55,16 +55,16 @@ abstract class AbstractRepository implements RepositoryInterface
         $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entity::class);
         // @phpstan-ignore-next-line property.dynamicName
         if (!isset($entity->{$primaryColumnSchema->columnName})) {
-            $this->queryProvider->insert($entity)->execute();
+            $this->queryProvider->insert($entity::class)->entity($entity)->execute();
             return;
         }
 
-        $this->queryProvider->update($entity)->execute();
+        $this->queryProvider->update($entity::class)->entity($entity)->execute();
     }
 
     /** @param T $entity */
     public function delete(object $entity): void
     {
-        $this->queryProvider->delete($entity)->execute();
+        $this->queryProvider->delete($entity::class)->entity($entity)->execute();
     }
 }

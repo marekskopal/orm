@@ -61,7 +61,7 @@ use MarekSkopal\ORM\Enum\Type
 #[Entity]
 final class User
 {
-    #[Column(type: 'int', primary: true)]
+    #[Column(type: Type::Int, primary: true, autoIncrement: true)]
     public int $id;
 
     public function __construct(
@@ -172,7 +172,7 @@ $queryProvider = $orm->getQueryProvider();
 You can create select queries using `Select` builder.
 
 ```php
-$user = $query = $queryProvider->select(User::class)
+$user = $queryProvider->select(User::class)
     ->where(['id' => 1])
     ->fetchOne();
 ```
@@ -234,6 +234,94 @@ $user = $queryProvider->select(User::class)
     ->fetchOne();
 ```
 
+### Insert
+
+You can create insert entities using `Insert` builder. Cascade insert is currently not supported.
+
+```php
+$user = new User(
+    'John',
+    'Doe',
+);
+
+$queryProvider->insert(User::class)
+    ->entity($user)
+    ->execute();
+
+//created entity will have id set automatically
+```
+
+#### Insert multiple entities
+
+You can insert multiple entities at once in one insert query.
+
+```php
+   
+$userA = new User(
+    'John',
+    'Doe',
+);
+
+$userB = new User(
+    'Jane',
+    'Doe',
+);
+
+$queryProvider->insert(User::class)
+    ->entity($userA)
+    ->entity($userB)
+    ->execute();
+```    
+
+### Update
+
+You can create insert entities using `Update` builder. Cascade update is currently not supported.
+
+```php
+$user = $queryProvider->select(User::class)
+    ->where(['id' => 1])
+    ->fetchOne();
+
+$user->firstName = 'Jane';
+
+$queryProvider->update(User::class)
+    ->entity($user)
+    ->execute();
+```
+
+### Delete
+
+You can create insert entities using `Delete` builder. Cascade delete is currently not supported.
+
+```php
+$user = $queryProvider->select(User::class)
+    ->where(['id' => 1])
+    ->fetchOne();
+    
+$queryProvider->delete(User::class)
+    ->entity($user)
+    ->execute();
+```
+
+#### Delete multiple entities
+
+You can delete multiple entities at once in one delete query.
+
+```php
+   
+$userA = $queryProvider->select(User::class)
+    ->where(['id' => 1])
+    ->fetchOne();
+
+$userB = $queryProvider->select(User::class)
+    ->where(['id' => 2])
+    ->fetchOne();
+
+$queryProvider->delete(User::class)
+    ->entity($userA)
+    ->entity($userB)
+    ->execute();
+```
 
 ## Long-running applications
 

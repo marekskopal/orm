@@ -48,31 +48,31 @@ readonly class QueryProvider
 
     /**
      * @template T of object
-     * @param T $entity
+     * @param class-string<T> $entityClass
      * @return Insert<T>
      */
-    public function insert(object $entity): Insert
+    public function insert(string $entityClass): Insert
     {
-        return $this->insertFactory->create($entity);
+        return $this->insertFactory->create($entityClass);
     }
 
     /**
      * @template T of object
-     * @param T $entity
+     * @param class-string<T> $entityClass
      * @return Update<T>
      */
-    public function update(object $entity): Update
+    public function update(string $entityClass): Update
     {
-        return $this->updateFactory->create($entity);
+        return $this->updateFactory->create($entityClass);
     }
 
     /**
      * @template T of object
-     * @param T $entity
+     * @param class-string<T> $entityClass
      * @return Delete<T>
      */
-    public function delete(object $entity): Delete
+    public function delete(string $entityClass): Delete
     {
-        return $this->deleteFactory->create($entity);
+        return $this->deleteFactory->create($entityClass);
     }
 }

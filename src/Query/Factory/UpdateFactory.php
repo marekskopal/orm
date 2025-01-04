@@ -17,13 +17,11 @@ readonly class UpdateFactory
 
     /**
      * @template T of object
-     * @param T $entity
+     * @param class-string<T> $entityClass
      * @return Update<T>
      */
-    public function create(object $entity): Update
+    public function create(string $entityClass): Update
     {
-        return new Update($this->database->getPdo(), $entity::class, $this->schemaProvider->getEntitySchema($entity::class), $this->mapper)->entity(
-            $entity,
-        );
+        return new Update($this->database->getPdo(), $entityClass, $this->schemaProvider->getEntitySchema($entityClass), $this->mapper);
     }
 }

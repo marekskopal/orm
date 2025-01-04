@@ -16,16 +16,16 @@ readonly class DeleteFactory
 
     /**
      * @template T of object
-     * @param T $entity
+     * @param class-string<T> $entityClass
      * @return Delete<T>
      */
-    public function create(object $entity): Delete
+    public function create(string $entityClass): Delete
     {
         return new Delete(
             $this->database->getPdo(),
-            $entity::class,
-            $this->schemaProvider->getEntitySchema($entity::class),
-            $this->schemaProvider->getPrimaryColumnSchema($entity::class),
-        )->entity($entity);
+            $entityClass,
+            $this->schemaProvider->getEntitySchema($entityClass),
+            $this->schemaProvider->getPrimaryColumnSchema($entityClass),
+        );
     }
 }

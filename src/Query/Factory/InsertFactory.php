@@ -17,13 +17,11 @@ readonly class InsertFactory
 
     /**
      * @template T of object
-     * @param T $entity
+     * @param class-string<T> $entityClass
      * @return Insert<T>
      */
-    public function create(object $entity): Insert
+    public function create(string $entityClass): Insert
     {
-        return new Insert($this->database->getPdo(), $entity::class, $this->schemaProvider->getEntitySchema($entity::class), $this->mapper)->entity(
-            $entity,
-        );
+        return new Insert($this->database->getPdo(), $entityClass, $this->schemaProvider->getEntitySchema($entityClass), $this->mapper);
     }
 }
