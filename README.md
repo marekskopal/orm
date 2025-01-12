@@ -8,6 +8,8 @@ A lightweight Object-Relational Mapping (ORM) library for PHP.
 - Supports various property types including Uuid, DateTime and Enums
 - Handles one-to-many and many-to-one relationships
 - Query provider for database interactions
+- [Migration module](https://github.com/marekskopal/orm-migrations) for creating and updating database schema
+- Very fast in comparison to other ORM libraries - see [benchmarks](https://github.com/marekskopal/orm-benchmark)
 
 ## Installation
 
