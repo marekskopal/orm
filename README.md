@@ -238,7 +238,7 @@ $user = $queryProvider->select(User::class)
 
 ### Insert
 
-You can create insert entities using `Insert` builder. Cascade insert is currently not supported.
+You can insert entities using `Insert` builder. Cascade insert is currently not supported.
 
 ```php
 $user = new User(
@@ -277,7 +277,7 @@ $queryProvider->insert(User::class)
 
 ### Update
 
-You can create insert entities using `Update` builder. Cascade update is currently not supported.
+You can update entities using `Update` builder. Cascade update is currently not supported.
 
 ```php
 $user = $queryProvider->select(User::class)
@@ -293,7 +293,7 @@ $queryProvider->update(User::class)
 
 ### Delete
 
-You can create insert entities using `Delete` builder. Cascade delete is currently not supported.
+You can delete entities using `Delete` builder. Cascade delete is currently not supported.
 
 ```php
 $user = $queryProvider->select(User::class)
