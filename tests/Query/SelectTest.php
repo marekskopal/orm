@@ -130,7 +130,7 @@ final class SelectTest extends TestCase
         );
     }
 
-    public function testParseColumns(): void
+    public function testParseColumnJoin(): void
     {
         $select = $this->select;
 
@@ -140,5 +140,15 @@ final class SelectTest extends TestCase
             self::BaseSql . ' LEFT JOIN `addresses` `a` ON `a`.`id`=`u`.`address_id`',
             $select->getSql(),
         );
+    }
+
+    #[TestWith(['id', '`u`.`id`'])]
+    #[TestWith(['address.id', '`a`.`id`'])]
+    #[TestWith(['count(*)', 'count(*)'])]
+    public function testParseColumn(string $column, string $expected): void
+    {
+        $select = $this->select;
+
+        self::assertSame($expected, $select->parseColumn($column));
     }
 }

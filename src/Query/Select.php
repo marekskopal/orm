@@ -194,6 +194,10 @@ class Select extends AbstractQuery
         $parts = explode('.', $column);
 
         if (count($parts) === 1) {
+            if (str_contains($column, '(')) {
+                return $column;
+            }
+
             return NameUtils::escape($this->schema->tableAlias) . '.' . NameUtils::escape($column);
         }
 
