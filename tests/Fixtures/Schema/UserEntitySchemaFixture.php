@@ -64,7 +64,7 @@ class UserEntitySchemaFixture
                     propertyName: 'isActive',
                     propertyType: PropertyTypeEnum::Bool,
                     columnName: 'is_active',
-                    columnType: Type::Boolean
+                    columnType: Type::Boolean,
                 ),
                 'type' => new ColumnSchema(
                     propertyName: 'type',
