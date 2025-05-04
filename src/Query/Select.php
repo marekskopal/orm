@@ -119,11 +119,13 @@ class Select extends AbstractQuery
         string $referenceColumn,
         ?string $tableAlias = null,
     ): self {
-        if (isset($this->joins[$column])) {
+        $key = ($tableAlias ?? $this->schema->tableAlias) . '.' . $column;
+
+        if (isset($this->joins[$key])) {
             return $this;
         }
 
-        $this->joins[$column] = new Join(
+        $this->joins[$key] = new Join(
             $tableAlias ?? $this->schema->tableAlias,
             $column,
             $referenceTable,
@@ -183,11 +185,13 @@ class Select extends AbstractQuery
 
     public function getSql(): string
     {
+        $whereQuery = $this->getWhereQuery();
+
         return 'SELECT '
             . implode(',', $this->getColumns())
             . ' FROM ' . NameUtils::escape($this->schema->table) . ' ' . NameUtils::escape($this->schema->tableAlias)
             . $this->getJoinsQuery()
-            . $this->getWhereQuery()
+            . $whereQuery
             . $this->getGroupByQuery()
             . $this->getOrderByQuery()
             . $this->getLimitQuery()
