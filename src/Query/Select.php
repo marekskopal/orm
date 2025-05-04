@@ -112,13 +112,24 @@ class Select extends AbstractQuery
     }
 
     /** @return Select<T> */
-    public function join(string $column, string $referenceTable, string $referenceTableAlias, string $referenceColumn): self
-    {
+    public function join(
+        string $column,
+        string $referenceTable,
+        string $referenceTableAlias,
+        string $referenceColumn,
+        ?string $tableAlias = null,
+    ): self {
         if (isset($this->joins[$column])) {
             return $this;
         }
 
-        $this->joins[$column] = new Join($column, $referenceTable, $referenceTableAlias, $referenceColumn);
+        $this->joins[$column] = new Join(
+            $tableAlias ?? $this->schema->tableAlias,
+            $column,
+            $referenceTable,
+            $referenceTableAlias,
+            $referenceColumn,
+        );
         return $this;
     }
 
@@ -192,8 +203,9 @@ class Select extends AbstractQuery
     public function parseColumn(string $column): string
     {
         $parts = explode('.', $column);
+        $partsCount = count($parts);
 
-        if (count($parts) === 1) {
+        if ($partsCount === 1) {
             if (str_contains($column, '(')) {
                 return $column;
             }
@@ -201,21 +213,30 @@ class Select extends AbstractQuery
             return NameUtils::escape($this->schema->tableAlias) . '.' . NameUtils::escape($column);
         }
 
-        $entitySchema = $this->schemaProvider->getEntitySchema($this->entityClass);
-        $columnSchema = $entitySchema->getColumnByPropertyName($parts[0]);
-        if ($columnSchema->relationEntityClass === null) {
-            throw new \InvalidArgumentException('Column is not relation');
+        $entityClass = $this->entityClass;
+        for ($i = 0; $i < $partsCount - 1; $i++) {
+            $entitySchema = $this->schemaProvider->getEntitySchema($entityClass);
+
+            $columnSchema = $entitySchema->getColumnByPropertyName($parts[$i]);
+
+            if ($columnSchema->relationEntityClass === null) {
+                throw new \InvalidArgumentException('Column is not relation');
+            }
+
+            $relationEntitySchema = $this->schemaProvider->getEntitySchema($columnSchema->relationEntityClass);
+
+            $this->join(
+                column: $columnSchema->columnName,
+                referenceTable: $relationEntitySchema->table,
+                referenceTableAlias: $relationEntitySchema->tableAlias,
+                referenceColumn: $relationEntitySchema->getPrimaryColumn()->columnName,
+                tableAlias: $entitySchema->tableAlias,
+            );
+
+            $entityClass = $columnSchema->relationEntityClass;
         }
 
-        $relationEntitySchema = $this->schemaProvider->getEntitySchema($columnSchema->relationEntityClass);
-        $relationColumnSchema = $relationEntitySchema->getColumnByColumnName($parts[1]);
-
-        $this->join(
-            column: $columnSchema->columnName,
-            referenceTable: $relationEntitySchema->table,
-            referenceTableAlias: $relationEntitySchema->tableAlias,
-            referenceColumn: $relationEntitySchema->getPrimaryColumn()->columnName,
-        );
+        $relationColumnSchema = $relationEntitySchema->getColumnByColumnName($parts[$partsCount - 1]);
 
         return NameUtils::escape($relationEntitySchema->tableAlias) . '.' . NameUtils::escape($relationColumnSchema->columnName);
     }
@@ -307,7 +328,7 @@ class Select extends AbstractQuery
                 ) . '.' . NameUtils::escape(
                     $join->referenceColumn,
                 ) . '=' . NameUtils::escape(
-                    $this->schema->tableAlias,
+                    $join->tableAlias,
                 ) . '.' . NameUtils::escape(
                     $join->column,
                 ),

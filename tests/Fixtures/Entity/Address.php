@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Tests\Fixtures\Entity;
 use Iterator;
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\Entity;
+use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
 
 #[Entity]
@@ -19,7 +20,7 @@ final class Address
         public string $street,
         #[Column(type: 'string')]
         public string $city,
-        #[Column(type: 'string')]
+        #[ManyToOne(entityClass: CountryFixture::class)]
         public string $country,
         #[OneToMany(entityClass: UserFixture::class)]
         public Iterator $users,

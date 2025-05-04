@@ -14,6 +14,7 @@ use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\AddressEntitySchemaFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Schema\CountryEntitySchemaFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\UserEntityWithAddressSchemaFixture;
 use MarekSkopal\ORM\Utils\NameUtils;
 use PDO;
@@ -44,9 +45,17 @@ final class SelectTest extends TestCase
             ->willReturn(
                 UserEntityWithAddressSchemaFixture::create(),
                 AddressEntitySchemaFixture::create(),
+                AddressEntitySchemaFixture::create(),
+                CountryEntitySchemaFixture::create(),
             );
 
-        $this->select = new Select($pdo, UserWithAddressFixture::class, UserEntityWithAddressSchemaFixture::create(), $entityFactory, $schemaProvider);
+        $this->select = new Select(
+            $pdo,
+            UserWithAddressFixture::class,
+            UserEntityWithAddressSchemaFixture::create(),
+            $entityFactory,
+            $schemaProvider,
+        );
     }
 
     /** @param array<string,scalar>|array{0: string, 1: string, 2: scalar}|list<array{0: string, 1: string, 2: scalar}> $where */
@@ -138,6 +147,18 @@ final class SelectTest extends TestCase
 
         self::assertSame(
             self::BaseSql . ' LEFT JOIN `addresses` `a` ON `a`.`id`=`u`.`address_id`',
+            $select->getSql(),
+        );
+    }
+
+    public function testParseColumnJoinMultiple(): void
+    {
+        $select = $this->select;
+
+        $select->parseColumn('address.country.id');
+
+        self::assertSame(
+            self::BaseSql . ' LEFT JOIN `addresses` `a` ON `a`.`id`=`u`.`address_id` LEFT JOIN `countries` `c` ON `c`.`id`=`a`.`country_id`',
             $select->getSql(),
         );
     }

@@ -8,6 +8,8 @@ use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
+use MarekSkopal\ORM\Schema\Enum\RelationEnum;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\CountryFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Repository\UserRepositoryFixture;
 
@@ -30,7 +32,7 @@ class AddressEntitySchemaFixture
                     isAutoIncrement: true,
                 ),
                 'street' => new ColumnSchema(
-                    propertyName: 'firstName',
+                    propertyName: 'street',
                     propertyType: PropertyTypeEnum::String,
                     columnName: 'street',
                     columnType: Type::String,
@@ -43,9 +45,11 @@ class AddressEntitySchemaFixture
                 ),
                 'country' => new ColumnSchema(
                     propertyName: 'country',
-                    propertyType: PropertyTypeEnum::String,
-                    columnName: 'country',
-                    columnType: Type::String,
+                    propertyType: PropertyTypeEnum::Relation,
+                    columnName: 'country_id',
+                    columnType: Type::Int,
+                    relationType: RelationEnum::ManyToOne,
+                    relationEntityClass: CountryFixture::class,
                 ),
             ],
         );
