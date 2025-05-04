@@ -137,6 +137,11 @@ class WhereBuilder
                 throw new \InvalidArgumentException('IN condition must have array or Select as value');
             }
 
+            if (strtolower($condition[1]) === 'like') {
+                $query[] = $column . ' LIKE ?';
+                continue;
+            }
+
             $query[] = $column . $condition[1] . '?';
         }
 

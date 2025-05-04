@@ -234,4 +234,20 @@ final class WhereBuilderTest extends TestCase
             $whereBuilder->build(),
         );
     }
+
+    public function testBuildLike(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where([
+            'first_name',
+            'LIKE',
+            '%John%',
+        ]);
+
+        self::assertSame(
+            '`u`.`first_name` LIKE ?',
+            $whereBuilder->build(),
+        );
+    }
 }
