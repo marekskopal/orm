@@ -12,7 +12,13 @@ use Ramsey\Uuid\UuidInterface;
 #[Entity]
 final class Code
 {
-    public function __construct(#[Column(type: Type::Int, primary: true)] public int $id, #[Column(type: Type::Uuid)] public UuidInterface $code,)
+    public function __construct(
+        #[Column(
+            type: Type::Int,
+            primary: true,
+        )] public int $id,
+        #[Column(type: Type::Uuid)] public UuidInterface $code,
+    )
     {
     }
 }

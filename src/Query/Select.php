@@ -166,10 +166,7 @@ class Select extends AbstractQuery
     {
         $query = $this->query();
         while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
-            /**
-             * @var array<string, mixed> $row
-             * @phpstan-ignore-next-line varTag.nativeType
-             */
+            /** @var array<string, mixed> $row */
             yield $row;
         }
     }
@@ -217,6 +214,8 @@ class Select extends AbstractQuery
             return NameUtils::escape($this->schema->tableAlias) . '.' . NameUtils::escape($column);
         }
 
+        $relationEntitySchema = null;
+
         $entityClass = $this->entityClass;
         for ($i = 0; $i < $partsCount - 1; $i++) {
             $entitySchema = $this->schemaProvider->getEntitySchema($entityClass);
@@ -238,6 +237,10 @@ class Select extends AbstractQuery
             );
 
             $entityClass = $columnSchema->relationEntityClass;
+        }
+
+        if ($relationEntitySchema === null) {
+            throw new \InvalidArgumentException('Relation entity schema is not loaded');
         }
 
         $relationColumnSchema = $relationEntitySchema->getColumnByColumnName($parts[$partsCount - 1]);

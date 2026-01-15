@@ -68,6 +68,7 @@ final class EntityFactoryTest extends TestCase
             'type' => 'admin',
         ]);
 
+        /** @phpstan-ignore-next-line staticMethod.alreadyNarrowedType */
         self::assertInstanceOf(UserFixture::class, $entity);
         self::assertEquals('John', $entity->firstName);
         self::assertEquals(null, $entity->middleName);

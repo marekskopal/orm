@@ -155,6 +155,7 @@ final class IntegrationTest extends TestCase
         self::assertEquals(1, $userById->id);
 
         $address = $userById->address;
+        /** @phpstan-ignore-next-line staticMethod.alreadyNarrowedType */
         self::assertInstanceOf(AddressWithUsersFixture::class, $address);
         self::assertEquals(1, $address->id);
     }

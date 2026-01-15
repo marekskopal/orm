@@ -207,7 +207,14 @@ final class MapperTest extends TestCase
         $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
 
-        $columnSchema = new ColumnSchema('user', PropertyTypeEnum::Relation, 'user_id', Type::Int, RelationEnum::ManyToOne, UserFixture::class);
+        $columnSchema = new ColumnSchema(
+            'user',
+            PropertyTypeEnum::Relation,
+            'user_id',
+            Type::Int,
+            RelationEnum::ManyToOne,
+            UserFixture::class,
+        );
         $entitySchema = EntitySchemaFixture::create(columns: ['user' => $columnSchema]);
 
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 1);
@@ -249,7 +256,14 @@ final class MapperTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Entity "MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture" with id "1" not found');
 
-        $columnSchema = new ColumnSchema('user', PropertyTypeEnum::Relation, 'user_id', Type::Int, RelationEnum::ManyToOne, UserFixture::class);
+        $columnSchema = new ColumnSchema(
+            'user',
+            PropertyTypeEnum::Relation,
+            'user_id',
+            Type::Int,
+            RelationEnum::ManyToOne,
+            UserFixture::class,
+        );
         $entitySchema = EntitySchemaFixture::create(columns: ['user' => $columnSchema]);
 
         $primaryColumnSchema = new ColumnSchema('id', PropertyTypeEnum::Int, 'int', Type::Int, isPrimary: true);
@@ -276,7 +290,13 @@ final class MapperTest extends TestCase
         $queryProvider = $this->createMock(QueryProvider::class);
         $entityCache = $this->createMock(EntityCache::class);
 
-        $columnSchema = new ColumnSchema('price', PropertyTypeEnum::Extension, 'price', Type::Decimal, extensionClass: MapperExtension::class);
+        $columnSchema = new ColumnSchema(
+            'price',
+            PropertyTypeEnum::Extension,
+            'price',
+            Type::Decimal,
+            extensionClass: MapperExtension::class,
+        );
         $entitySchema = EntitySchemaFixture::create(columns: ['price' => $columnSchema]);
 
         $mapper = new Mapper($schemaProvider, $entityCache);

@@ -28,7 +28,8 @@
         "phpstan/extension-installer": "^1.4",
         "phpunit/phpunit": "^12.0",
         "slevomat/coding-standard": "^8.15",
-        "phpstan/phpstan-strict-rules": "^2.0"
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0"
     },
     "autoload": {
         "psr-4": {

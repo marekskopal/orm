@@ -41,6 +41,7 @@ class ColumnSchemaFactoryTest extends TestCase
 {
     public function testCreateFromColumnString(): void
     {
+        /** @phpstan-ignore-next-line argument.type */
         $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
@@ -63,6 +64,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromColumnStringNullable(): void
     {
+        /** @phpstan-ignore-next-line argument.type */
         $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
@@ -86,6 +88,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromColumnInt(): void
     {
+        /** @phpstan-ignore-next-line argument.type */
         $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
@@ -110,6 +113,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromColumnUuid(): void
     {
+        /** @phpstan-ignore-next-line argument.type */
         $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(Code::class));
 
         $columnSchema = $columnSchemaFactory->create(
@@ -132,6 +136,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromColumnDatetimeImmutable(): void
     {
+        /** @phpstan-ignore-next-line argument.type */
         $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
@@ -154,6 +159,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromColumnEnum(): void
     {
+        /** @phpstan-ignore-next-line argument.type */
         $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
@@ -177,6 +183,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromManyToOne(): void
     {
+        /** @phpstan-ignore-next-line argument.type */
         $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserWithAddressFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
@@ -202,6 +209,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromManyToOneNullable(): void
     {
+        /** @phpstan-ignore-next-line argument.type */
         $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UserWithAddressFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
@@ -228,6 +236,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromOneToMany(): void
     {
+        /** @phpstan-ignore-next-line argument.type */
         $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(AddressWithUsersFixture::class));
 
         $columnSchema = $columnSchemaFactory->create(
@@ -253,6 +262,7 @@ class ColumnSchemaFactoryTest extends TestCase
 
     public function testCreateFromOneToManyOverrided(): void
     {
+        /** @phpstan-ignore-next-line argument.type */
         $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(Address::class));
 
         $columnSchema = $columnSchemaFactory->create(

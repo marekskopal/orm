@@ -17,12 +17,8 @@ class Delete extends AbstractQuery
     private array $entities = [];
 
     /** @param class-string<T> $entityClass */
-    public function __construct(
-        PDO $pdo,
-        string $entityClass,
-        EntitySchema $schema,
-        private readonly ColumnSchema $primaryColumnSchema,
-    ) {
+    public function __construct(PDO $pdo, string $entityClass, EntitySchema $schema, private readonly ColumnSchema $primaryColumnSchema,)
+    {
         parent::__construct($pdo, $entityClass, $schema);
     }
 

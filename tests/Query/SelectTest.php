@@ -63,7 +63,9 @@ final class SelectTest extends TestCase
     #[TestWith([['id', '=', 1], '`u`.`id`=?'])]
     #[TestWith([['id' => 1, 'first_name' => 'John'], '`u`.`id`=? AND `u`.`first_name`=?'])]
     #[TestWith([[['id', '=', 1], ['first_name', '!=', 'John']], '`u`.`id`=? AND `u`.`first_name`!=?'])]
-    #[TestWith([[['address.country.name', 'LIKE', 'Czechia']], '`c`.`name` LIKE ?', ' LEFT JOIN `addresses` `a` ON `a`.`id`=`u`.`address_id` LEFT JOIN `countries` `c` ON `c`.`id`=`a`.`country_id`'])]
+    #[TestWith(
+        [[['address.country.name', 'LIKE', 'Czechia']], '`c`.`name` LIKE ?', ' LEFT JOIN `addresses` `a` ON `a`.`id`=`u`.`address_id` LEFT JOIN `countries` `c` ON `c`.`id`=`a`.`country_id`'],
+    )]
     public function testWhere(array $where, string $expectedWhereSql, ?string $expectedJoinSql = null): void
     {
         $select = $this->select;

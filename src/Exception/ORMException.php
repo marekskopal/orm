@@ -6,5 +6,4 @@ namespace MarekSkopal\ORM\Exception;
 
 class ORMException extends \RuntimeException
 {
-
 }

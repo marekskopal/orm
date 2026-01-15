@@ -51,6 +51,7 @@ final class ORMTest extends TestCase
 
         $repository = $orm->getRepository(UserFixture::class);
 
+        /** @phpstan-ignore-next-line staticMethod.alreadyNarrowedType */
         self::assertInstanceOf(RepositoryInterface::class, $repository);
     }
 }
