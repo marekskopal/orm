@@ -138,7 +138,7 @@ class Select extends AbstractQuery
     /** @return T|null */
     public function fetchOne(): ?object
     {
-        $result = $this->query()->fetch(mode: PDO::FETCH_ASSOC);
+        $result = $this->limit(1)->query()->fetch(mode: PDO::FETCH_ASSOC);
         // @phpstan-ignore-next-line argument.type
         return $result === false ? null : $this->entityFactory->create($this->entityClass, $result);
     }
@@ -157,7 +157,7 @@ class Select extends AbstractQuery
     public function fetchAssocOne(): ?array
     {
         /** @var array<string, mixed>|false $result */
-        $result = $this->query()->fetch(mode: PDO::FETCH_ASSOC);
+        $result = $this->limit(1)->query()->fetch(mode: PDO::FETCH_ASSOC);
         return $result === false ? null : $result;
     }
 
