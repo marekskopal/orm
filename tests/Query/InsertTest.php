@@ -24,9 +24,9 @@ final class InsertTest extends TestCase
 {
     public function testGetSql(): void
     {
-        $pdo = $this->createMock(PDO::class);
+        $pdo = $this::createStub(PDO::class);
         $entitySchema = EntitySchemaFixture::create();
-        $mapper = $this->createMock(Mapper::class);
+        $mapper = $this::createStub(Mapper::class);
 
         $insert = new Insert($pdo, UserFixture::class, $entitySchema, $mapper);
         $insert->entity(UserFixture::create());
@@ -42,9 +42,9 @@ final class InsertTest extends TestCase
     {
         $this->expectException(\LogicException::class);
 
-        $pdo = $this->createMock(PDO::class);
+        $pdo = $this::createStub(PDO::class);
         $entitySchema = EntitySchemaFixture::create();
-        $mapper = $this->createMock(Mapper::class);
+        $mapper = $this::createStub(Mapper::class);
 
         $insert = new Insert($pdo, UserFixture::class, $entitySchema, $mapper);
 

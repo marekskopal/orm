@@ -35,9 +35,9 @@ final class WhereBuilderTest extends TestCase
 
     protected function setUp(): void
     {
-        $pdo = $this->createMock(PDO::class);
-        $entityFactory = $this->createMock(EntityFactory::class);
-        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $pdo = $this::createStub(PDO::class);
+        $entityFactory = $this::createStub(EntityFactory::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
         $schemaProvider->method('getEntitySchema')
             ->willReturn(
                 UserEntityWithAddressSchemaFixture::create(),

@@ -38,9 +38,9 @@ final class MapperTest extends TestCase
 {
     public function testMapToPropertyString(): void
     {
-        $schemaProvider = $this->createMock(SchemaProvider::class);
-        $queryProvider = $this->createMock(QueryProvider::class);
-        $entityCache = $this->createMock(EntityCache::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $columnSchema = new ColumnSchema('name', PropertyTypeEnum::String, 'name', Type::String);
         $entitySchema = EntitySchemaFixture::create(columns: ['name' => $columnSchema]);
@@ -53,9 +53,9 @@ final class MapperTest extends TestCase
 
     public function testMapToPropertyInt(): void
     {
-        $schemaProvider = $this->createMock(SchemaProvider::class);
-        $queryProvider = $this->createMock(QueryProvider::class);
-        $entityCache = $this->createMock(EntityCache::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $columnSchema = new ColumnSchema('age', PropertyTypeEnum::Int, 'age', Type::Int);
         $entitySchema = EntitySchemaFixture::create(columns: ['age' => $columnSchema]);
@@ -68,9 +68,9 @@ final class MapperTest extends TestCase
 
     public function testMapToPropertyFloat(): void
     {
-        $schemaProvider = $this->createMock(SchemaProvider::class);
-        $queryProvider = $this->createMock(QueryProvider::class);
-        $entityCache = $this->createMock(EntityCache::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $columnSchema = new ColumnSchema('price', PropertyTypeEnum::Float, 'price', Type::Float);
         $entitySchema = EntitySchemaFixture::create(columns: ['price' => $columnSchema]);
@@ -83,9 +83,9 @@ final class MapperTest extends TestCase
 
     public function testMapToPropertyBool(): void
     {
-        $schemaProvider = $this->createMock(SchemaProvider::class);
-        $queryProvider = $this->createMock(QueryProvider::class);
-        $entityCache = $this->createMock(EntityCache::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $columnSchema = new ColumnSchema('isActive', PropertyTypeEnum::Bool, 'is_active', Type::Boolean);
         $entitySchema = EntitySchemaFixture::create(columns: ['isActive' => $columnSchema]);
@@ -98,9 +98,9 @@ final class MapperTest extends TestCase
 
     public function testMapToPropertyUuid(): void
     {
-        $schemaProvider = $this->createMock(SchemaProvider::class);
-        $queryProvider = $this->createMock(QueryProvider::class);
-        $entityCache = $this->createMock(EntityCache::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $columnSchema = new ColumnSchema('code', PropertyTypeEnum::Uuid, 'code', Type::Uuid);
         $entitySchema = EntitySchemaFixture::create(columns: ['code' => $columnSchema]);
@@ -114,9 +114,9 @@ final class MapperTest extends TestCase
 
     public function testMapToPropertyDatetimeFromTimestamp(): void
     {
-        $schemaProvider = $this->createMock(SchemaProvider::class);
-        $queryProvider = $this->createMock(QueryProvider::class);
-        $entityCache = $this->createMock(EntityCache::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $columnSchema = new ColumnSchema('createdAt', PropertyTypeEnum::DateTime, 'created_at', Type::Timestamp);
         $entitySchema = EntitySchemaFixture::create(columns: ['createdAt' => $columnSchema]);
@@ -130,9 +130,9 @@ final class MapperTest extends TestCase
 
     public function testMapToPropertyDatetimeFromDatetime(): void
     {
-        $schemaProvider = $this->createMock(SchemaProvider::class);
-        $queryProvider = $this->createMock(QueryProvider::class);
-        $entityCache = $this->createMock(EntityCache::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $columnSchema = new ColumnSchema('createdAt', PropertyTypeEnum::DateTime, 'created_at', Type::DateTime);
         $entitySchema = EntitySchemaFixture::create(columns: ['createdAt' => $columnSchema]);
@@ -146,9 +146,9 @@ final class MapperTest extends TestCase
 
     public function testMapToPropertyDatetimeImmutableFromTimestamp(): void
     {
-        $schemaProvider = $this->createMock(SchemaProvider::class);
-        $queryProvider = $this->createMock(QueryProvider::class);
-        $entityCache = $this->createMock(EntityCache::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $columnSchema = new ColumnSchema('createdAt', PropertyTypeEnum::DateTimeImmutable, 'created_at', Type::Timestamp);
         $entitySchema = EntitySchemaFixture::create(columns: ['createdAt' => $columnSchema]);
@@ -162,9 +162,9 @@ final class MapperTest extends TestCase
 
     public function testMapToPropertyEnum(): void
     {
-        $schemaProvider = $this->createMock(SchemaProvider::class);
-        $queryProvider = $this->createMock(QueryProvider::class);
-        $entityCache = $this->createMock(EntityCache::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $columnSchema = new ColumnSchema('type', PropertyTypeEnum::Enum, 'type', Type::Enum, enumClass: UserTypeEnum::class);
         $entitySchema = EntitySchemaFixture::create(columns: ['type' => $columnSchema]);
@@ -178,9 +178,9 @@ final class MapperTest extends TestCase
 
     public function testMapToPropertyDatetimeImmutableFromDatetime(): void
     {
-        $schemaProvider = $this->createMock(SchemaProvider::class);
-        $queryProvider = $this->createMock(QueryProvider::class);
-        $entityCache = $this->createMock(EntityCache::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $columnSchema = new ColumnSchema('createdAt', PropertyTypeEnum::DateTimeImmutable, 'created_at', Type::Timestamp);
         $entitySchema = EntitySchemaFixture::create(columns: ['createdAt' => $columnSchema]);
@@ -195,14 +195,14 @@ final class MapperTest extends TestCase
     public function testMapToPropertyRelationManyToOne(): void
     {
         $primaryColumnSchema = new ColumnSchema('id', PropertyTypeEnum::Int, 'int', Type::Int, isPrimary: true);
-        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
         $schemaProvider->method('getPrimaryColumnSchema')->willReturn($primaryColumnSchema);
-        $select = $this->createMock(Select::class);
+        $select = $this::createStub(Select::class);
         $select->method('where')->willReturnSelf();
         $select->method('fetchOne')->willReturn(UserFixture::create());
-        $queryProvider = $this->createMock(QueryProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
         $queryProvider->method('select')->willReturn($select);
-        $entityCache = $this->createMock(EntityCache::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
@@ -224,14 +224,14 @@ final class MapperTest extends TestCase
     public function testMapToPropertyRelationOneToMany(): void
     {
         $primaryColumnSchema = new ColumnSchema('id', PropertyTypeEnum::Int, 'int', Type::Int, isPrimary: true);
-        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
         $schemaProvider->method('getPrimaryColumnSchema')->willReturn($primaryColumnSchema);
-        $select = $this->createMock(Select::class);
+        $select = $this::createStub(Select::class);
         $select->method('where')->willReturnSelf();
         $select->method('fetchOne')->willReturn(UserFixture::create());
-        $queryProvider = $this->createMock(QueryProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
         $queryProvider->method('select')->willReturn($select);
-        $entityCache = $this->createMock(EntityCache::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
@@ -267,14 +267,14 @@ final class MapperTest extends TestCase
         $entitySchema = EntitySchemaFixture::create(columns: ['user' => $columnSchema]);
 
         $primaryColumnSchema = new ColumnSchema('id', PropertyTypeEnum::Int, 'int', Type::Int, isPrimary: true);
-        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
         $schemaProvider->method('getPrimaryColumnSchema')->willReturn($primaryColumnSchema);
-        $select = $this->createMock(Select::class);
+        $select = $this::createStub(Select::class);
         $select->method('where')->willReturnSelf();
         $select->method('fetchOne')->willReturn(null);
-        $queryProvider = $this->createMock(QueryProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
         $queryProvider->method('select')->willReturn($select);
-        $entityCache = $this->createMock(EntityCache::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $mapper = new Mapper($schemaProvider, $entityCache);
         $mapper->setQueryProvider($queryProvider);
@@ -286,9 +286,9 @@ final class MapperTest extends TestCase
 
     public function testMapToPropertyExtension(): void
     {
-        $schemaProvider = $this->createMock(SchemaProvider::class);
-        $queryProvider = $this->createMock(QueryProvider::class);
-        $entityCache = $this->createMock(EntityCache::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $columnSchema = new ColumnSchema(
             'price',
@@ -307,9 +307,9 @@ final class MapperTest extends TestCase
 
     public function testMapToColumnTimestamp(): void
     {
-        $schemaProvider = $this->createMock(SchemaProvider::class);
-        $queryProvider = $this->createMock(QueryProvider::class);
-        $entityCache = $this->createMock(EntityCache::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
 
         $columnSchema = new ColumnSchema('createdAt', PropertyTypeEnum::DateTimeImmutable, 'created_at', Type::Timestamp);
 

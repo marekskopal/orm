@@ -24,9 +24,9 @@ final class UpdateTest extends TestCase
 {
     public function testGetSql(): void
     {
-        $pdo = $this->createMock(PDO::class);
+        $pdo = $this::createStub(PDO::class);
         $entitySchema = EntitySchemaFixture::create();
-        $mapper = $this->createMock(Mapper::class);
+        $mapper = $this::createStub(Mapper::class);
 
         $insert = new Update($pdo, UserFixture::class, $entitySchema, $mapper);
         $insert->entity(UserFixture::create());
@@ -41,9 +41,9 @@ final class UpdateTest extends TestCase
     {
         $this->expectException(\LogicException::class);
 
-        $pdo = $this->createMock(PDO::class);
+        $pdo = $this::createStub(PDO::class);
         $entitySchema = EntitySchemaFixture::create();
-        $mapper = $this->createMock(Mapper::class);
+        $mapper = $this::createStub(Mapper::class);
 
         $insert = new Update($pdo, UserFixture::class, $entitySchema, $mapper);
 

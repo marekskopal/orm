@@ -23,7 +23,7 @@ class DeleteTest extends TestCase
 {
     public function testGetSql(): void
     {
-        $pdo = $this->createMock(PDO::class);
+        $pdo = $this::createStub(PDO::class);
         $entitySchema = EntitySchemaFixture::create();
         $primaryColumnSchema = new ColumnSchema(
             propertyName: 'id',

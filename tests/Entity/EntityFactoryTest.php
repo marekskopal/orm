@@ -30,10 +30,10 @@ final class EntityFactoryTest extends TestCase
 {
     public function testCreateEntity(): void
     {
-        $entityCache = $this->createMock(EntityCache::class);
+        $entityCache = $this::createStub(EntityCache::class);
         $entityCache->method('getEntity')
             ->willReturn(null);
-        $mapper = $this->createMock(Mapper::class);
+        $mapper = $this::createStub(Mapper::class);
         $mapper->method('mapToProperty')
             ->willReturn(
                 new DateTimeImmutable('2024-01-01 00:00'),
@@ -45,7 +45,7 @@ final class EntityFactoryTest extends TestCase
                 UserTypeEnum::Admin,
                 1,
             );
-        $schemaProvider = $this->createMock(SchemaProvider::class);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
         $schemaProvider->method('getPrimaryColumnSchema')
             ->willReturn(new ColumnSchema('id', PropertyTypeEnum::Int, 'id', Type::Int));
         $schemaProvider->method('getEntitySchema')
