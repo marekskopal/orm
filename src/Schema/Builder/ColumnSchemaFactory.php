@@ -67,11 +67,11 @@ class ColumnSchemaFactory
         $foreignKeyAttributeInstance = $foreignKeyAttribute?->newInstance();
 
         return new ColumnSchema(
-            propertyName: $attributeInstance->name ?? $reflectionProperty->getName(),
+            propertyName: $reflectionProperty->getName(),
             propertyType: $attributeInstance->extension !== null ? PropertyTypeEnum::Extension : $this->getPropertyTypeFromReflectionProperty(
                 $reflectionProperty,
             ),
-            columnName: CaseUtils::toCase($columnCase, $reflectionProperty->getName()),
+            columnName: $attributeInstance->name ?? CaseUtils::toCase($columnCase, $reflectionProperty->getName()),
             columnType: $attributeInstance->type,
             relationType: $foreignKeyAttribute !== null ? RelationEnum::ManyToOne : null,
             relationEntityClass: $foreignKeyAttributeInstance?->entityClass,
