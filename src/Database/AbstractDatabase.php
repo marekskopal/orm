@@ -15,7 +15,9 @@ abstract readonly class AbstractDatabase implements DatabaseInterface
         #[SensitiveParameter] protected ?string $username = null,
         #[SensitiveParameter] protected ?string $password = null,
     ) {
-        $this->pdo = new PDO($this->getDsn(), $this->username, $this->password);
+        $this->pdo = new PDO($this->getDsn(), $this->username, $this->password, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        ]);
     }
 
     public function getPdo(): PDO
