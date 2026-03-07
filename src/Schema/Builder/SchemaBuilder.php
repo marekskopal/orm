@@ -35,7 +35,7 @@ class SchemaBuilder
 
     public function setTableCase(CaseEnum $tableCase): self
     {
-        $this->columnCase = $tableCase;
+        $this->tableCase = $tableCase;
 
         return $this;
     }
