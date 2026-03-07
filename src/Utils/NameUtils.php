@@ -32,9 +32,4 @@ final class NameUtils
 
         return lcfirst($reflectionClass->getShortName()) . 'Id';
     }
-
-    public static function escape(string $name): string
-    {
-        return '`' . $name . '`';
-    }
 }
