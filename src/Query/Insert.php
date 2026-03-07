@@ -69,10 +69,11 @@ class Insert extends AbstractQuery
 
     private function updateId(): void
     {
-        $lastInsertId = $this->pdo->lastInsertId();
-        foreach ($this->entities as $entity) {
+        $firstInsertId = (int) $this->pdo->lastInsertId();
+        $primaryPropertyName = $this->schema->getPrimaryColumn()->propertyName;
+        foreach ($this->entities as $i => $entity) {
             // @phpstan-ignore-next-line property.dynamicName
-            $entity->{$this->schema->getPrimaryColumn()->columnName} = (int) $lastInsertId;
+            $entity->{$primaryPropertyName} = $firstInsertId + $i;
         }
     }
 
