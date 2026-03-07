@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM;
 
+use Closure;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\EntityCache;
 use MarekSkopal\ORM\Entity\EntityFactory;
@@ -38,7 +39,7 @@ readonly class ORM
             public ?QueryProvider $queryProvider = null;
         };
 
-        /** @var \Closure(): QueryProvider $queryProviderFactory */
+        /** @var Closure(): QueryProvider $queryProviderFactory */
         $queryProviderFactory = static function () use ($queryProviderContainer): QueryProvider {
             return $queryProviderContainer->queryProvider ?? throw new \LogicException('QueryProvider not yet initialized');
         };

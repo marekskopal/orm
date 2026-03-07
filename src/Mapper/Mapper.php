@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Mapper;
 
+use Closure;
 use DateTime;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -24,16 +25,14 @@ class Mapper implements MapperInterface
 {
     private readonly ExtensionMapperProvider $extensionMapperProvider;
 
-    /** @var \Closure(): QueryProvider */
-    private readonly \Closure $queryProviderFactory;
+    /** @var Closure(): QueryProvider */
+    private readonly Closure $queryProviderFactory;
 
-    /**
-     * @param \Closure(): QueryProvider $queryProviderFactory
-     */
+    /** @param Closure(): QueryProvider $queryProviderFactory */
     public function __construct(
         private readonly SchemaProvider $schemaProvider,
         private readonly EntityCache $entityCache,
-        \Closure $queryProviderFactory,
+        Closure $queryProviderFactory,
     ) {
         $this->extensionMapperProvider = new ExtensionMapperProvider();
         $this->queryProviderFactory = $queryProviderFactory;
@@ -169,7 +168,9 @@ class Mapper implements MapperInterface
             $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
 
             /** @var T|null $realEntity */
-            $realEntity = $this->getQueryProvider()->select($entityClass)->where([$primaryColumnSchema->columnName, '=', $value])->fetchOne();
+            $realEntity = $this->getQueryProvider()->select($entityClass)->where(
+                [$primaryColumnSchema->columnName, '=', $value],
+            )->fetchOne();
             if ($realEntity === null) {
                 throw new \RuntimeException(sprintf('Entity "%s" with id "%d" not found', $entityClass, $value));
             }

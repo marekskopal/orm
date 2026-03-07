@@ -47,7 +47,13 @@ final class WhereBuilderTest extends TestCase
                 AddressEntitySchemaFixture::create(),
             );
 
-        $this->select = new Select($database, UserFixture::class, UserEntityWithAddressSchemaFixture::create(), $entityFactory, $schemaProvider);
+        $this->select = new Select(
+            $database,
+            UserFixture::class,
+            UserEntityWithAddressSchemaFixture::create(),
+            $entityFactory,
+            $schemaProvider,
+        );
 
         $this->whereBuilder = new WhereBuilder($this->select);
     }

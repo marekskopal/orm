@@ -9,7 +9,6 @@ use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
-use PDO;
 use PDOStatement;
 
 /** @template T of object */

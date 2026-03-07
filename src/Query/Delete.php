@@ -8,7 +8,6 @@ use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
-use PDO;
 use PDOStatement;
 
 /** @template T of object */
@@ -18,7 +17,12 @@ class Delete extends AbstractQuery
     private array $entities = [];
 
     /** @param class-string<T> $entityClass */
-    public function __construct(DatabaseInterface $database, string $entityClass, EntitySchema $schema, private readonly ColumnSchema $primaryColumnSchema,)
+    public function __construct(
+        DatabaseInterface $database,
+        string $entityClass,
+        EntitySchema $schema,
+        private readonly ColumnSchema $primaryColumnSchema,
+    )
     {
         parent::__construct($database, $entityClass, $schema);
     }
