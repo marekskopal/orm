@@ -63,7 +63,7 @@ class Insert extends AbstractQuery
             $pdoStatement->execute($this->getValues());
             return $pdoStatement;
         } catch (\PDOException $e) {
-            throw new ExceptionFactory()->create($e, $sql);
+            throw ExceptionFactory::create($e, $sql);
         }
     }
 

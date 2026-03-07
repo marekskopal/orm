@@ -60,7 +60,7 @@ class Delete extends AbstractQuery
             $pdoStatement->execute($this->getIds());
             return $pdoStatement;
         } catch (\PDOException $e) {
-            throw new ExceptionFactory()->create($e, $sql);
+            throw ExceptionFactory::create($e, $sql);
         }
     }
 

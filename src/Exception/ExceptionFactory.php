@@ -6,7 +6,7 @@ namespace MarekSkopal\ORM\Exception;
 
 class ExceptionFactory
 {
-    public function create(\Throwable $exception, ?string $query = null): ORMException
+    public static function create(\Throwable $exception, ?string $query = null): ORMException
     {
         if ($query === null) {
             return new ORMException($exception->getMessage(), (int) $exception->getCode(), $exception);

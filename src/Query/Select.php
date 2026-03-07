@@ -256,7 +256,7 @@ class Select extends AbstractQuery
             $pdoStatement->execute($this->whereBuilder->getParams());
             return $pdoStatement;
         } catch (\PDOException $e) {
-            throw new ExceptionFactory()->create($e, $sql);
+            throw ExceptionFactory::create($e, $sql);
         }
     }
 
