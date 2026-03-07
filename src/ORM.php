@@ -33,11 +33,20 @@ readonly class ORM
         $this->schemaProvider = new SchemaProvider($this->schema);
         $this->entityCache = new EntityCache();
         $this->entityReflection = new EntityReflection();
-        $this->entityFactory = new EntityFactory($this->schemaProvider, $this->entityCache, $this->entityReflection);
-        $this->mapper = new Mapper($this->schemaProvider, $this->entityCache);
+
+        $queryProviderContainer = new class {
+            public ?QueryProvider $queryProvider = null;
+        };
+
+        /** @var \Closure(): QueryProvider $queryProviderFactory */
+        $queryProviderFactory = static function () use ($queryProviderContainer): QueryProvider {
+            return $queryProviderContainer->queryProvider ?? throw new \LogicException('QueryProvider not yet initialized');
+        };
+
+        $this->mapper = new Mapper($this->schemaProvider, $this->entityCache, $queryProviderFactory);
+        $this->entityFactory = new EntityFactory($this->schemaProvider, $this->entityCache, $this->entityReflection, $this->mapper);
         $this->queryProvider = new QueryProvider($this->database, $this->entityFactory, $this->schemaProvider, $this->mapper);
-        $this->mapper->setQueryProvider($this->queryProvider);
-        $this->entityFactory->setMapper($this->mapper);
+        $queryProviderContainer->queryProvider = $this->queryProvider;
     }
 
     /**

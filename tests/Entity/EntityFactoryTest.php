@@ -55,8 +55,8 @@ final class EntityFactoryTest extends TestCase
             $schemaProvider,
             $entityCache,
             new EntityReflection(),
+            $mapper,
         );
-        $entityFactory->setMapper($mapper);
         $entity = $entityFactory->create(UserFixture::class, [
             'id' => 1,
             'created_at' => '2024-01-01 00:00',

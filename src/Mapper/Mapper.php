@@ -22,18 +22,26 @@ use ReflectionClass;
 
 class Mapper implements MapperInterface
 {
-    private QueryProvider $queryProvider;
-
     private readonly ExtensionMapperProvider $extensionMapperProvider;
 
-    public function __construct(private readonly SchemaProvider $schemaProvider, private readonly EntityCache $entityCache)
-    {
+    /** @var \Closure(): QueryProvider */
+    private readonly \Closure $queryProviderFactory;
+
+    /**
+     * @param \Closure(): QueryProvider $queryProviderFactory
+     */
+    public function __construct(
+        private readonly SchemaProvider $schemaProvider,
+        private readonly EntityCache $entityCache,
+        \Closure $queryProviderFactory,
+    ) {
         $this->extensionMapperProvider = new ExtensionMapperProvider();
+        $this->queryProviderFactory = $queryProviderFactory;
     }
 
-    public function setQueryProvider(QueryProvider $queryProvider): void
+    private function getQueryProvider(): QueryProvider
     {
-        $this->queryProvider = $queryProvider;
+        return ($this->queryProviderFactory)();
     }
 
     public function mapToProperty(
@@ -131,7 +139,7 @@ class Mapper implements MapperInterface
         $lazyCollection = $reflector->newLazyGhost(function (Collection $object) use ($entityClass, $columnName, $value): void {
             // @phpstan-ignore-next-line constructor.call
             $object->__construct(
-                iterator_to_array($this->queryProvider->select($entityClass)->where([$columnName, '=', $value])->fetchAll()),
+                iterator_to_array($this->getQueryProvider()->select($entityClass)->where([$columnName, '=', $value])->fetchAll()),
             );
         });
         return $lazyCollection;
@@ -161,7 +169,7 @@ class Mapper implements MapperInterface
             $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
 
             /** @var T|null $realEntity */
-            $realEntity = $this->queryProvider->select($entityClass)->where([$primaryColumnSchema->columnName, '=', $value])->fetchOne();
+            $realEntity = $this->getQueryProvider()->select($entityClass)->where([$primaryColumnSchema->columnName, '=', $value])->fetchOne();
             if ($realEntity === null) {
                 throw new \RuntimeException(sprintf('Entity "%s" with id "%d" not found', $entityClass, $value));
             }

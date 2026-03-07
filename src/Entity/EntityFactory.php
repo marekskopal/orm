@@ -10,12 +10,11 @@ use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 
 class EntityFactory
 {
-    private Mapper $mapper;
-
     public function __construct(
         private readonly SchemaProvider $schemaProvider,
         private readonly EntityCache $entityCache,
         private readonly EntityReflection $entityReflection,
+        private readonly Mapper $mapper,
     ) {
     }
 
@@ -63,8 +62,4 @@ class EntityFactory
         return $entity;
     }
 
-    public function setMapper(Mapper $mapper): void
-    {
-        $this->mapper = $mapper;
-    }
 }
