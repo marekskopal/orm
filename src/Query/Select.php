@@ -329,9 +329,9 @@ class Select extends AbstractQuery
             ' ',
             array_map(
                 fn(Join $join): string => 'LEFT JOIN ' . NameUtils::escape($join->referenceTable) . ' ' . NameUtils::escape(
-                    $join->refenceTableAlias,
+                    $join->referenceTableAlias,
                 ) . ' ON ' . NameUtils::escape(
-                    $join->refenceTableAlias,
+                    $join->referenceTableAlias,
                 ) . '.' . NameUtils::escape(
                     $join->referenceColumn,
                 ) . '=' . NameUtils::escape(

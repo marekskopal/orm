@@ -36,7 +36,7 @@ class DeleteTest extends TestCase
         $delete->entity(UserFixture::create());
 
         self::assertSame(
-            'DELETE FROM users WHERE id IN (?)',
+            'DELETE FROM `users` WHERE `id` IN (?)',
             $delete->getSql(),
         );
     }

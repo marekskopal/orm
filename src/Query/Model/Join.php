@@ -10,7 +10,7 @@ readonly class Join
         public string $tableAlias,
         public string $column,
         public string $referenceTable,
-        public string $refenceTableAlias,
+        public string $referenceTableAlias,
         public string $referenceColumn,
     )
     {
