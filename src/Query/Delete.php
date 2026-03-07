@@ -77,7 +77,7 @@ class Delete extends AbstractQuery
     {
         return array_map(
             // @phpstan-ignore-next-line return.type property.dynamicName
-            fn($entity): int => $entity->{$this->primaryColumnSchema->columnName},
+            fn($entity): int => $entity->{$this->primaryColumnSchema->propertyName},
             $this->entities,
         );
     }
