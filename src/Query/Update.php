@@ -85,9 +85,11 @@ class Update extends AbstractQuery
     /** @return array<string, string|int|float|null> */
     private function getValues(): array
     {
+        $primaryColumnSchema = $this->schema->getPrimaryColumn();
+
         return array_merge(
             // @phpstan-ignore-next-line property.dynamicName
-            ['id' => (int) $this->entity->{$this->schema->getPrimaryColumn()->propertyName}],
+            [$primaryColumnSchema->propertyName => (int) $this->entity->{$primaryColumnSchema->propertyName}],
             array_map(
                 fn(ColumnSchema $column): string|int|float|null => $this->mapper->mapToColumn(
                     $column,
