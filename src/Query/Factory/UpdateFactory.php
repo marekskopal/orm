@@ -22,6 +22,6 @@ readonly class UpdateFactory
      */
     public function create(string $entityClass): Update
     {
-        return new Update($this->database->getPdo(), $entityClass, $this->schemaProvider->getEntitySchema($entityClass), $this->mapper);
+        return new Update($this->database, $entityClass, $this->schemaProvider->getEntitySchema($entityClass), $this->mapper);
     }
 }

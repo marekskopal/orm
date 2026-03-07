@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Query;
 
+use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
-use MarekSkopal\ORM\Utils\NameUtils;
 use PDO;
 use PDOStatement;
 
@@ -19,9 +19,9 @@ class Insert extends AbstractQuery
     private array $entities = [];
 
     /** @param class-string<T> $entityClass */
-    public function __construct(PDO $pdo, string $entityClass, EntitySchema $schema, private readonly Mapper $mapper)
+    public function __construct(DatabaseInterface $database, string $entityClass, EntitySchema $schema, private readonly Mapper $mapper)
     {
-        parent::__construct($pdo, $entityClass, $schema);
+        parent::__construct($database, $entityClass, $schema);
     }
 
     /**
@@ -49,7 +49,7 @@ class Insert extends AbstractQuery
 
         return implode(' ', [
             'INSERT INTO',
-            NameUtils::escape($this->schema->table),
+            $this->escape($this->schema->table),
             '(' . implode(',', $this->getColumns()) . ')',
             $this->getValuesQuery(),
         ]);
@@ -81,7 +81,7 @@ class Insert extends AbstractQuery
     private function getColumns(): array
     {
         return array_map(
-            fn(ColumnSchema $column): string => NameUtils::escape($column->columnName),
+            fn(ColumnSchema $column): string => $this->escape($column->columnName),
             $this->schema->getInsertableColumns(),
         );
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Query;
 
+use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Query\Update;
 use MarekSkopal\ORM\Schema\ColumnSchema;
@@ -24,11 +25,13 @@ final class UpdateTest extends TestCase
 {
     public function testGetSql(): void
     {
-        $pdo = $this::createStub(PDO::class);
+        $database = $this::createStub(DatabaseInterface::class);
+        $database->method('getPdo')->willReturn($this::createStub(PDO::class));
+        $database->method('getIdentifierQuoteChar')->willReturn('`');
         $entitySchema = EntitySchemaFixture::create();
         $mapper = $this::createStub(Mapper::class);
 
-        $insert = new Update($pdo, UserFixture::class, $entitySchema, $mapper);
+        $insert = new Update($database, UserFixture::class, $entitySchema, $mapper);
         $insert->entity(UserFixture::create());
 
         self::assertSame(
@@ -41,11 +44,13 @@ final class UpdateTest extends TestCase
     {
         $this->expectException(\LogicException::class);
 
-        $pdo = $this::createStub(PDO::class);
+        $database = $this::createStub(DatabaseInterface::class);
+        $database->method('getPdo')->willReturn($this::createStub(PDO::class));
+        $database->method('getIdentifierQuoteChar')->willReturn('`');
         $entitySchema = EntitySchemaFixture::create();
         $mapper = $this::createStub(Mapper::class);
 
-        $insert = new Update($pdo, UserFixture::class, $entitySchema, $mapper);
+        $insert = new Update($database, UserFixture::class, $entitySchema, $mapper);
 
         $insert->getSql();
     }

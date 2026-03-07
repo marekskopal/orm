@@ -22,6 +22,6 @@ readonly class InsertFactory
      */
     public function create(string $entityClass): Insert
     {
-        return new Insert($this->database->getPdo(), $entityClass, $this->schemaProvider->getEntitySchema($entityClass), $this->mapper);
+        return new Insert($this->database, $entityClass, $this->schemaProvider->getEntitySchema($entityClass), $this->mapper);
     }
 }

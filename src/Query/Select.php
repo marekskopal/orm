@@ -13,7 +13,7 @@ use MarekSkopal\ORM\Query\Where\WhereBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
-use MarekSkopal\ORM\Utils\NameUtils;
+use MarekSkopal\ORM\Database\DatabaseInterface;
 use PDO;
 use PDOStatement;
 
@@ -43,13 +43,13 @@ class Select extends AbstractQuery
 
     /** @param class-string<T> $entityClass */
     public function __construct(
-        PDO $pdo,
+        DatabaseInterface $database,
         string $entityClass,
         EntitySchema $schema,
         private readonly EntityFactory $entityFactory,
         private readonly SchemaProvider $schemaProvider,
     ) {
-        parent::__construct($pdo, $entityClass, $schema);
+        parent::__construct($database, $entityClass, $schema);
 
         $this->whereBuilder = new WhereBuilder($this);
     }
@@ -186,7 +186,7 @@ class Select extends AbstractQuery
 
         return 'SELECT '
             . implode(',', $this->getColumns())
-            . ' FROM ' . NameUtils::escape($this->schema->table) . ' ' . NameUtils::escape($this->schema->tableAlias)
+            . ' FROM ' . $this->escape($this->schema->table) . ' ' . $this->escape($this->schema->tableAlias)
             . $this->getJoinsQuery()
             . $whereQuery
             . $this->getGroupByQuery()
@@ -211,7 +211,7 @@ class Select extends AbstractQuery
                 return $column;
             }
 
-            return NameUtils::escape($this->schema->tableAlias) . '.' . NameUtils::escape($column);
+            return $this->escape($this->schema->tableAlias) . '.' . $this->escape($column);
         }
 
         $relationEntitySchema = null;
@@ -245,7 +245,7 @@ class Select extends AbstractQuery
 
         $relationColumnSchema = $relationEntitySchema->getColumnByColumnName($parts[$partsCount - 1]);
 
-        return NameUtils::escape($relationEntitySchema->tableAlias) . '.' . NameUtils::escape($relationColumnSchema->columnName);
+        return $this->escape($relationEntitySchema->tableAlias) . '.' . $this->escape($relationColumnSchema->columnName);
     }
 
     private function query(): PDOStatement
@@ -268,7 +268,7 @@ class Select extends AbstractQuery
         }
 
         return array_map(
-            fn(ColumnSchema $column): string => NameUtils::escape($this->schema->tableAlias) . '.' . NameUtils::escape($column->columnName),
+            fn(ColumnSchema $column): string => $this->escape($this->schema->tableAlias) . '.' . $this->escape($column->columnName),
             $this->schema->getSelectableColumns(),
         );
     }
@@ -328,15 +328,15 @@ class Select extends AbstractQuery
         return ' ' . implode(
             ' ',
             array_map(
-                fn(Join $join): string => 'LEFT JOIN ' . NameUtils::escape($join->referenceTable) . ' ' . NameUtils::escape(
+                fn(Join $join): string => 'LEFT JOIN ' . $this->escape($join->referenceTable) . ' ' . $this->escape(
                     $join->referenceTableAlias,
-                ) . ' ON ' . NameUtils::escape(
+                ) . ' ON ' . $this->escape(
                     $join->referenceTableAlias,
-                ) . '.' . NameUtils::escape(
+                ) . '.' . $this->escape(
                     $join->referenceColumn,
-                ) . '=' . NameUtils::escape(
+                ) . '=' . $this->escape(
                     $join->tableAlias,
-                ) . '.' . NameUtils::escape(
+                ) . '.' . $this->escape(
                     $join->column,
                 ),
                 $this->joins,

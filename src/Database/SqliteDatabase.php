@@ -15,4 +15,9 @@ readonly class SqliteDatabase extends AbstractDatabase
     {
         return 'sqlite:' . $this->path;
     }
+
+    public function getIdentifierQuoteChar(): string
+    {
+        return '"';
+    }
 }

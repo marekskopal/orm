@@ -27,7 +27,7 @@ readonly class SelectFactory
     public function create(string $entityClass): Select
     {
         return new Select(
-            $this->database->getPdo(),
+            $this->database,
             $entityClass,
             $this->schemaProvider->getEntitySchema($entityClass),
             $this->entityFactory,

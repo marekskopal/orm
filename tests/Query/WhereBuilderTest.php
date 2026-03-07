@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Query;
 
+use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Select;
@@ -35,7 +36,9 @@ final class WhereBuilderTest extends TestCase
 
     protected function setUp(): void
     {
-        $pdo = $this::createStub(PDO::class);
+        $database = $this::createStub(DatabaseInterface::class);
+        $database->method('getPdo')->willReturn($this::createStub(PDO::class));
+        $database->method('getIdentifierQuoteChar')->willReturn('`');
         $entityFactory = $this::createStub(EntityFactory::class);
         $schemaProvider = $this::createStub(SchemaProvider::class);
         $schemaProvider->method('getEntitySchema')
@@ -44,7 +47,7 @@ final class WhereBuilderTest extends TestCase
                 AddressEntitySchemaFixture::create(),
             );
 
-        $this->select = new Select($pdo, UserFixture::class, UserEntityWithAddressSchemaFixture::create(), $entityFactory, $schemaProvider);
+        $this->select = new Select($database, UserFixture::class, UserEntityWithAddressSchemaFixture::create(), $entityFactory, $schemaProvider);
 
         $this->whereBuilder = new WhereBuilder($this->select);
     }

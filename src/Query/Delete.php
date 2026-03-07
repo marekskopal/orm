@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Query;
 
+use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
-use MarekSkopal\ORM\Utils\NameUtils;
 use PDO;
 use PDOStatement;
 
@@ -18,9 +18,9 @@ class Delete extends AbstractQuery
     private array $entities = [];
 
     /** @param class-string<T> $entityClass */
-    public function __construct(PDO $pdo, string $entityClass, EntitySchema $schema, private readonly ColumnSchema $primaryColumnSchema,)
+    public function __construct(DatabaseInterface $database, string $entityClass, EntitySchema $schema, private readonly ColumnSchema $primaryColumnSchema,)
     {
-        parent::__construct($pdo, $entityClass, $schema);
+        parent::__construct($database, $entityClass, $schema);
     }
 
     /**
@@ -47,7 +47,7 @@ class Delete extends AbstractQuery
     {
         return implode(' ', [
             'DELETE FROM',
-            NameUtils::escape($this->schema->table),
+            $this->escape($this->schema->table),
             $this->getWhereQuery(),
         ]);
     }
@@ -66,7 +66,7 @@ class Delete extends AbstractQuery
 
     private function getWhereQuery(): string
     {
-        return 'WHERE ' . NameUtils::escape($this->primaryColumnSchema->columnName) . ' IN (' . implode(
+        return 'WHERE ' . $this->escape($this->primaryColumnSchema->columnName) . ' IN (' . implode(
             ',',
             array_map(fn($item): string => '?', $this->entities),
         ) . ')';

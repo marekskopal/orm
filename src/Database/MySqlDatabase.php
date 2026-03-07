@@ -15,4 +15,9 @@ readonly class MySqlDatabase extends AbstractDatabase
     {
         return 'mysql:host=' . $this->host . ';dbname=' . $this->database;
     }
+
+    public function getIdentifierQuoteChar(): string
+    {
+        return '`';
+    }
 }

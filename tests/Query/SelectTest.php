@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Query;
 
+use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
 use MarekSkopal\ORM\Query\Model\Join;
@@ -38,7 +39,9 @@ final class SelectTest extends TestCase
 
     protected function setUp(): void
     {
-        $pdo = $this::createStub(PDO::class);
+        $database = $this::createStub(DatabaseInterface::class);
+        $database->method('getPdo')->willReturn($this::createStub(PDO::class));
+        $database->method('getIdentifierQuoteChar')->willReturn('`');
         $entityFactory = $this::createStub(EntityFactory::class);
         $schemaProvider = $this::createStub(SchemaProvider::class);
         $schemaProvider->method('getEntitySchema')
@@ -50,7 +53,7 @@ final class SelectTest extends TestCase
             );
 
         $this->select = new Select(
-            $pdo,
+            $database,
             UserWithAddressFixture::class,
             UserEntityWithAddressSchemaFixture::create(),
             $entityFactory,

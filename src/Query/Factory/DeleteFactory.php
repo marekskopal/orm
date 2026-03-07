@@ -22,7 +22,7 @@ readonly class DeleteFactory
     public function create(string $entityClass): Delete
     {
         return new Delete(
-            $this->database->getPdo(),
+            $this->database,
             $entityClass,
             $this->schemaProvider->getEntitySchema($entityClass),
             $this->schemaProvider->getPrimaryColumnSchema($entityClass),

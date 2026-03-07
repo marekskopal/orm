@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Query;
 
+use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
-use MarekSkopal\ORM\Utils\NameUtils;
 use PDO;
 use PDOStatement;
 
@@ -19,9 +19,9 @@ class Update extends AbstractQuery
     private object $entity;
 
     /** @param class-string<T> $entityClass */
-    public function __construct(PDO $pdo, string $entityClass, EntitySchema $schema, private readonly Mapper $mapper)
+    public function __construct(DatabaseInterface $database, string $entityClass, EntitySchema $schema, private readonly Mapper $mapper)
     {
-        parent::__construct($pdo, $entityClass, $schema);
+        parent::__construct($database, $entityClass, $schema);
     }
 
     /**
@@ -48,7 +48,7 @@ class Update extends AbstractQuery
 
         return implode(' ', [
             'UPDATE',
-            NameUtils::escape($this->schema->table),
+            $this->escape($this->schema->table),
             'SET',
             $this->getSetQuery(),
             $this->getWhereQuery(),
@@ -70,7 +70,7 @@ class Update extends AbstractQuery
     private function getSetQuery(): string
     {
         return implode(',', array_map(
-            fn(ColumnSchema $column): string => NameUtils::escape($column->columnName) . '=:' . $column->propertyName,
+            fn(ColumnSchema $column): string => $this->escape($column->columnName) . '=:' . $column->propertyName,
             $this->schema->getInsertableColumns(),
         ));
     }
@@ -79,7 +79,7 @@ class Update extends AbstractQuery
     {
         $primaryColumnSchema = $this->schema->getPrimaryColumn();
 
-        return 'WHERE ' . NameUtils::escape($primaryColumnSchema->columnName) . '=:' . $primaryColumnSchema->propertyName;
+        return 'WHERE ' . $this->escape($primaryColumnSchema->columnName) . '=:' . $primaryColumnSchema->propertyName;
     }
 
     /** @return array<string, string|int|float|null> */
