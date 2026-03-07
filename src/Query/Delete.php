@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Query;
 use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Utils\NameUtils;
 use PDO;
 use PDOStatement;
 
@@ -46,7 +47,7 @@ class Delete extends AbstractQuery
     {
         return implode(' ', [
             'DELETE FROM',
-            $this->schema->table,
+            NameUtils::escape($this->schema->table),
             $this->getWhereQuery(),
         ]);
     }
@@ -65,7 +66,7 @@ class Delete extends AbstractQuery
 
     private function getWhereQuery(): string
     {
-        return 'WHERE ' . $this->primaryColumnSchema->columnName . ' IN (' . implode(
+        return 'WHERE ' . NameUtils::escape($this->primaryColumnSchema->columnName) . ' IN (' . implode(
             ',',
             array_map(fn($item): string => '?', $this->entities),
         ) . ')';
