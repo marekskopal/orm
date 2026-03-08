@@ -420,7 +420,7 @@ Nesting transactions is not supported — calling `transaction()` inside an acti
 
 ## Long-running applications
 
-If you are using ORM in long-running PHP applications like Roadrunner or Swoole, you should call `clear` method on ORM cache after each request to free memory.
+If you are using ORM in long-running PHP applications like FrankenPHP, Roadrunner or Swoole, you should call `clear` method on ORM cache after each request to free memory.
 
 ```php
 $orm->getEntityCache()->clear();
