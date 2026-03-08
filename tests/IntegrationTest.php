@@ -14,6 +14,7 @@ use MarekSkopal\ORM\Database\SqliteDatabase;
 use MarekSkopal\ORM\Entity\EntityCache;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Entity\EntityReflection;
+use MarekSkopal\ORM\Exception\TransactionException;
 use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\ORM;
@@ -40,6 +41,7 @@ use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
+use MarekSkopal\ORM\Transaction\TransactionProvider;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
 use MarekSkopal\ORM\Utils\ValidationUtils;
@@ -48,6 +50,8 @@ use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(ORM::class)]
+#[UsesClass(TransactionProvider::class)]
+#[UsesClass(TransactionException::class)]
 #[UsesClass(Column::class)]
 #[UsesClass(ColumnEnum::class)]
 #[UsesClass(Entity::class)]
@@ -260,6 +264,96 @@ final class IntegrationTest extends TestCase
         $users = iterator_to_array($repository->findAll());
         self::assertCount(1, $users);
         self::assertSame(2, $users[0]->id);
+    }
+
+    public function testTransactionCommit(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_users.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(UserFixture::class);
+
+        $orm->getTransactionProvider()->transaction(function () use ($repository): void {
+            $repository->persist(UserFixture::create(firstName: 'Alice'));
+            $repository->persist(UserFixture::create(firstName: 'Bob'));
+        });
+
+        $users = iterator_to_array($repository->findAll());
+        self::assertCount(4, $users);
+    }
+
+    public function testTransactionRollback(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_users.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(UserFixture::class);
+
+        try {
+            $orm->getTransactionProvider()->transaction(function () use ($repository): void {
+                $repository->persist(UserFixture::create(firstName: 'Alice'));
+
+                throw new \RuntimeException('Something went wrong');
+            });
+        } catch (\RuntimeException) {
+        }
+
+        $users = iterator_to_array($repository->findAll());
+        self::assertCount(2, $users);
+    }
+
+    public function testTransactionNestedThrows(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        $this->expectException(TransactionException::class);
+
+        $orm->getTransactionProvider()->transaction(function () use ($orm): void {
+            $orm->getTransactionProvider()->transaction(function (): void {
+            });
+        });
     }
 
     public function testUpdateEntity(): void

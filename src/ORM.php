@@ -14,6 +14,7 @@ use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Repository\RepositoryInterface;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
+use MarekSkopal\ORM\Transaction\TransactionProvider;
 
 readonly class ORM
 {
@@ -28,6 +29,8 @@ readonly class ORM
     private EntityFactory $entityFactory;
 
     private Mapper $mapper;
+
+    private TransactionProvider $transactionProvider;
 
     public function __construct(private DatabaseInterface $database, private Schema $schema)
     {
@@ -48,6 +51,7 @@ readonly class ORM
         $this->entityFactory = new EntityFactory($this->schemaProvider, $this->entityCache, $this->entityReflection, $this->mapper);
         $this->queryProvider = new QueryProvider($this->database, $this->entityFactory, $this->schemaProvider, $this->mapper);
         $queryProviderContainer->queryProvider = $this->queryProvider;
+        $this->transactionProvider = new TransactionProvider($this->database);
     }
 
     /**
@@ -71,5 +75,10 @@ readonly class ORM
     public function getEntityCache(): EntityCache
     {
         return $this->entityCache;
+    }
+
+    public function getTransactionProvider(): TransactionProvider
+    {
+        return $this->transactionProvider;
     }
 }
