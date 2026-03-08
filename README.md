@@ -389,6 +389,35 @@ $queryProvider->delete(User::class)
     ->execute();
 ```
 
+## Transactions
+
+Use `getTransactionProvider()` to run operations inside a database transaction. The callback is committed on success and automatically rolled back if any exception is thrown.
+
+```php
+$orm->getTransactionProvider()->transaction(function () use ($orm): void {
+    $orm->getRepository(User::class)->persist($userA);
+    $orm->getRepository(User::class)->persist($userB);
+});
+```
+
+You can also manage the transaction manually:
+
+```php
+$tp = $orm->getTransactionProvider();
+
+$tp->beginTransaction();
+
+try {
+    $orm->getRepository(User::class)->persist($user);
+    $tp->commit();
+} catch (\Throwable $e) {
+    $tp->rollback();
+    throw $e;
+}
+```
+
+Nesting transactions is not supported — calling `transaction()` inside an active transaction throws a `TransactionException`.
+
 ## Long-running applications
 
 If you are using ORM in long-running PHP applications like Roadrunner or Swoole, you should call `clear` method on ORM cache after each request to free memory.
