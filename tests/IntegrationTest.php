@@ -7,8 +7,10 @@ namespace MarekSkopal\ORM\Tests;
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
+use MarekSkopal\ORM\Attribute\ManyToMany;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
+use MarekSkopal\ORM\Attribute\OneToOne;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\SqliteDatabase;
 use MarekSkopal\ORM\Entity\EntityCache;
@@ -39,8 +41,12 @@ use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\ProfileFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\TagFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithProfileFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithTagsFixture;
 use MarekSkopal\ORM\Transaction\TransactionProvider;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
@@ -55,7 +61,9 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(Column::class)]
 #[UsesClass(ColumnEnum::class)]
 #[UsesClass(Entity::class)]
+#[UsesClass(ManyToMany::class)]
 #[UsesClass(ManyToOne::class)]
+#[UsesClass(OneToOne::class)]
 #[UsesClass(AbstractDatabase::class)]
 #[UsesClass(SqliteDatabase::class)]
 #[UsesClass(EntityCache::class)]
@@ -389,5 +397,154 @@ final class IntegrationTest extends TestCase
         $user = $repository->findOne(['id' => 1]);
         self::assertInstanceOf(UserFixture::class, $user);
         self::assertSame('Jane', $user->firstName);
+    }
+
+    public function testSelectEntityRelationOneToOne(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_one_to_one.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database_one_to_one.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(UserWithProfileFixture::class);
+
+        $user = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(UserWithProfileFixture::class, $user);
+        self::assertSame('John', $user->name);
+
+        $profile = $user->profile;
+        /** @phpstan-ignore-next-line staticMethod.alreadyNarrowedType */
+        self::assertInstanceOf(ProfileFixture::class, $profile);
+        self::assertSame(1, $profile->id);
+        self::assertSame('Hello, I am John', $profile->bio);
+    }
+
+    public function testSelectEntityRelationOneToOneInverse(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_one_to_one.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database_one_to_one.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(ProfileFixture::class);
+
+        $profile = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(ProfileFixture::class, $profile);
+        self::assertSame('Hello, I am John', $profile->bio);
+
+        $user = $profile->user;
+        self::assertInstanceOf(UserWithProfileFixture::class, $user);
+        self::assertSame(1, $user->id);
+        self::assertSame('John', $user->name);
+    }
+
+    public function testSelectEntityRelationManyToMany(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_many_to_many.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database_many_to_many.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(UserWithTagsFixture::class);
+
+        $user = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(UserWithTagsFixture::class, $user);
+        self::assertSame('John', $user->name);
+
+        $tags = $user->tags;
+        /** @phpstan-ignore-next-line staticMethod.alreadyNarrowedType */
+        self::assertInstanceOf(Collection::class, $tags);
+        self::assertCount(2, $tags);
+        /** @phpstan-ignore-next-line staticMethod.alreadyNarrowedType */
+        self::assertInstanceOf(TagFixture::class, $tags[0]);
+        self::assertSame('php', $tags[0]->name);
+        self::assertSame('orm', $tags[1]->name);
+    }
+
+    public function testSelectEntityRelationManyToManyInverse(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_many_to_many.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database_many_to_many.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(TagFixture::class);
+
+        $tag = $repository->findOne(['id' => 2]);
+        self::assertInstanceOf(TagFixture::class, $tag);
+        self::assertSame('orm', $tag->name);
+
+        $users = $tag->users;
+        /** @phpstan-ignore-next-line staticMethod.alreadyNarrowedType */
+        self::assertInstanceOf(Collection::class, $users);
+        self::assertCount(2, $users);
+        /** @phpstan-ignore-next-line staticMethod.alreadyNarrowedType */
+        self::assertInstanceOf(UserWithTagsFixture::class, $users[0]);
+        self::assertSame('John', $users[0]->name);
+        self::assertSame('Jane', $users[1]->name);
     }
 }

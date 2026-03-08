@@ -8,4 +8,8 @@ enum RelationEnum
 {
     case OneToMany;
     case ManyToOne;
+    case OneToOne;
+    case OneToOneInverse;
+    case ManyToMany;
+    case ManyToManyInverse;
 }

@@ -6,7 +6,7 @@ A lightweight Object-Relational Mapping (ORM) library for PHP.
 
 - Simple and intuitive declaration of entities by adding `Column` Attributes to class properties
 - Supports various property types including Uuid, DateTime and Enums
-- Handles one-to-many and many-to-one relationships
+- Handles one-to-many, many-to-one, one-to-one, and many-to-many relationships
 - Query provider for database interactions
 - [Migration module](https://github.com/marekskopal/orm-migrations) for creating and updating database schema
 - Very fast in comparison to other ORM libraries - see [benchmarks](https://github.com/marekskopal/orm-benchmark)
@@ -107,7 +107,7 @@ final class User
 
 ### Relationships
 
-You can define relationships between entities by adding `ManyToOne` or `OneToMany` attributes to class properties.
+#### ManyToOne and OneToMany
 
 ```php
 #[Entity]
@@ -118,6 +118,57 @@ final class User
 
     #[OneToMany(entityClass: User::class)]
     public \Iterator $children;
+}
+```
+
+#### OneToOne
+
+Use `#[OneToOne]` for a unique relationship between two entities. The owning side holds the foreign key column; the inverse side uses `mappedBy` pointing to the owning property name.
+
+```php
+#[Entity]
+final class User
+{
+    // Owning side — stores profile_id column
+    #[OneToOne(entityClass: Profile::class)]
+    public Profile $profile;
+}
+
+#[Entity]
+final class Profile
+{
+    // Inverse side — no column, loaded via User::$profile FK
+    #[OneToOne(entityClass: User::class, mappedBy: 'profile')]
+    public ?User $user;
+}
+```
+
+#### ManyToMany
+
+Use `#[ManyToMany]` for a join-table relationship. The owning side declares the join table and column names; the inverse side uses `mappedBy`.
+
+Column names default to the entity short name with an `Id` suffix (e.g. `user_id`, `tag_id`) when not specified explicitly.
+
+```php
+#[Entity]
+final class User
+{
+    // Owning side — manages the user_tags join table
+    #[ManyToMany(
+        entityClass: Tag::class,
+        joinTable: 'user_tags',
+        joinColumn: 'user_id',        // defaults to user_id
+        inverseJoinColumn: 'tag_id',  // defaults to tag_id
+    )]
+    public Collection $tags;
+}
+
+#[Entity]
+final class Tag
+{
+    // Inverse side — loaded via User::$tags join table info
+    #[ManyToMany(entityClass: User::class, mappedBy: 'tags')]
+    public Collection $users;
 }
 ```
 

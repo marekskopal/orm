@@ -47,7 +47,7 @@ readonly class ORM
             return $queryProviderContainer->queryProvider ?? throw new \LogicException('QueryProvider not yet initialized');
         };
 
-        $this->mapper = new Mapper($this->schemaProvider, $this->entityCache, $queryProviderFactory);
+        $this->mapper = new Mapper($this->schemaProvider, $this->entityCache, $queryProviderFactory, $this->database);
         $this->entityFactory = new EntityFactory($this->schemaProvider, $this->entityCache, $this->entityReflection, $this->mapper);
         $this->queryProvider = new QueryProvider($this->database, $this->entityFactory, $this->schemaProvider, $this->mapper);
         $queryProviderContainer->queryProvider = $this->queryProvider;

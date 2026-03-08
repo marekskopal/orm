@@ -36,7 +36,9 @@ readonly class EntitySchema
     {
         return array_filter(
             $this->columns,
-            fn(ColumnSchema $column): bool => $column->relationType === null || $column->relationType === RelationEnum::ManyToOne,
+            fn(ColumnSchema $column): bool => $column->relationType === null
+                || $column->relationType === RelationEnum::ManyToOne
+                || $column->relationType === RelationEnum::OneToOne,
         );
     }
 
@@ -45,7 +47,11 @@ readonly class EntitySchema
     {
         return array_filter(
             $this->columns,
-            fn(ColumnSchema $column): bool => !$column->isPrimary && ($column->relationType === null || $column->relationType === RelationEnum::ManyToOne),
+            fn(ColumnSchema $column): bool => !$column->isPrimary && (
+                $column->relationType === null
+                || $column->relationType === RelationEnum::ManyToOne
+                || $column->relationType === RelationEnum::OneToOne
+            ),
         );
     }
 

@@ -9,6 +9,7 @@ use DateTime;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Iterator;
+use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\EntityCache;
 use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Query\QueryProvider;
@@ -18,6 +19,7 @@ use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Utils\ValidationUtils;
+use PDO;
 use Ramsey\Uuid\Uuid;
 use ReflectionClass;
 
@@ -33,6 +35,7 @@ class Mapper implements MapperInterface
         private readonly SchemaProvider $schemaProvider,
         private readonly EntityCache $entityCache,
         Closure $queryProviderFactory,
+        private readonly DatabaseInterface $database,
     ) {
         $this->extensionMapperProvider = new ExtensionMapperProvider();
         $this->queryProviderFactory = $queryProviderFactory;
@@ -122,6 +125,10 @@ class Mapper implements MapperInterface
                 $value,
             ),
             RelationEnum::ManyToOne => $this->mapRelationManyToOneToProperty($relationEntityClass, $value),
+            RelationEnum::OneToOne => $this->mapRelationManyToOneToProperty($relationEntityClass, $value),
+            RelationEnum::OneToOneInverse => $this->mapRelationOneToOneInverseToProperty($columnSchema, $value),
+            RelationEnum::ManyToMany => $this->mapRelationManyToManyToProperty($columnSchema, $value),
+            RelationEnum::ManyToManyInverse => $this->mapRelationManyToManyInverseToProperty($columnSchema, $value),
             default => throw new \RuntimeException('Relation type not found'),
         };
     }
@@ -181,12 +188,112 @@ class Mapper implements MapperInterface
         return $entity;
     }
 
+    private function mapRelationOneToOneInverseToProperty(ColumnSchema $columnSchema, int $value): object
+    {
+        $relationEntityClass = $columnSchema->relationEntityClass ?? throw new \RuntimeException('Relation entity class not found');
+        $mappedBy = $columnSchema->mappedBy ?? throw new \RuntimeException('mappedBy not found on OneToOneInverse');
+
+        $owningColumnSchema = $this->schemaProvider->getEntitySchema($relationEntityClass)->getColumnByPropertyName($mappedBy);
+        $fkColumnName = $owningColumnSchema->columnName;
+
+        $reflector = new ReflectionClass($relationEntityClass);
+
+        /** @var object $proxy */
+        $proxy = $reflector->newLazyProxy(function (object $object) use ($relationEntityClass, $fkColumnName, $value): object {
+            $realEntity = $this->getQueryProvider()->select($relationEntityClass)->where([$fkColumnName, '=', $value])->fetchOne();
+            if ($realEntity === null) {
+                throw new \RuntimeException(sprintf('OneToOne inverse entity "%s" not found for FK value "%d"', $relationEntityClass, $value));
+            }
+
+            return $realEntity;
+        });
+
+        return $proxy;
+    }
+
+    /** @return Iterator<object> */
+    private function mapRelationManyToManyToProperty(ColumnSchema $columnSchema, int $value): Iterator
+    {
+        $entityClass = $columnSchema->relationEntityClass ?? throw new \RuntimeException('Relation entity class not found');
+        $joinTable = $columnSchema->joinTable ?? throw new \RuntimeException('joinTable not found on ManyToMany');
+        $joinColumn = $columnSchema->joinColumn ?? throw new \RuntimeException('joinColumn not found on ManyToMany');
+        $inverseJoinColumn = $columnSchema->inverseJoinColumn ?? throw new \RuntimeException('inverseJoinColumn not found on ManyToMany');
+
+        $reflector = new ReflectionClass(Collection::class);
+        /** @var Collection<object> $lazyCollection */
+        $lazyCollection = $reflector->newLazyGhost(function (Collection $object) use ($entityClass, $joinTable, $joinColumn, $inverseJoinColumn, $value): void {
+            $q = $this->database->getIdentifierQuoteChar();
+            $stmt = $this->database->getPdo()->prepare(
+                "SELECT {$q}{$inverseJoinColumn}{$q} FROM {$q}{$joinTable}{$q} WHERE {$q}{$joinColumn}{$q} = ?",
+            );
+            $stmt->execute([$value]);
+            /** @var list<int> $ids */
+            $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            if ($ids === []) {
+                // @phpstan-ignore-next-line constructor.call
+                $object->__construct([]);
+                return;
+            }
+
+            $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
+            // @phpstan-ignore-next-line constructor.call
+            $object->__construct(
+                iterator_to_array(
+                    $this->getQueryProvider()->select($entityClass)->where([$primaryColumnSchema->columnName, 'IN', $ids])->fetchAll(),
+                ),
+            );
+        });
+
+        return $lazyCollection;
+    }
+
+    /** @return Iterator<object> */
+    private function mapRelationManyToManyInverseToProperty(ColumnSchema $columnSchema, int $value): Iterator
+    {
+        $entityClass = $columnSchema->relationEntityClass ?? throw new \RuntimeException('Relation entity class not found');
+        $mappedBy = $columnSchema->mappedBy ?? throw new \RuntimeException('mappedBy not found on ManyToManyInverse');
+
+        $reflector = new ReflectionClass(Collection::class);
+        /** @var Collection<object> $lazyCollection */
+        $lazyCollection = $reflector->newLazyGhost(function (Collection $object) use ($entityClass, $mappedBy, $value): void {
+            $owningColumnSchema = $this->schemaProvider->getEntitySchema($entityClass)->getColumnByPropertyName($mappedBy);
+            $joinTable = $owningColumnSchema->joinTable ?? throw new \RuntimeException('joinTable not found on owning ManyToMany');
+            $joinColumn = $owningColumnSchema->joinColumn ?? throw new \RuntimeException('joinColumn not found on owning ManyToMany');
+            $inverseJoinColumn = $owningColumnSchema->inverseJoinColumn ?? throw new \RuntimeException('inverseJoinColumn not found on owning ManyToMany');
+
+            $q = $this->database->getIdentifierQuoteChar();
+            $stmt = $this->database->getPdo()->prepare(
+                "SELECT {$q}{$joinColumn}{$q} FROM {$q}{$joinTable}{$q} WHERE {$q}{$inverseJoinColumn}{$q} = ?",
+            );
+            $stmt->execute([$value]);
+            /** @var list<int> $ids */
+            $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            if ($ids === []) {
+                // @phpstan-ignore-next-line constructor.call
+                $object->__construct([]);
+                return;
+            }
+
+            $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
+            // @phpstan-ignore-next-line constructor.call
+            $object->__construct(
+                iterator_to_array(
+                    $this->getQueryProvider()->select($entityClass)->where([$primaryColumnSchema->columnName, 'IN', $ids])->fetchAll(),
+                ),
+            );
+        });
+
+        return $lazyCollection;
+    }
+
     private function mapRelationToColumn(ColumnSchema $columnSchema, object $value): int
     {
         $relationEntityClass = $columnSchema->relationEntityClass ?? throw new \RuntimeException('Relation entity class not found');
 
         return match ($columnSchema->relationType) {
-            RelationEnum::ManyToOne => $this->mapRelationManyToOneToColumn($relationEntityClass, $value),
+            RelationEnum::ManyToOne, RelationEnum::OneToOne => $this->mapRelationManyToOneToColumn($relationEntityClass, $value),
             default => throw new \RuntimeException('Relation type not found'),
         };
     }

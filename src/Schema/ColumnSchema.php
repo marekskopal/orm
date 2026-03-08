@@ -36,6 +36,10 @@ readonly class ColumnSchema
         public ?string $enumClass = null,
         public ?string $extensionClass = null,
         public array $extensionOptions = [],
+        public ?string $joinTable = null,
+        public ?string $joinColumn = null,
+        public ?string $inverseJoinColumn = null,
+        public ?string $mappedBy = null,
     ) {
     }
 }

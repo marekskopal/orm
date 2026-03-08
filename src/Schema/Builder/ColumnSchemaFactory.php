@@ -6,8 +6,10 @@ namespace MarekSkopal\ORM\Schema\Builder;
 
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ForeignKey;
+use MarekSkopal\ORM\Attribute\ManyToMany;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
+use MarekSkopal\ORM\Attribute\OneToOne;
 use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Enum\CaseEnum;
@@ -46,6 +48,14 @@ class ColumnSchemaFactory
             if ($attributeInstance instanceof OneToMany) {
                 /** @var ReflectionAttribute<OneToMany> $attribute */
                 return $this->createFromOneToManyAttribute($attribute, $reflectionProperty, $columnCase);
+            }
+            if ($attributeInstance instanceof OneToOne) {
+                /** @var ReflectionAttribute<OneToOne> $attribute */
+                return $this->createFromOneToOneAttribute($attribute, $reflectionProperty, $columnCase);
+            }
+            if ($attributeInstance instanceof ManyToMany) {
+                /** @var ReflectionAttribute<ManyToMany> $attribute */
+                return $this->createFromManyToManyAttribute($attribute, $reflectionProperty, $columnCase);
             }
         }
 
@@ -128,6 +138,81 @@ class ColumnSchemaFactory
             relationColumnName: $attributeInstance->relationColumnName ?? CaseUtils::toCase(
                 $columnCase,
                 NameUtils::getRelationColumnName($this->reflectionClass),
+            ),
+        );
+    }
+
+    /** @param ReflectionAttribute<OneToOne> $attribute */
+    private function createFromOneToOneAttribute(
+        ReflectionAttribute $attribute,
+        ReflectionProperty $reflectionProperty,
+        CaseEnum $columnCase,
+    ): ColumnSchema
+    {
+        $attributeInstance = $attribute->newInstance();
+
+        if ($attributeInstance->mappedBy !== null) {
+            return new ColumnSchema(
+                propertyName: $reflectionProperty->getName(),
+                propertyType: PropertyTypeEnum::Relation,
+                columnName: CaseUtils::toCase($columnCase, $reflectionProperty->getName()),
+                columnType: Type::Int,
+                relationType: RelationEnum::OneToOneInverse,
+                relationEntityClass: $attributeInstance->entityClass,
+                mappedBy: $attributeInstance->mappedBy,
+            );
+        }
+
+        return new ColumnSchema(
+            propertyName: $reflectionProperty->getName(),
+            propertyType: PropertyTypeEnum::Relation,
+            columnName: $attributeInstance->name ?? CaseUtils::toCase($columnCase, $reflectionProperty->getName() . 'Id'),
+            columnType: Type::Int,
+            isNullable: $attributeInstance->nullable,
+            size: 11,
+            relationType: RelationEnum::OneToOne,
+            relationEntityClass: $attributeInstance->entityClass,
+        );
+    }
+
+    /** @param ReflectionAttribute<ManyToMany> $attribute */
+    private function createFromManyToManyAttribute(
+        ReflectionAttribute $attribute,
+        ReflectionProperty $reflectionProperty,
+        CaseEnum $columnCase,
+    ): ColumnSchema
+    {
+        $attributeInstance = $attribute->newInstance();
+
+        if ($attributeInstance->mappedBy !== null) {
+            return new ColumnSchema(
+                propertyName: $reflectionProperty->getName(),
+                propertyType: PropertyTypeEnum::Relation,
+                columnName: CaseUtils::toCase($columnCase, $reflectionProperty->getName()),
+                columnType: Type::Int,
+                relationType: RelationEnum::ManyToManyInverse,
+                relationEntityClass: $attributeInstance->entityClass,
+                mappedBy: $attributeInstance->mappedBy,
+            );
+        }
+
+        return new ColumnSchema(
+            propertyName: $reflectionProperty->getName(),
+            propertyType: PropertyTypeEnum::Relation,
+            columnName: CaseUtils::toCase($columnCase, $reflectionProperty->getName()),
+            columnType: Type::Int,
+            relationType: RelationEnum::ManyToMany,
+            relationEntityClass: $attributeInstance->entityClass,
+            joinTable: $attributeInstance->joinTable ?? throw new \RuntimeException(
+                sprintf('ManyToMany attribute on "%s" requires joinTable', $reflectionProperty->getName()),
+            ),
+            joinColumn: $attributeInstance->joinColumn ?? CaseUtils::toCase(
+                $columnCase,
+                NameUtils::getRelationColumnName($this->reflectionClass),
+            ),
+            inverseJoinColumn: $attributeInstance->inverseJoinColumn ?? CaseUtils::toCase(
+                $columnCase,
+                NameUtils::getRelationColumnName($attributeInstance->entityClass),
             ),
         );
     }
