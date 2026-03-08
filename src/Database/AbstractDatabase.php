@@ -15,9 +15,7 @@ abstract readonly class AbstractDatabase implements DatabaseInterface
         #[SensitiveParameter] protected ?string $username = null,
         #[SensitiveParameter] protected ?string $password = null,
     ) {
-        $this->pdo = new PDO($this->getDsn(), $this->username, $this->password, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        ]);
+        $this->pdo = new PDO($this->getDsn(), $this->username, $this->password, $this->getOptions());
     }
 
     public function getPdo(): PDO
@@ -26,4 +24,10 @@ abstract readonly class AbstractDatabase implements DatabaseInterface
     }
 
     abstract protected function getDsn(): string;
+
+    /** @return array<int, mixed> */
+    protected function getOptions(): array
+    {
+        return [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION];
+    }
 }

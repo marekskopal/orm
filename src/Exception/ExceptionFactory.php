@@ -12,7 +12,7 @@ class ExceptionFactory
             return new ORMException($exception->getMessage(), (int) $exception->getCode(), $exception);
         }
 
-        if ((int) $exception->getCode() === 23000) {
+        if (str_starts_with((string) $exception->getCode(), '23')) {
             return new ConstrainException($exception, $query);
         }
 

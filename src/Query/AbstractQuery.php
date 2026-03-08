@@ -14,11 +14,14 @@ abstract class AbstractQuery implements QueryInterface
 
     protected readonly string $identifierQuoteChar;
 
+    protected readonly DatabaseInterface $database;
+
     public function __construct(
         DatabaseInterface $database,
         protected readonly string $entityClass,
         protected readonly EntitySchema $schema,
     ) {
+        $this->database = $database;
         $this->pdo = $database->getPdo();
         $this->identifierQuoteChar = $database->getIdentifierQuoteChar();
     }

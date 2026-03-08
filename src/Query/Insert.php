@@ -9,6 +9,7 @@ use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use PDO;
 use PDOStatement;
 
 /** @template T of object */
@@ -36,8 +37,8 @@ class Insert extends AbstractQuery
 
     public function execute(): void
     {
-        $this->query();
-        $this->updateId();
+        $statement = $this->query();
+        $this->updateId($statement);
     }
 
     public function getSql(): string
@@ -46,12 +47,19 @@ class Insert extends AbstractQuery
             throw new \LogicException('No entities to insert');
         }
 
-        return implode(' ', [
+        $parts = [
             'INSERT INTO',
             $this->escape($this->schema->table),
             '(' . implode(',', $this->getColumns()) . ')',
             $this->getValuesQuery(),
-        ]);
+        ];
+
+        $returningClause = $this->database->getInsertReturningClause($this->schema->getPrimaryColumn()->columnName);
+        if ($returningClause !== '') {
+            $parts[] = $returningClause;
+        }
+
+        return implode(' ', $parts);
     }
 
     private function query(): PDOStatement
@@ -66,13 +74,25 @@ class Insert extends AbstractQuery
         }
     }
 
-    private function updateId(): void
+    private function updateId(PDOStatement $statement): void
     {
-        $firstInsertId = (int) $this->pdo->lastInsertId();
-        $primaryPropertyName = $this->schema->getPrimaryColumn()->propertyName;
-        foreach ($this->entities as $i => $entity) {
-            // @phpstan-ignore-next-line property.dynamicName
-            $entity->{$primaryPropertyName} = $firstInsertId + $i;
+        $primaryColumnSchema = $this->schema->getPrimaryColumn();
+        $primaryPropertyName = $primaryColumnSchema->propertyName;
+
+        $returningClause = $this->database->getInsertReturningClause($primaryColumnSchema->columnName);
+        if ($returningClause !== '') {
+            /** @var list<array<string, mixed>> $rows */
+            $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($this->entities as $i => $entity) {
+                // @phpstan-ignore-next-line property.dynamicName
+                $entity->{$primaryPropertyName} = (int) $rows[$i][$primaryColumnSchema->columnName];
+            }
+        } else {
+            $firstInsertId = (int) $this->pdo->lastInsertId();
+            foreach ($this->entities as $i => $entity) {
+                // @phpstan-ignore-next-line property.dynamicName
+                $entity->{$primaryPropertyName} = $firstInsertId + $i;
+            }
         }
     }
 

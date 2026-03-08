@@ -20,4 +20,9 @@ readonly class SqliteDatabase extends AbstractDatabase
     {
         return '"';
     }
+
+    public function getInsertReturningClause(string $primaryColumnName): string
+    {
+        return '';
+    }
 }
