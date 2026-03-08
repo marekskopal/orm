@@ -116,6 +116,7 @@ class ColumnSchemaFactory
             size: 11,
             relationType: RelationEnum::ManyToOne,
             relationEntityClass: $attributeInstance->entityClass,
+            cascade: $attributeInstance->cascade,
         );
     }
 
@@ -139,6 +140,7 @@ class ColumnSchemaFactory
                 $columnCase,
                 NameUtils::getRelationColumnName($this->reflectionClass),
             ),
+            cascade: $attributeInstance->cascade,
         );
     }
 
@@ -160,6 +162,7 @@ class ColumnSchemaFactory
                 relationType: RelationEnum::OneToOneInverse,
                 relationEntityClass: $attributeInstance->entityClass,
                 mappedBy: $attributeInstance->mappedBy,
+                cascade: $attributeInstance->cascade,
             );
         }
 
@@ -172,6 +175,7 @@ class ColumnSchemaFactory
             size: 11,
             relationType: RelationEnum::OneToOne,
             relationEntityClass: $attributeInstance->entityClass,
+            cascade: $attributeInstance->cascade,
         );
     }
 
@@ -193,6 +197,7 @@ class ColumnSchemaFactory
                 relationType: RelationEnum::ManyToManyInverse,
                 relationEntityClass: $attributeInstance->entityClass,
                 mappedBy: $attributeInstance->mappedBy,
+                cascade: $attributeInstance->cascade,
             );
         }
 
@@ -214,6 +219,7 @@ class ColumnSchemaFactory
                 $columnCase,
                 NameUtils::getRelationColumnName($attributeInstance->entityClass),
             ),
+            cascade: $attributeInstance->cascade,
         );
     }
 

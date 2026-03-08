@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Schema;
 use BackedEnum;
 use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Mapper\MapperInterface;
+use MarekSkopal\ORM\Schema\Enum\CascadeEnum;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 
@@ -17,6 +18,7 @@ readonly class ColumnSchema
      * @param class-string<BackedEnum>|null $enumClass
      * @param class-string<MapperInterface>|null $extensionClass
      * @param array<string, mixed> $extensionOptions
+     * @param list<CascadeEnum> $cascade
      */
     public function __construct(
         public string $propertyName,
@@ -40,6 +42,7 @@ readonly class ColumnSchema
         public ?string $joinColumn = null,
         public ?string $inverseJoinColumn = null,
         public ?string $mappedBy = null,
+        public array $cascade = [],
     ) {
     }
 }

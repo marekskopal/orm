@@ -202,7 +202,9 @@ class Mapper implements MapperInterface
         $proxy = $reflector->newLazyProxy(function (object $object) use ($relationEntityClass, $fkColumnName, $value): object {
             $realEntity = $this->getQueryProvider()->select($relationEntityClass)->where([$fkColumnName, '=', $value])->fetchOne();
             if ($realEntity === null) {
-                throw new \RuntimeException(sprintf('OneToOne inverse entity "%s" not found for FK value "%d"', $relationEntityClass, $value));
+                throw new \RuntimeException(
+                    sprintf('OneToOne inverse entity "%s" not found for FK value "%d"', $relationEntityClass, $value),
+                );
             }
 
             return $realEntity;
@@ -221,29 +223,31 @@ class Mapper implements MapperInterface
 
         $reflector = new ReflectionClass(Collection::class);
         /** @var Collection<object> $lazyCollection */
-        $lazyCollection = $reflector->newLazyGhost(function (Collection $object) use ($entityClass, $joinTable, $joinColumn, $inverseJoinColumn, $value): void {
-            $q = $this->database->getIdentifierQuoteChar();
-            $stmt = $this->database->getPdo()->prepare(
-                "SELECT {$q}{$inverseJoinColumn}{$q} FROM {$q}{$joinTable}{$q} WHERE {$q}{$joinColumn}{$q} = ?",
-            );
-            $stmt->execute([$value]);
-            /** @var list<int> $ids */
-            $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $lazyCollection = $reflector->newLazyGhost(
+            function (Collection $object) use ($entityClass, $joinTable, $joinColumn, $inverseJoinColumn, $value): void {
+                $q = $this->database->getIdentifierQuoteChar();
+                $stmt = $this->database->getPdo()->prepare(
+                    "SELECT {$q}{$inverseJoinColumn}{$q} FROM {$q}{$joinTable}{$q} WHERE {$q}{$joinColumn}{$q} = ?",
+                );
+                $stmt->execute([$value]);
+                /** @var list<int> $ids */
+                $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-            if ($ids === []) {
+                if ($ids === []) {
+                    // @phpstan-ignore-next-line constructor.call
+                    $object->__construct([]);
+                    return;
+                }
+
+                $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
                 // @phpstan-ignore-next-line constructor.call
-                $object->__construct([]);
-                return;
-            }
-
-            $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
-            // @phpstan-ignore-next-line constructor.call
-            $object->__construct(
-                iterator_to_array(
-                    $this->getQueryProvider()->select($entityClass)->where([$primaryColumnSchema->columnName, 'IN', $ids])->fetchAll(),
-                ),
-            );
-        });
+                $object->__construct(
+                    iterator_to_array(
+                        $this->getQueryProvider()->select($entityClass)->where([$primaryColumnSchema->columnName, 'IN', $ids])->fetchAll(),
+                    ),
+                );
+            },
+        );
 
         return $lazyCollection;
     }
@@ -260,7 +264,9 @@ class Mapper implements MapperInterface
             $owningColumnSchema = $this->schemaProvider->getEntitySchema($entityClass)->getColumnByPropertyName($mappedBy);
             $joinTable = $owningColumnSchema->joinTable ?? throw new \RuntimeException('joinTable not found on owning ManyToMany');
             $joinColumn = $owningColumnSchema->joinColumn ?? throw new \RuntimeException('joinColumn not found on owning ManyToMany');
-            $inverseJoinColumn = $owningColumnSchema->inverseJoinColumn ?? throw new \RuntimeException('inverseJoinColumn not found on owning ManyToMany');
+            $inverseJoinColumn = $owningColumnSchema->inverseJoinColumn ?? throw new \RuntimeException(
+                'inverseJoinColumn not found on owning ManyToMany',
+            );
 
             $q = $this->database->getIdentifierQuoteChar();
             $stmt = $this->database->getPdo()->prepare(

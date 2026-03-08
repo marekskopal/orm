@@ -41,6 +41,8 @@ use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\AuthorFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\PostFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\ProfileFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\TagFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
@@ -546,5 +548,78 @@ final class IntegrationTest extends TestCase
         self::assertInstanceOf(UserWithTagsFixture::class, $users[0]);
         self::assertSame('John', $users[0]->name);
         self::assertSame('Jane', $users[1]->name);
+    }
+
+    private function createCascadeOrm(): ORM
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_cascade.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database_cascade.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        return $orm;
+    }
+
+    public function testCascadePersistOneToMany(): void
+    {
+        $orm = $this->createCascadeOrm();
+        $authorRepository = $orm->getRepository(AuthorFixture::class);
+        $postRepository = $orm->getRepository(PostFixture::class);
+
+        $post1 = new PostFixture('First Post', new AuthorFixture('', new Collection()));
+        $post2 = new PostFixture('Second Post', new AuthorFixture('', new Collection()));
+        $author = new AuthorFixture('John', new Collection([$post1, $post2]));
+        $post1->author = $author;
+        $post2->author = $author;
+
+        $authorRepository->persist($author);
+
+        self::assertSame(1, $author->id);
+        self::assertSame(1, $post1->id);
+        self::assertSame(2, $post2->id);
+
+        $posts = iterator_to_array($postRepository->findAll());
+        self::assertCount(2, $posts);
+    }
+
+    public function testCascadeRemoveOneToMany(): void
+    {
+        $orm = $this->createCascadeOrm();
+        $authorRepository = $orm->getRepository(AuthorFixture::class);
+        $postRepository = $orm->getRepository(PostFixture::class);
+
+        $post1 = new PostFixture('First Post', new AuthorFixture('', new Collection()));
+        $post2 = new PostFixture('Second Post', new AuthorFixture('', new Collection()));
+        $author = new AuthorFixture('John', new Collection([$post1, $post2]));
+        $post1->author = $author;
+        $post2->author = $author;
+
+        $authorRepository->persist($author);
+
+        // Reload to get initialized collection
+        $orm->getEntityCache()->clear();
+        $author = $authorRepository->findOne(['id' => 1]);
+        self::assertInstanceOf(AuthorFixture::class, $author);
+
+        $authorRepository->delete($author);
+
+        self::assertCount(0, iterator_to_array($authorRepository->findAll()));
+        self::assertCount(0, iterator_to_array($postRepository->findAll()));
     }
 }

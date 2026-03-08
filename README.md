@@ -172,6 +172,43 @@ final class Tag
 }
 ```
 
+### Cascade Operations
+
+Relations support cascade operations via the `cascade` parameter. Supported values are `CascadeEnum::Persist` and `CascadeEnum::Remove`.
+
+```php
+use MarekSkopal\ORM\Schema\Enum\CascadeEnum;
+
+#[Entity]
+final class Author
+{
+    #[OneToMany(entityClass: Post::class, cascade: [CascadeEnum::Persist, CascadeEnum::Remove])]
+    public Collection $posts;
+}
+```
+
+**`CascadeEnum::Persist`** — when `persist()` is called on the owning entity, all related entities are persisted automatically:
+
+```php
+$post1 = new Post('First Post', $author);
+$post2 = new Post('Second Post', $author);
+$author = new Author('John', new Collection([$post1, $post2]));
+
+// Persists author and both posts in the correct order
+$orm->getRepository(Author::class)->persist($author);
+```
+
+**`CascadeEnum::Remove`** — when `delete()` is called on the owning entity, all related entities are deleted automatically before the owner (to avoid FK constraint violations):
+
+```php
+$author = $orm->getRepository(Author::class)->findOne(['id' => 1]);
+
+// Deletes all posts belonging to the author, then deletes the author
+$orm->getRepository(Author::class)->delete($author);
+```
+
+Cascade is supported on `OneToMany`, `ManyToOne`, `OneToOne`, and `ManyToMany` relations. For `ManyToMany`, cascade remove deletes the join table rows; cascade persist syncs the join table after persisting.
+
 ### Dates
 
 You can use `DateTime` or `DateTimeImmutable` properties in entities. The library will automatically convert datetime or timestamp columns values to those to objects.
@@ -302,7 +339,7 @@ $user = $queryProvider->select(User::class)
 
 ### Insert
 
-You can insert entities using `Insert` builder. Cascade insert is currently not supported.
+You can insert entities using `Insert` builder.
 
 ```php
 $user = new User(
@@ -341,7 +378,7 @@ $queryProvider->insert(User::class)
 
 ### Update
 
-You can update entities using `Update` builder. Cascade update is currently not supported.
+You can update entities using `Update` builder.
 
 ```php
 $user = $queryProvider->select(User::class)
@@ -357,7 +394,7 @@ $queryProvider->update(User::class)
 
 ### Delete
 
-You can delete entities using `Delete` builder. Cascade delete is currently not supported.
+You can delete entities using `Delete` builder.
 
 ```php
 $user = $queryProvider->select(User::class)

@@ -75,4 +75,9 @@ readonly class QueryProvider
     {
         return $this->deleteFactory->create($entityClass);
     }
+
+    public function getDatabase(): DatabaseInterface
+    {
+        return $this->database;
+    }
 }
