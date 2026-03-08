@@ -11,6 +11,12 @@ A lightweight Object-Relational Mapping (ORM) library for PHP.
 - [Migration module](https://github.com/marekskopal/orm-migrations) for creating and updating database schema
 - Very fast in comparison to other ORM libraries - see [benchmarks](https://github.com/marekskopal/orm-benchmark)
 
+## Supported Databases
+
+- MySQL
+- PostgreSQL
+- SQLite
+
 ## Installation
 
 Install via Composer:
@@ -21,8 +27,14 @@ composer require marekskopal/orm
 
 ## Basic Usage
 ```php
-//Create DB connection
+//Create DB connection - MySQL
 $database = new MysqlDatabase('localhost', 'root', 'password', 'database');
+
+//Create DB connection - PostgreSQL
+$database = new PostgresDatabase('localhost', 'postgres', 'password', 'database');
+
+//Create DB connection - SQLite
+$database = new SqliteDatabase('/path/to/database.sqlite');
 
 //Create schema
 $schema = new SchemaBuilder()
@@ -58,7 +70,7 @@ You can declare entities by adding `Entity` attribute to class and `Column` attr
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
-use MarekSkopal\ORM\Enum\Type
+use MarekSkopal\ORM\Enum\Type;
 
 #[Entity]
 final class User
@@ -70,15 +82,16 @@ final class User
         #[Column(type: Type::Timestamp)]
         public DateTimeImmutable $createdAt,
         #[Column(type: Type::String)]
-        public string $name
+        public string $name,
         #[Column(type: Type::String, nullable: true, size: 50)]
-        public string $email,
+        public ?string $email,
         #[Column(type: Type::Boolean)]
         public bool $isActive,
         #[ColumnEnum(enum: UserTypeEnum::class)]
         public UserTypeEnum $type,
     ) {
     }
+}
 ```
 
 Table and column names are derived from class name and parameters, but can be customized by providing additional parameters to attributes.
@@ -87,7 +100,7 @@ Table and column names are derived from class name and parameters, but can be cu
 #[Entity(table: 'users')]
 final class User
 {
-    #[Column(type: Type::String, name: 'lastest_name')]
+    #[Column(type: Type::String, name: 'my_last_name_column')]
     public string $lastName;
 }
 ```
@@ -219,7 +232,7 @@ You can also use `where` method with nested conditions by passing function.
 $user = $queryProvider->select(User::class)
     ->where(['id' => 1])
     ->where(function (Where $where) {
-        $where->where(['first_name' => 'John']);
+        $where->where(['first_name' => 'John'])
             ->orWhere(['last_name' => 'Doe']);
     })
     ->fetchOne();
