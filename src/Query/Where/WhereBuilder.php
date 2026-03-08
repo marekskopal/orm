@@ -34,7 +34,7 @@ class WhereBuilder
     public function where(array|callable $params): self
     {
         if (is_callable($params)) {
-            /** @var WhereBuilderCallable $params */
+            /** @phpstan-var WhereBuilderCallable $params */
             $this->where[] = $params(new WhereBuilder($this->select));
             return $this;
         }
@@ -49,23 +49,23 @@ class WhereBuilder
             && is_string($params[1] ?? null)
             && !is_null($params[2] ?? null)
         ) {
-            /** @var WhereParams $params */
+            /** @phpstan-var WhereParams $params */
             $this->where[] = $params;
             return $this;
         }
 
-        /** @var WhereList|WhereListParams $params */
+        /** @phpstan-var WhereList|WhereListParams $params */
         foreach ($params as $column => $param) {
             if (is_array($param)) {
-                /** @var WhereParams $param */
+                /** @phpstan-var WhereParams $param */
 
                 $this->where[] = $param;
                 continue;
             }
 
             /**
-             * @var string $column
-             * @var WhereValues $param
+             * @phpstan-var string $column
+             * @phpstan-var WhereValues $param
              * @phpstan-ignore-next-line varTag.nativeType
              */
             $this->where[] = [$column, '=', $param];

@@ -12,6 +12,7 @@ use MarekSkopal\ORM\Mapper\MapperInterface;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Column
 {
+    // phpcs:disable
     public Type $type {
         get {
             return $this->type;
@@ -23,12 +24,14 @@ class Column
             $this->type = $value;
         }
     }
+    // phpcs:enable
 
     /**
      * @param class-string<BackedEnum>|null $enum
      * @param class-string<MapperInterface>|null $extension
      * @param array<string, mixed> $extensionOptions
      */
+    // phpcs:ignore Squiz.PHP.NonExecutableCode.Unreachable
     public function __construct(
         Type|string $type,
         public ?string $name = null,

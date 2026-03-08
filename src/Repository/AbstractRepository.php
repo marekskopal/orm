@@ -199,14 +199,20 @@ abstract class AbstractRepository implements RepositoryInterface
         $pdo = $database->getPdo();
         $q = $database->getIdentifierQuoteChar();
 
-        $pdo->prepare("DELETE FROM {$q}{$joinTable}{$q} WHERE {$q}{$joinColumn}{$q} = ?")->execute([$entityId]);
+        $pdo->prepare(sprintf('DELETE FROM %1$s%2$s%1$s WHERE %1$s%3$s%1$s = ?', $q, $joinTable, $joinColumn))->execute([$entityId]);
 
         // @phpstan-ignore-next-line property.dynamicName
         foreach ($entity->{$columnSchema->propertyName} as $related) {
             // @phpstan-ignore-next-line property.dynamicName
             $relatedId = $related->{$relatedPk->propertyName};
             $pdo->prepare(
-                "INSERT INTO {$q}{$joinTable}{$q} ({$q}{$joinColumn}{$q}, {$q}{$inverseJoinColumn}{$q}) VALUES (?, ?)",
+                sprintf(
+                    'INSERT INTO %1$s%2$s%1$s (%1$s%3$s%1$s, %1$s%4$s%1$s) VALUES (?, ?)',
+                    $q,
+                    $joinTable,
+                    $joinColumn,
+                    $inverseJoinColumn,
+                ),
             )->execute([$entityId, $relatedId]);
         }
     }
@@ -223,6 +229,8 @@ abstract class AbstractRepository implements RepositoryInterface
         $database = $this->queryProvider->getDatabase();
         $q = $database->getIdentifierQuoteChar();
 
-        $database->getPdo()->prepare("DELETE FROM {$q}{$joinTable}{$q} WHERE {$q}{$joinColumn}{$q} = ?")->execute([$entityId]);
+        $database->getPdo()->prepare(sprintf('DELETE FROM %1$s%2$s%1$s WHERE %1$s%3$s%1$s = ?', $q, $joinTable, $joinColumn))->execute(
+            [$entityId],
+        );
     }
 }

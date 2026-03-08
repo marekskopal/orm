@@ -38,23 +38,23 @@ class ColumnSchemaFactory
                 /** @var ReflectionAttribute<ForeignKey>|null $foreignKeyAttribute */
                 $foreignKeyAttribute = $reflectionProperty->getAttributes(ForeignKey::class)[0] ?? null;
 
-                /** @var ReflectionAttribute<Column> $attribute */
+                /** @phpstan-var ReflectionAttribute<Column> $attribute */
                 return $this->createFromColumnAttribute($attribute, $reflectionProperty, $columnCase, $foreignKeyAttribute);
             }
             if ($attributeInstance instanceof ManyToOne) {
-                /** @var ReflectionAttribute<ManyToOne> $attribute */
+                /** @phpstan-var ReflectionAttribute<ManyToOne> $attribute */
                 return $this->createFromManyToOneAttribute($attribute, $reflectionProperty, $columnCase);
             }
             if ($attributeInstance instanceof OneToMany) {
-                /** @var ReflectionAttribute<OneToMany> $attribute */
+                /** @phpstan-var ReflectionAttribute<OneToMany> $attribute */
                 return $this->createFromOneToManyAttribute($attribute, $reflectionProperty, $columnCase);
             }
             if ($attributeInstance instanceof OneToOne) {
-                /** @var ReflectionAttribute<OneToOne> $attribute */
+                /** @phpstan-var ReflectionAttribute<OneToOne> $attribute */
                 return $this->createFromOneToOneAttribute($attribute, $reflectionProperty, $columnCase);
             }
             if ($attributeInstance instanceof ManyToMany) {
-                /** @var ReflectionAttribute<ManyToMany> $attribute */
+                /** @phpstan-var ReflectionAttribute<ManyToMany> $attribute */
                 return $this->createFromManyToManyAttribute($attribute, $reflectionProperty, $columnCase);
             }
         }

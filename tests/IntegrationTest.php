@@ -342,6 +342,7 @@ final class IntegrationTest extends TestCase
                 throw new \RuntimeException('Something went wrong');
             });
         } catch (\RuntimeException) {
+            // Expected exception, transaction should have been rolled back
         }
 
         $users = iterator_to_array($repository->findAll());

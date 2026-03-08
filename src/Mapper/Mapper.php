@@ -227,7 +227,13 @@ class Mapper implements MapperInterface
             function (Collection $object) use ($entityClass, $joinTable, $joinColumn, $inverseJoinColumn, $value): void {
                 $q = $this->database->getIdentifierQuoteChar();
                 $stmt = $this->database->getPdo()->prepare(
-                    "SELECT {$q}{$inverseJoinColumn}{$q} FROM {$q}{$joinTable}{$q} WHERE {$q}{$joinColumn}{$q} = ?",
+                    sprintf(
+                        'SELECT %1$s%2$s%1$s FROM %1$s%3$s%1$s WHERE %1$s%4$s%1$s = ?',
+                        $q,
+                        $inverseJoinColumn,
+                        $joinTable,
+                        $joinColumn,
+                    ),
                 );
                 $stmt->execute([$value]);
                 /** @var list<int> $ids */
@@ -270,7 +276,7 @@ class Mapper implements MapperInterface
 
             $q = $this->database->getIdentifierQuoteChar();
             $stmt = $this->database->getPdo()->prepare(
-                "SELECT {$q}{$joinColumn}{$q} FROM {$q}{$joinTable}{$q} WHERE {$q}{$inverseJoinColumn}{$q} = ?",
+                sprintf('SELECT %1$s%2$s%1$s FROM %1$s%3$s%1$s WHERE %1$s%4$s%1$s = ?', $q, $joinColumn, $joinTable, $inverseJoinColumn),
             );
             $stmt->execute([$value]);
             /** @var list<int> $ids */

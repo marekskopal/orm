@@ -107,15 +107,9 @@ class Insert extends AbstractQuery
 
     private function getValuesQuery(): string
     {
-        $entitiesQuery = [];
-        foreach ($this->entities as $entity) {
-            $entitiesQuery[] = '(' . implode(
-                ',',
-                array_map(fn(ColumnSchema $column): string => '?', $this->schema->getInsertableColumns()),
-            ) . ')';
-        }
+        $placeholder = '(' . implode(',', array_map(fn(ColumnSchema $column): string => '?', $this->schema->getInsertableColumns())) . ')';
 
-        return 'VALUES ' . implode(',', $entitiesQuery);
+        return 'VALUES ' . implode(',', array_fill(0, count($this->entities), $placeholder));
     }
 
     /** @return list<string|int|float|null> */
