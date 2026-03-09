@@ -54,7 +54,8 @@ class EntitySchemaFactory
 
     private function getTableAlias(string $table): string
     {
-        for ($i = 0; $i < strlen($table); $i++) {
+        $length = strlen($table);
+        for ($i = 0; $i < $length; $i++) {
             $alias = substr($table, 0, $i + 1);
 
             if (!isset($this->tableAliases[$alias])) {

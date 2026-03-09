@@ -9,6 +9,17 @@ use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 
 readonly class EntitySchema
 {
+    public ?ColumnSchema $primaryColumn;
+
+    /** @var array<string, ColumnSchema> */
+    public array $selectableColumns;
+
+    /** @var array<string, ColumnSchema> */
+    public array $insertableColumns;
+
+    /** @var array<string, ColumnSchema> */
+    public array $columnsByColumnName;
+
     /**
      * @template T of object
      * @param class-string<T> $entityClass
@@ -21,31 +32,17 @@ readonly class EntitySchema
         public string $table,
         public string $tableAlias,
         public array $columns,
-    )
-    {
-    }
+    ) {
+        $this->primaryColumn = array_find($this->columns, fn(ColumnSchema $column): bool => $column->isPrimary);
 
-    public function getPrimaryColumn(): ColumnSchema
-    {
-        return array_find($this->columns, fn(ColumnSchema $column): bool => $column->isPrimary)
-            ?? throw new \InvalidArgumentException('Primary column schema not found.');
-    }
-
-    /** @return array<string, ColumnSchema> */
-    public function getSelectableColumns(): array
-    {
-        return array_filter(
+        $this->selectableColumns = array_filter(
             $this->columns,
             fn(ColumnSchema $column): bool => $column->relationType === null
                 || $column->relationType === RelationEnum::ManyToOne
                 || $column->relationType === RelationEnum::OneToOne,
         );
-    }
 
-    /** @return array<string, ColumnSchema> */
-    public function getInsertableColumns(): array
-    {
-        return array_filter(
+        $this->insertableColumns = array_filter(
             $this->columns,
             fn(ColumnSchema $column): bool => !$column->isPrimary && (
                 $column->relationType === null
@@ -53,6 +50,29 @@ readonly class EntitySchema
                 || $column->relationType === RelationEnum::OneToOne
             ),
         );
+
+        $columnsByColumnName = [];
+        foreach ($this->columns as $column) {
+            $columnsByColumnName[$column->columnName] = $column;
+        }
+        $this->columnsByColumnName = $columnsByColumnName;
+    }
+
+    public function getPrimaryColumn(): ColumnSchema
+    {
+        return $this->primaryColumn ?? throw new \InvalidArgumentException('Primary column schema not found.');
+    }
+
+    /** @return array<string, ColumnSchema> */
+    public function getSelectableColumns(): array
+    {
+        return $this->selectableColumns;
+    }
+
+    /** @return array<string, ColumnSchema> */
+    public function getInsertableColumns(): array
+    {
+        return $this->insertableColumns;
     }
 
     public function getColumnByPropertyName(string $propertyName): ColumnSchema
@@ -64,7 +84,7 @@ readonly class EntitySchema
 
     public function getColumnByColumnName(string $columnName): ColumnSchema
     {
-        return array_find($this->columns, fn($column) => $column->columnName === $columnName) ?? throw new \InvalidArgumentException(
+        return $this->columnsByColumnName[$columnName] ?? throw new \InvalidArgumentException(
             sprintf('Column schema for column "%s" not found.', $columnName),
         );
     }

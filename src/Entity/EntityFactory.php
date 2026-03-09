@@ -26,15 +26,16 @@ class EntityFactory
      */
     public function create(string $entityClass, array $values): object
     {
+        $entitySchema = $this->schemaProvider->getEntitySchema($entityClass);
+        $primaryColumnName = $entitySchema->getPrimaryColumn()->columnName;
+
         /** @var int $primaryValue */
-        $primaryValue = $values[$this->schemaProvider->getPrimaryColumnSchema($entityClass)->columnName];
+        $primaryValue = $values[$primaryColumnName];
 
         $entity = $this->entityCache->getEntity($entityClass, $primaryValue);
         if ($entity !== null) {
             return $entity;
         }
-
-        $entitySchema = $this->schemaProvider->getEntitySchema($entityClass);
 
         $constructorParameters = $this->entityReflection->getConstructorParameters($entityClass);
 
@@ -43,7 +44,7 @@ class EntityFactory
             $columnSchema = $entitySchema->columns[$parameter->getName()];
             $value = $this->isVirtualRelation(
                 $columnSchema->relationType,
-            ) ? $values[$entitySchema->getPrimaryColumn()->columnName] : $values[$columnSchema->columnName] ?? null;
+            ) ? $values[$primaryColumnName] : $values[$columnSchema->columnName] ?? null;
 
             $properties[] = $this->mapper->mapToProperty($entitySchema, $columnSchema, $value);
         }
@@ -55,7 +56,7 @@ class EntityFactory
             $columnSchema = $entitySchema->columns[$property->getName()];
             $value = $this->isVirtualRelation(
                 $columnSchema->relationType,
-            ) ? $values[$entitySchema->getPrimaryColumn()->columnName] : $values[$columnSchema->columnName] ?? null;
+            ) ? $values[$primaryColumnName] : $values[$columnSchema->columnName] ?? null;
 
             // @phpstan-ignore-next-line property.dynamicName
             $entity->{$property->getName()} = $this->mapper->mapToProperty($entitySchema, $columnSchema, $value);

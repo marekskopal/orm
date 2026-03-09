@@ -30,6 +30,9 @@ class Mapper implements MapperInterface
     /** @var Closure(): QueryProvider */
     private readonly Closure $queryProviderFactory;
 
+    /** @var array<class-string, ReflectionClass<object>> */
+    private array $reflectionCache = [];
+
     /** @param Closure(): QueryProvider $queryProviderFactory */
     public function __construct(
         private readonly SchemaProvider $schemaProvider,
@@ -44,6 +47,18 @@ class Mapper implements MapperInterface
     private function getQueryProvider(): QueryProvider
     {
         return ($this->queryProviderFactory)();
+    }
+
+    /**
+     * @template T of object
+     * @param class-string<T> $class
+     * @return ReflectionClass<T>
+     */
+    private function getReflectionClass(string $class): ReflectionClass
+    {
+        /** @var ReflectionClass<T> $reflectionClass */
+        $reflectionClass = $this->reflectionCache[$class] ??= new ReflectionClass($class);
+        return $reflectionClass;
     }
 
     public function mapToProperty(
@@ -140,7 +155,7 @@ class Mapper implements MapperInterface
      */
     private function mapRelationOneToManyToProperty(string $entityClass, string $columnName, int $value): Iterator
     {
-        $reflector = new ReflectionClass(Collection::class);
+        $reflector = $this->getReflectionClass(Collection::class);
         /** @var Collection<T> $lazyCollection */
         $lazyCollection = $reflector->newLazyGhost(function (Collection $object) use ($entityClass, $columnName, $value): void {
             // @phpstan-ignore-next-line constructor.call
@@ -163,7 +178,7 @@ class Mapper implements MapperInterface
             return $entity;
         }
 
-        $reflector = new ReflectionClass($entityClass);
+        $reflector = $this->getReflectionClass($entityClass);
 
         /** @var T $entity */
         $entity = $reflector->newLazyProxy(function (object $object) use ($entityClass, $value): object {
@@ -196,7 +211,7 @@ class Mapper implements MapperInterface
         $owningColumnSchema = $this->schemaProvider->getEntitySchema($relationEntityClass)->getColumnByPropertyName($mappedBy);
         $fkColumnName = $owningColumnSchema->columnName;
 
-        $reflector = new ReflectionClass($relationEntityClass);
+        $reflector = $this->getReflectionClass($relationEntityClass);
 
         /** @var object $proxy */
         $proxy = $reflector->newLazyProxy(function (object $object) use ($relationEntityClass, $fkColumnName, $value): object {
@@ -221,7 +236,7 @@ class Mapper implements MapperInterface
         $joinColumn = $columnSchema->joinColumn ?? throw new \RuntimeException('joinColumn not found on ManyToMany');
         $inverseJoinColumn = $columnSchema->inverseJoinColumn ?? throw new \RuntimeException('inverseJoinColumn not found on ManyToMany');
 
-        $reflector = new ReflectionClass(Collection::class);
+        $reflector = $this->getReflectionClass(Collection::class);
         /** @var Collection<object> $lazyCollection */
         $lazyCollection = $reflector->newLazyGhost(
             function (Collection $object) use ($entityClass, $joinTable, $joinColumn, $inverseJoinColumn, $value): void {
@@ -264,7 +279,7 @@ class Mapper implements MapperInterface
         $entityClass = $columnSchema->relationEntityClass ?? throw new \RuntimeException('Relation entity class not found');
         $mappedBy = $columnSchema->mappedBy ?? throw new \RuntimeException('mappedBy not found on ManyToManyInverse');
 
-        $reflector = new ReflectionClass(Collection::class);
+        $reflector = $this->getReflectionClass(Collection::class);
         /** @var Collection<object> $lazyCollection */
         $lazyCollection = $reflector->newLazyGhost(function (Collection $object) use ($entityClass, $mappedBy, $value): void {
             $owningColumnSchema = $this->schemaProvider->getEntitySchema($entityClass)->getColumnByPropertyName($mappedBy);

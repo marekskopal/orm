@@ -116,12 +116,12 @@ class Insert extends AbstractQuery
     private function getValues(): array
     {
         $values = [];
+        $insertableColumns = $this->schema->getInsertableColumns();
         foreach ($this->entities as $entity) {
-            $values = array_merge($values, array_values(array_map(
+            foreach ($insertableColumns as $column) {
                 // @phpstan-ignore-next-line argument.type property.dynamicName
-                fn(ColumnSchema $column): string|int|float|null => $this->mapper->mapToColumn($column, $entity->{$column->propertyName}),
-                $this->schema->getInsertableColumns(),
-            )));
+                $values[] = $this->mapper->mapToColumn($column, $entity->{$column->propertyName});
+            }
         }
 
         return $values;
