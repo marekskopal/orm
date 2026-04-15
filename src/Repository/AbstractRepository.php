@@ -57,19 +57,29 @@ abstract class AbstractRepository implements RepositoryInterface
     {
         $entitySchema = $this->schemaProvider->getEntitySchema($entity::class);
 
-        // Cascade persist owning-side relations before the entity (so their PKs are available for FK columns)
+        $owningRelations = [];
+        $collectionRelations = [];
         foreach ($entitySchema->columns as $columnSchema) {
             if (!in_array(CascadeEnum::Persist, $columnSchema->cascade, true)) {
                 continue;
             }
 
             if (
-                $columnSchema->relationType !== RelationEnum::ManyToOne
-                && $columnSchema->relationType !== RelationEnum::OneToOne
+                $columnSchema->relationType === RelationEnum::ManyToOne
+                || $columnSchema->relationType === RelationEnum::OneToOne
             ) {
-                continue;
+                $owningRelations[] = $columnSchema;
+            } elseif (
+                $columnSchema->relationType === RelationEnum::OneToMany
+                || $columnSchema->relationType === RelationEnum::OneToOneInverse
+                || $columnSchema->relationType === RelationEnum::ManyToMany
+            ) {
+                $collectionRelations[] = $columnSchema;
             }
+        }
 
+        // Cascade persist owning-side relations before the entity (so their PKs are available for FK columns)
+        foreach ($owningRelations as $columnSchema) {
             // @phpstan-ignore-next-line property.dynamicName
             $related = $entity->{$columnSchema->propertyName};
             if ($related === null) {
@@ -90,19 +100,7 @@ abstract class AbstractRepository implements RepositoryInterface
         }
 
         // Cascade persist collection-side relations after the entity (entity PK is now available)
-        foreach ($entitySchema->columns as $columnSchema) {
-            if (!in_array(CascadeEnum::Persist, $columnSchema->cascade, true)) {
-                continue;
-            }
-
-            if ($columnSchema->relationType === RelationEnum::OneToMany) {
-                // @phpstan-ignore-next-line property.dynamicName
-                foreach ($entity->{$columnSchema->propertyName} as $related) {
-                    // @phpstan-ignore-next-line argument.type
-                    $this->persistEntity($related);
-                }
-            }
-
+        foreach ($collectionRelations as $columnSchema) {
             if ($columnSchema->relationType === RelationEnum::OneToOneInverse) {
                 // @phpstan-ignore-next-line property.dynamicName
                 $related = $entity->{$columnSchema->propertyName};
@@ -110,9 +108,6 @@ abstract class AbstractRepository implements RepositoryInterface
                     // @phpstan-ignore-next-line argument.type
                     $this->persistEntity($related);
                 }
-            }
-
-            if ($columnSchema->relationType !== RelationEnum::ManyToMany) {
                 continue;
             }
 
@@ -122,7 +117,9 @@ abstract class AbstractRepository implements RepositoryInterface
                 $this->persistEntity($related);
             }
 
-            $this->syncManyToManyJoinTable($entity, $columnSchema);
+            if ($columnSchema->relationType === RelationEnum::ManyToMany) {
+                $this->syncManyToManyJoinTable($entity, $columnSchema);
+            }
         }
     }
 
