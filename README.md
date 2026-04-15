@@ -337,6 +337,29 @@ $user = $queryProvider->select(User::class)
     ->fetchOne();
 ```
 
+#### Eager loading relations (`with`)
+
+By default, `ManyToOne` and `OneToOne` relations are loaded lazily — accessing the relation property triggers a query the first time. When iterating result sets that traverse such relations, this leads to N+1 queries (one extra query per row).
+
+Use `with()` to eager-load related entities in a single batched `WHERE id IN (...)` query, regardless of how many parent rows you have.
+
+```php
+// Without with(): 1 query for users + N queries (one per user) when accessing $user->address
+$users = $queryProvider->select(User::class)->fetchAll();
+
+// With with(): 1 query for users + 1 batched query for all distinct addresses
+$users = $queryProvider->select(User::class)
+    ->with('address')
+    ->fetchAll();
+
+// Multiple relations can be eager-loaded at once
+$users = $queryProvider->select(User::class)
+    ->with('address', 'profile')
+    ->fetchAll();
+```
+
+Eager loading is currently supported for `ManyToOne` and `OneToOne` relations.
+
 ### Insert
 
 You can insert entities using `Insert` builder.
