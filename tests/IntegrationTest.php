@@ -174,6 +174,49 @@ final class IntegrationTest extends TestCase
         self::assertEquals(1, $address->id);
     }
 
+    public function testSelectWithEagerLoadsManyToOne(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_users_with_address.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(UserWithAddressFixture::class);
+
+        $orm->getEntityCache()->clear();
+        $users = iterator_to_array(
+            $repository->select()->with('address')->fetchAll(),
+        );
+        self::assertCount(2, $users);
+
+        // Eager loading must populate EntityCache before per-entity hydration,
+        // so the related Address is the cached real entity (not a lazy proxy).
+        $cachedAddress1 = $orm->getEntityCache()->getEntity(AddressWithUsersFixture::class, 1);
+        $cachedAddress2 = $orm->getEntityCache()->getEntity(AddressWithUsersFixture::class, 2);
+        self::assertInstanceOf(AddressWithUsersFixture::class, $cachedAddress1);
+        self::assertInstanceOf(AddressWithUsersFixture::class, $cachedAddress2);
+        self::assertSame($cachedAddress1, $users[0]->address);
+        self::assertSame($cachedAddress2, $users[1]->address);
+        self::assertSame('Springfield', $users[0]->address->city);
+        self::assertSame('Shelbyville', $users[1]->address->city);
+    }
+
     public function testSelectEntityRelationOneToMany(): void
     {
         $database = new SqliteDatabase(':memory:');

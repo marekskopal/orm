@@ -13,6 +13,7 @@ use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use PDO;
 use PDOStatement;
@@ -40,6 +41,9 @@ class Select extends AbstractQuery
 
     /** @var array<string, Join> */
     private array $joins = [];
+
+    /** @var list<string> */
+    private array $with = [];
 
     /** @param class-string<T> $entityClass */
     public function __construct(
@@ -135,6 +139,20 @@ class Select extends AbstractQuery
         return $this;
     }
 
+    /**
+     * Eager-load ManyToOne / OneToOne relations to avoid N+1 queries.
+     *
+     * @return Select<T>
+     */
+    public function with(string ...$propertyNames): self
+    {
+        foreach ($propertyNames as $propertyName) {
+            $this->with[] = $propertyName;
+        }
+
+        return $this;
+    }
+
     /** @return T|null */
     public function fetchOne(): ?object
     {
@@ -146,8 +164,19 @@ class Select extends AbstractQuery
     /** @return Iterator<T> */
     public function fetchAll(): Iterator
     {
-        $query = $this->query();
-        while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
+        if ($this->with === []) {
+            $query = $this->query();
+            while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
+                // @phpstan-ignore-next-line argument.type
+                yield $this->entityFactory->create($this->entityClass, $row);
+            }
+            return;
+        }
+
+        /** @var list<array<string, float|int|string|null>> $rows */
+        $rows = $this->query()->fetchAll(PDO::FETCH_ASSOC);
+        $this->preloadWith($rows);
+        foreach ($rows as $row) {
             // @phpstan-ignore-next-line argument.type
             yield $this->entityFactory->create($this->entityClass, $row);
         }
@@ -246,6 +275,55 @@ class Select extends AbstractQuery
         $relationColumnSchema = $relationEntitySchema->getColumnByColumnName($parts[$partsCount - 1]);
 
         return $this->escape($relationEntitySchema->tableAlias) . '.' . $this->escape($relationColumnSchema->columnName);
+    }
+
+    /** @param list<array<string, float|int|string|null>> $rows */
+    private function preloadWith(array $rows): void
+    {
+        if ($rows === []) {
+            return;
+        }
+
+        foreach ($this->with as $propertyName) {
+            $columnSchema = $this->schema->getColumnByPropertyName($propertyName);
+
+            if (
+                $columnSchema->relationType !== RelationEnum::ManyToOne
+                && $columnSchema->relationType !== RelationEnum::OneToOne
+            ) {
+                throw new \InvalidArgumentException(
+                    sprintf(
+                        'Eager loading via with() is currently supported only for ManyToOne and OneToOne relations; property "%s" is not eligible.',
+                        $propertyName,
+                    ),
+                );
+            }
+
+            $relationEntityClass = $columnSchema->relationEntityClass
+                ?? throw new \RuntimeException('Relation entity class not found');
+
+            $columnName = $columnSchema->columnName;
+            $ids = [];
+            foreach ($rows as $row) {
+                $value = $row[$columnName] ?? null;
+                if ($value === null) {
+                    continue;
+                }
+                $ids[(int) $value] = true;
+            }
+
+            if ($ids === []) {
+                continue;
+            }
+
+            $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($relationEntityClass);
+            $relationSchema = $this->schemaProvider->getEntitySchema($relationEntityClass);
+
+            $select = new Select($this->database, $relationEntityClass, $relationSchema, $this->entityFactory, $this->schemaProvider);
+            // Materialize the iterator to populate EntityCache; subsequent ManyToOne/OneToOne
+            // lookups during hydration will hit the cache and skip per-row queries.
+            iterator_to_array($select->where([$primaryColumnSchema->columnName, 'IN', array_keys($ids)])->fetchAll());
+        }
     }
 
     private function query(): PDOStatement
