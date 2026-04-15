@@ -201,19 +201,21 @@ abstract class AbstractRepository implements RepositoryInterface
 
         $pdo->prepare(sprintf('DELETE FROM %1$s%2$s%1$s WHERE %1$s%3$s%1$s = ?', $q, $joinTable, $joinColumn))->execute([$entityId]);
 
+        $insertStatement = $pdo->prepare(
+            sprintf(
+                'INSERT INTO %1$s%2$s%1$s (%1$s%3$s%1$s, %1$s%4$s%1$s) VALUES (?, ?)',
+                $q,
+                $joinTable,
+                $joinColumn,
+                $inverseJoinColumn,
+            ),
+        );
+
         // @phpstan-ignore-next-line property.dynamicName
         foreach ($entity->{$columnSchema->propertyName} as $related) {
             // @phpstan-ignore-next-line property.dynamicName
             $relatedId = $related->{$relatedPk->propertyName};
-            $pdo->prepare(
-                sprintf(
-                    'INSERT INTO %1$s%2$s%1$s (%1$s%3$s%1$s, %1$s%4$s%1$s) VALUES (?, ?)',
-                    $q,
-                    $joinTable,
-                    $joinColumn,
-                    $inverseJoinColumn,
-                ),
-            )->execute([$entityId, $relatedId]);
+            $insertStatement->execute([$entityId, $relatedId]);
         }
     }
 
