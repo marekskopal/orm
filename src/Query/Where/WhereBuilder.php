@@ -101,10 +101,10 @@ class WhereBuilder
     /** @return list<scalar> */
     public function getParams(): array
     {
-        return array_merge(
-            $this->getParamsValues($this->where),
-            $this->getParamsValues($this->orWhere),
-        );
+        $values = [];
+        $this->collectParamsValues($this->where, $values);
+        $this->collectParamsValues($this->orWhere, $values);
+        return $values;
     }
 
     /** @param list<WhereParams|WhereBuilder> $where */
@@ -150,29 +150,26 @@ class WhereBuilder
 
     /**
      * @param list<WhereParams|WhereBuilder> $params
-     * @return list<scalar>
+     * @param list<scalar> $values
+     * @param-out list<scalar> $values
      */
-    private function getParamsValues(array $params): array
+    private function collectParamsValues(array $params, array &$values): void
     {
-        $values = [];
-
         foreach ($params as $condition) {
             if ($condition instanceof WhereBuilder) {
-                $values = array_merge($values, $condition->getParams());
+                array_push($values, ...$condition->getParams());
                 continue;
             }
 
             $conditionValue = $this->getScalarParamsValues($condition[2]);
 
             if (is_array($conditionValue)) {
-                $values = array_merge($values, array_values($conditionValue));
+                array_push($values, ...array_values($conditionValue));
                 continue;
             }
 
             $values[] = $conditionValue;
         }
-
-        return $values;
     }
 
     /**
