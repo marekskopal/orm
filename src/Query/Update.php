@@ -86,17 +86,17 @@ class Update extends AbstractQuery
     {
         $primaryColumnSchema = $this->schema->getPrimaryColumn();
 
-        return array_merge(
-            // @phpstan-ignore-next-line property.dynamicName
-            [$primaryColumnSchema->propertyName => (int) $this->entity->{$primaryColumnSchema->propertyName}],
-            array_map(
-                fn(ColumnSchema $column): string|int|float|null => $this->mapper->mapToColumn(
-                    $column,
-                    // @phpstan-ignore-next-line argument.type property.dynamicName
-                    $this->entity->{$column->propertyName},
-                ),
-                $this->schema->getInsertableColumns(),
+        $values = array_map(
+            fn(ColumnSchema $column): string|int|float|null => $this->mapper->mapToColumn(
+                $column,
+                // @phpstan-ignore-next-line argument.type property.dynamicName
+                $this->entity->{$column->propertyName},
             ),
+            $this->schema->getInsertableColumns(),
         );
+        // @phpstan-ignore-next-line property.dynamicName
+        $values[$primaryColumnSchema->propertyName] = (int) $this->entity->{$primaryColumnSchema->propertyName};
+
+        return $values;
     }
 }
