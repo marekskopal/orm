@@ -10,6 +10,7 @@ use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use PDO;
+use PDOStatement;
 
 /** @template T of object */
 class Insert extends AbstractQuery
@@ -40,14 +41,8 @@ class Insert extends AbstractQuery
             throw new \LogicException('No entities to insert');
         }
 
-        $primaryColumnSchema = $this->schema->getPrimaryColumn();
-
-        if ($this->database->getInsertReturningClause($primaryColumnSchema->columnName) !== '') {
-            $this->executeWithReturning($primaryColumnSchema);
-            return;
-        }
-
-        $this->executePerRow($primaryColumnSchema);
+        $statement = $this->query();
+        $this->updateId($statement);
     }
 
     public function getSql(): string
@@ -56,16 +51,11 @@ class Insert extends AbstractQuery
             throw new \LogicException('No entities to insert');
         }
 
-        return $this->buildSql(count($this->entities));
-    }
-
-    private function buildSql(int $rowsCount): string
-    {
         $parts = [
             'INSERT INTO',
             $this->escape($this->schema->table),
             '(' . implode(',', $this->getColumns()) . ')',
-            $this->getValuesQuery($rowsCount),
+            $this->getValuesQuery(),
         ];
 
         $returningClause = $this->database->getInsertReturningClause($this->schema->getPrimaryColumn()->columnName);
@@ -76,44 +66,42 @@ class Insert extends AbstractQuery
         return implode(' ', $parts);
     }
 
-    private function executeWithReturning(ColumnSchema $primaryColumnSchema): void
+    private function query(): PDOStatement
     {
         try {
             $sql = $this->getSql();
             $pdoStatement = $this->pdo->prepare($sql);
             $pdoStatement->execute($this->getValues());
+            return $pdoStatement;
         } catch (\PDOException $e) {
             throw ExceptionFactory::create($e, $sql);
-        }
-
-        /** @var list<array<string, mixed>> $rows */
-        $rows = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($this->entities as $i => $entity) {
-            // @phpstan-ignore-next-line property.dynamicName
-            $entity->{$primaryColumnSchema->propertyName} = (int) $rows[$i][$primaryColumnSchema->columnName];
         }
     }
 
-    /**
-     * Without a RETURNING clause there is no reliable way to map database-generated
-     * ids back to entities in a multi-row insert (auto-increment values are not
-     * guaranteed to be contiguous), so each entity is inserted by its own statement
-     * and its id read back via lastInsertId().
-     */
-    private function executePerRow(ColumnSchema $primaryColumnSchema): void
+    private function updateId(PDOStatement $statement): void
     {
-        $sql = $this->buildSql(1);
+        $primaryColumnSchema = $this->schema->getPrimaryColumn();
 
-        try {
-            $pdoStatement = $this->pdo->prepare($sql);
-
-            foreach ($this->entities as $entity) {
-                $pdoStatement->execute($this->getEntityValues($entity));
+        if ($this->database->getInsertReturningClause($primaryColumnSchema->columnName) !== '') {
+            /** @var list<array<string, mixed>> $rows */
+            $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($this->entities as $i => $entity) {
                 // @phpstan-ignore-next-line property.dynamicName
-                $entity->{$primaryColumnSchema->propertyName} = (int) $this->pdo->lastInsertId();
+                $entity->{$primaryColumnSchema->propertyName} = (int) $rows[$i][$primaryColumnSchema->columnName];
             }
-        } catch (\PDOException $e) {
-            throw ExceptionFactory::create($e, $sql);
+
+            return;
+        }
+
+        // Without RETURNING (MySQL), ids are derived as lastInsertId() + row offset.
+        // MySQL's lastInsertId() returns the id of the FIRST row of a multi-row insert,
+        // and allocation within one statement is consecutive with
+        // innodb_autoinc_lock_mode 0 or 1. With lock mode 2 (the MySQL 8 default)
+        // consecutiveness is not guaranteed under concurrent insert load — see README.
+        $firstInsertId = (int) $this->pdo->lastInsertId();
+        foreach ($this->entities as $i => $entity) {
+            // @phpstan-ignore-next-line property.dynamicName
+            $entity->{$primaryColumnSchema->propertyName} = $firstInsertId + $i;
         }
     }
 
@@ -126,11 +114,11 @@ class Insert extends AbstractQuery
         );
     }
 
-    private function getValuesQuery(int $rowsCount): string
+    private function getValuesQuery(): string
     {
         $placeholder = '(' . implode(',', array_map(fn(ColumnSchema $column): string => '?', $this->schema->getInsertableColumns())) . ')';
 
-        return 'VALUES ' . implode(',', array_fill(0, $rowsCount, $placeholder));
+        return 'VALUES ' . implode(',', array_fill(0, count($this->entities), $placeholder));
     }
 
     /** @return list<string|int|float|null> */

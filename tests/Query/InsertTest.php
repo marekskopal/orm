@@ -16,6 +16,7 @@ use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
 use MarekSkopal\ORM\Utils\NameUtils;
 use MarekSkopal\ORM\Utils\QuoteUtils;
 use PDO;
+use PDOStatement;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
@@ -108,26 +109,30 @@ final class InsertTest extends TestCase
         self::assertSame('b@example.com', $this->fetchEmail($pdo, 2));
     }
 
-    public function testExecutePerRowAssignsIds(): void
+    public function testExecuteWithoutReturningAssignsIdsFromLastInsertId(): void
     {
-        $pdo = $this->createSqlitePdo();
-        $insert = $this->createSqliteInsert($pdo, returningClause: '');
+        // MySQL semantics: lastInsertId() returns the id of the FIRST row of a
+        // multi-row insert; the remaining ids are derived by row offset.
+        $pdoStatement = $this::createStub(PDOStatement::class);
+        $pdo = $this::createStub(PDO::class);
+        $pdo->method('prepare')->willReturn($pdoStatement);
+        $pdo->method('lastInsertId')->willReturn('10');
 
-        // Create a gap so the assigned ids do not start at 1
-        $pdo->exec(
-            'INSERT INTO users (created_at, first_name, middle_name, last_name, email, is_active, type)'
-            . " VALUES ('2024-01-01 00:00:00', 'X', NULL, 'Y', 'x@example.com', 1, 'admin')",
-        );
-        $pdo->exec('DELETE FROM users WHERE id=1');
+        $database = $this::createStub(DatabaseInterface::class);
+        $database->method('getPdo')->willReturn($pdo);
+        $database->method('getIdentifierQuoteChar')->willReturn('`');
+        $database->method('getInsertReturningClause')->willReturn('');
+
+        $mapper = $this::createStub(Mapper::class);
+
+        $insert = new Insert($database, UserFixture::class, EntitySchemaFixture::create(), $mapper);
 
         $userA = UserFixture::create(email: 'a@example.com');
         $userB = UserFixture::create(email: 'b@example.com');
         $insert->entity($userA)->entity($userB)->execute();
 
-        self::assertSame(2, $userA->id);
-        self::assertSame(3, $userB->id);
-        self::assertSame('a@example.com', $this->fetchEmail($pdo, 2));
-        self::assertSame('b@example.com', $this->fetchEmail($pdo, 3));
+        self::assertSame(10, $userA->id);
+        self::assertSame(11, $userB->id);
     }
 
     private function fetchEmail(PDO $pdo, int $id): mixed

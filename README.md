@@ -399,6 +399,8 @@ $queryProvider->insert(User::class)
     ->execute();
 ```    
 
+On PostgreSQL and SQLite the generated primary keys are read back via `INSERT ... RETURNING`, so the assigned ids are always exact. MySQL has no `RETURNING`; ids are derived from `lastInsertId()` plus row offset, which relies on auto-increment values within one statement being consecutive. That is guaranteed with `innodb_autoinc_lock_mode` 0 or 1, but **not** with mode 2 (the MySQL 8 default) under concurrent insert load. If you batch-insert on MySQL with lock mode 2 and concurrent writers, either set `innodb_autoinc_lock_mode = 1` or persist entities one at a time.
+
 ### Update
 
 You can update entities using `Update` builder.
