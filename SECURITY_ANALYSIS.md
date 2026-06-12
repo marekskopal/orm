@@ -22,9 +22,9 @@ assumed to be safe in exactly these places, these should be fixed or loudly docu
 | 2 | Identifier quoting does not escape embedded quote characters | High | **Fixed** — `QuoteUtils::quote()` doubles embedded quote chars |
 | 3 | Where-condition operator concatenated into SQL unchecked | High | **Fixed** — operator allowlist in `WhereBuilder` |
 | 4 | MySQL connection: no charset in DSN, emulated prepares left enabled | Medium | **Fixed** — `charset=utf8mb4` in DSN, native prepares |
-| 5 | Batch insert ID assignment via `lastInsertId() + i` (wrong-row writes) | Medium | Open |
-| 6 | Full SQL retained on exceptions (disclosure if surfaced to users) | Low | Open (documentation) |
-| 7 | `LIKE` values: wildcards not escaped | Info | Open (documentation) |
+| 5 | Batch insert ID assignment via `lastInsertId() + i` (wrong-row writes) | Medium | **Fixed** — SQLite uses `RETURNING`; MySQL inserts per row |
+| 6 | Full SQL retained on exceptions (disclosure if surfaced to users) | Low | **Fixed** — documented in README "Security considerations" |
+| 7 | `LIKE` values: wildcards not escaped | Info | **Fixed** — documented in README "Security considerations" |
 
 While fixing finding 4, the tests surfaced an additional pre-existing bug: both
 database drivers merged PDO options with array spread, which re-indexes integer
