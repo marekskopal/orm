@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.1] - 2026-06-12
 
 ### Added
 - `RawExpression` value object for raw SQL fragments in `columns()`, `groupBy()`, `orderBy()`, and the column position of `where()` tuples.
@@ -107,7 +107,7 @@ Initial release.
 - Extension mapper support for custom property mapping.
 - MySQL and SQLite database drivers.
 
-[Unreleased]: https://github.com/marekskopal/orm/compare/v1.1.0...HEAD
+[1.1.1]: https://github.com/marekskopal/orm/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/marekskopal/orm/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/marekskopal/orm/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/marekskopal/orm/compare/v0.9.7...v1.0.0
