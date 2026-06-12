@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Database;
 
+use MarekSkopal\ORM\Utils\QuoteUtils;
 use PDO;
 
 readonly class PostgresDatabase extends AbstractDatabase
@@ -30,8 +31,7 @@ readonly class PostgresDatabase extends AbstractDatabase
 
     public function getInsertReturningClause(string $primaryColumnName): string
     {
-        $q = $this->getIdentifierQuoteChar();
-        return 'RETURNING ' . $q . $primaryColumnName . $q;
+        return 'RETURNING ' . QuoteUtils::quote($primaryColumnName, $this->getIdentifierQuoteChar());
     }
 
     /** @return array<int, mixed> */

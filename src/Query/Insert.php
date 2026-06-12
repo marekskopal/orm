@@ -10,7 +10,6 @@ use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use PDO;
-use PDOStatement;
 
 /** @template T of object */
 class Insert extends AbstractQuery
@@ -37,8 +36,18 @@ class Insert extends AbstractQuery
 
     public function execute(): void
     {
-        $statement = $this->query();
-        $this->updateId($statement);
+        if (count($this->entities) === 0) {
+            throw new \LogicException('No entities to insert');
+        }
+
+        $primaryColumnSchema = $this->schema->getPrimaryColumn();
+
+        if ($this->database->getInsertReturningClause($primaryColumnSchema->columnName) !== '') {
+            $this->executeWithReturning($primaryColumnSchema);
+            return;
+        }
+
+        $this->executePerRow($primaryColumnSchema);
     }
 
     public function getSql(): string
@@ -47,11 +56,16 @@ class Insert extends AbstractQuery
             throw new \LogicException('No entities to insert');
         }
 
+        return $this->buildSql(count($this->entities));
+    }
+
+    private function buildSql(int $rowsCount): string
+    {
         $parts = [
             'INSERT INTO',
             $this->escape($this->schema->table),
             '(' . implode(',', $this->getColumns()) . ')',
-            $this->getValuesQuery(),
+            $this->getValuesQuery($rowsCount),
         ];
 
         $returningClause = $this->database->getInsertReturningClause($this->schema->getPrimaryColumn()->columnName);
@@ -62,37 +76,44 @@ class Insert extends AbstractQuery
         return implode(' ', $parts);
     }
 
-    private function query(): PDOStatement
+    private function executeWithReturning(ColumnSchema $primaryColumnSchema): void
     {
         try {
             $sql = $this->getSql();
             $pdoStatement = $this->pdo->prepare($sql);
             $pdoStatement->execute($this->getValues());
-            return $pdoStatement;
         } catch (\PDOException $e) {
             throw ExceptionFactory::create($e, $sql);
         }
+
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $pdoStatement->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($this->entities as $i => $entity) {
+            // @phpstan-ignore-next-line property.dynamicName
+            $entity->{$primaryColumnSchema->propertyName} = (int) $rows[$i][$primaryColumnSchema->columnName];
+        }
     }
 
-    private function updateId(PDOStatement $statement): void
+    /**
+     * Without a RETURNING clause there is no reliable way to map database-generated
+     * ids back to entities in a multi-row insert (auto-increment values are not
+     * guaranteed to be contiguous), so each entity is inserted by its own statement
+     * and its id read back via lastInsertId().
+     */
+    private function executePerRow(ColumnSchema $primaryColumnSchema): void
     {
-        $primaryColumnSchema = $this->schema->getPrimaryColumn();
-        $primaryPropertyName = $primaryColumnSchema->propertyName;
+        $sql = $this->buildSql(1);
 
-        $returningClause = $this->database->getInsertReturningClause($primaryColumnSchema->columnName);
-        if ($returningClause !== '') {
-            /** @var list<array<string, mixed>> $rows */
-            $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
-            foreach ($this->entities as $i => $entity) {
+        try {
+            $pdoStatement = $this->pdo->prepare($sql);
+
+            foreach ($this->entities as $entity) {
+                $pdoStatement->execute($this->getEntityValues($entity));
                 // @phpstan-ignore-next-line property.dynamicName
-                $entity->{$primaryPropertyName} = (int) $rows[$i][$primaryColumnSchema->columnName];
+                $entity->{$primaryColumnSchema->propertyName} = (int) $this->pdo->lastInsertId();
             }
-        } else {
-            $firstInsertId = (int) $this->pdo->lastInsertId();
-            foreach ($this->entities as $i => $entity) {
-                // @phpstan-ignore-next-line property.dynamicName
-                $entity->{$primaryPropertyName} = $firstInsertId + $i;
-            }
+        } catch (\PDOException $e) {
+            throw ExceptionFactory::create($e, $sql);
         }
     }
 
@@ -105,23 +126,34 @@ class Insert extends AbstractQuery
         );
     }
 
-    private function getValuesQuery(): string
+    private function getValuesQuery(int $rowsCount): string
     {
         $placeholder = '(' . implode(',', array_map(fn(ColumnSchema $column): string => '?', $this->schema->getInsertableColumns())) . ')';
 
-        return 'VALUES ' . implode(',', array_fill(0, count($this->entities), $placeholder));
+        return 'VALUES ' . implode(',', array_fill(0, $rowsCount, $placeholder));
     }
 
     /** @return list<string|int|float|null> */
     private function getValues(): array
     {
         $values = [];
-        $insertableColumns = $this->schema->getInsertableColumns();
         foreach ($this->entities as $entity) {
-            foreach ($insertableColumns as $column) {
-                // @phpstan-ignore-next-line argument.type property.dynamicName
-                $values[] = $this->mapper->mapToColumn($column, $entity->{$column->propertyName});
-            }
+            array_push($values, ...$this->getEntityValues($entity));
+        }
+
+        return $values;
+    }
+
+    /**
+     * @param T $entity
+     * @return list<string|int|float|null>
+     */
+    private function getEntityValues(object $entity): array
+    {
+        $values = [];
+        foreach ($this->schema->getInsertableColumns() as $column) {
+            // @phpstan-ignore-next-line argument.type property.dynamicName
+            $values[] = $this->mapper->mapToColumn($column, $entity->{$column->propertyName});
         }
 
         return $values;

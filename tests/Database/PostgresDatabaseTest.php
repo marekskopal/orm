@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Tests\Database;
 
 use MarekSkopal\ORM\Database\PostgresDatabase;
+use MarekSkopal\ORM\Utils\QuoteUtils;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
 #[CoversClass(PostgresDatabase::class)]
+#[UsesClass(QuoteUtils::class)]
 final class PostgresDatabaseTest extends TestCase
 {
     public function testGetDsn(): void
