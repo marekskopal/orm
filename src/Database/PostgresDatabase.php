@@ -37,6 +37,7 @@ readonly class PostgresDatabase extends AbstractDatabase
     /** @return array<int, mixed> */
     protected function getOptions(): array
     {
-        return [...parent::getOptions(), PDO::ATTR_EMULATE_PREPARES => false];
+        // array_replace, not spread: spreading re-indexes the integer PDO::ATTR_* keys
+        return array_replace(parent::getOptions(), [PDO::ATTR_EMULATE_PREPARES => false]);
     }
 }
