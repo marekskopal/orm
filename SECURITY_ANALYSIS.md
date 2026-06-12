@@ -16,15 +16,20 @@ An application that forwards user input into `orderBy()`, `columns()`, `groupBy(
 or the column/operator positions of `where()` is injectable. Since ORMs are commonly
 assumed to be safe in exactly these places, these should be fixed or loudly documented.
 
-| # | Finding | Severity |
-|---|---------|----------|
-| 1 | Raw passthrough of column expressions containing `(` | High |
-| 2 | Identifier quoting does not escape embedded quote characters | High |
-| 3 | Where-condition operator concatenated into SQL unchecked | High |
-| 4 | MySQL connection: no charset in DSN, emulated prepares left enabled | Medium |
-| 5 | Batch insert ID assignment via `lastInsertId() + i` (wrong-row writes) | Medium |
-| 6 | Full SQL retained on exceptions (disclosure if surfaced to users) | Low |
-| 7 | `LIKE` values: wildcards not escaped | Info |
+| # | Finding | Severity | Status |
+|---|---------|----------|--------|
+| 1 | Raw passthrough of column expressions containing `(` | High | **Fixed** — identifiers validated, explicit `RawExpression` API added |
+| 2 | Identifier quoting does not escape embedded quote characters | High | **Fixed** — `QuoteUtils::quote()` doubles embedded quote chars |
+| 3 | Where-condition operator concatenated into SQL unchecked | High | **Fixed** — operator allowlist in `WhereBuilder` |
+| 4 | MySQL connection: no charset in DSN, emulated prepares left enabled | Medium | **Fixed** — `charset=utf8mb4` in DSN, native prepares |
+| 5 | Batch insert ID assignment via `lastInsertId() + i` (wrong-row writes) | Medium | Open |
+| 6 | Full SQL retained on exceptions (disclosure if surfaced to users) | Low | Open (documentation) |
+| 7 | `LIKE` values: wildcards not escaped | Info | Open (documentation) |
+
+While fixing finding 4, the tests surfaced an additional pre-existing bug: both
+database drivers merged PDO options with array spread, which re-indexes integer
+keys, so `PDO::ATTR_ERRMODE => ERRMODE_EXCEPTION` was silently dropped in
+`PostgresDatabase`. Fixed with `array_replace()`.
 
 ---
 
