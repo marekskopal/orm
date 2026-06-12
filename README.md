@@ -486,3 +486,30 @@ If you are using ORM in long-running PHP applications like FrankenPHP, Roadrunne
 $orm->getEntityCache()->clear();
 ```
 
+## Security considerations
+
+All **values** in queries are bound through prepared-statement placeholders. Column names are restricted to `[A-Za-z0-9_]+` and quoted, and where-condition operators are validated against an allowlist (`=`, `!=`, `<>`, `<`, `<=`, `>`, `>=`, `LIKE`, `NOT LIKE`, `IN`, `NOT IN`), so user input can safely be passed as values, column names, or operators — invalid input throws `InvalidArgumentException` instead of reaching the database.
+
+### Raw SQL expressions
+
+SQL expressions (function calls, computed columns) must be wrapped in `RawExpression`, which is used **verbatim** in the query:
+
+```php
+use MarekSkopal\ORM\Query\Expression\RawExpression;
+
+$count = $queryProvider->select(User::class)
+    ->columns([new RawExpression('count(*) as c'), 'type'])
+    ->groupBy(['type'])
+    ->fetchAssocAll();
+```
+
+Never build a `RawExpression` from user input — it bypasses all escaping and validation.
+
+### Exception messages
+
+`QueryException` and `ConstrainException` carry the executed SQL (via `getQuery()`) and the raw driver error message. Log them server-side, but never render them to end users — they disclose schema and query structure.
+
+### LIKE wildcards
+
+Values bound to `LIKE` conditions are safely parameterized, but `%` and `_` inside the value still act as wildcards. If user input must be matched literally, escape those characters yourself (e.g. `addcslashes($value, '%_\\')` on MySQL/PostgreSQL).
+
