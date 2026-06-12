@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Query;
 
+use InvalidArgumentException;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Model\Join;
@@ -18,6 +19,7 @@ use MarekSkopal\ORM\Tests\Fixtures\Schema\UserEntityWithAddressSchemaFixture;
 use MarekSkopal\ORM\Utils\NameUtils;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 
@@ -258,5 +260,78 @@ final class WhereBuilderTest extends TestCase
             '`u`.`first_name` LIKE ?',
             $whereBuilder->build(),
         );
+    }
+
+    public function testBuildNotLike(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where([
+            'first_name',
+            'not like',
+            '%John%',
+        ]);
+
+        self::assertSame(
+            '`u`.`first_name` NOT LIKE ?',
+            $whereBuilder->build(),
+        );
+    }
+
+    public function testBuildNotIn(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where([
+            'id',
+            'NOT IN',
+            [1, 2, 3],
+        ]);
+
+        self::assertSame(
+            '`u`.`id` NOT IN (?,?,?)',
+            $whereBuilder->build(),
+        );
+    }
+
+    #[TestWith(['='])]
+    #[TestWith(['!='])]
+    #[TestWith(['<>'])]
+    #[TestWith(['<'])]
+    #[TestWith(['<='])]
+    #[TestWith(['>'])]
+    #[TestWith(['>='])]
+    public function testBuildAllowedOperator(string $operator): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where([
+            'id',
+            $operator,
+            1,
+        ]);
+
+        self::assertSame(
+            '`u`.`id`' . $operator . '?',
+            $whereBuilder->build(),
+        );
+    }
+
+    #[TestWith(['= 1 OR 1=1 -- '])]
+    #[TestWith(['= (SELECT password FROM users LIMIT 1) OR id ='])]
+    #[TestWith(['BETWEEN'])]
+    #[TestWith([''])]
+    public function testBuildNotAllowedOperatorThrowsException(string $operator): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where([
+            'id',
+            $operator,
+            1,
+        ]);
+
+        $this->expectException(InvalidArgumentException::class);
+        $whereBuilder->build();
     }
 }

@@ -19,6 +19,8 @@ use Ramsey\Uuid\UuidInterface;
  */
 class WhereBuilder
 {
+    private const array AllowedOperators = ['=', '!=', '<>', '<', '<=', '>', '>=', 'LIKE', 'NOT LIKE', 'IN', 'NOT IN'];
+
     /** @var list<WhereParams|WhereBuilder> */
     private array $where = [];
 
@@ -119,10 +121,11 @@ class WhereBuilder
             }
 
             $column = $this->select->parseColumn($condition[0]);
+            $operator = $this->normalizeOperator($condition[1]);
 
-            if (strtolower($condition[1]) === 'in') {
+            if ($operator === 'IN' || $operator === 'NOT IN') {
                 if (is_array($condition[2])) {
-                    $query[] = $column . ' ' . $condition[1] . ' (' . implode(
+                    $query[] = $column . ' ' . $operator . ' (' . implode(
                         ',',
                         array_map(fn($value): string => '?', $condition[2]),
                     ) . ')';
@@ -130,22 +133,33 @@ class WhereBuilder
                 }
 
                 if ($condition[2] instanceof Select) {
-                    $query[] = $column . ' ' . $condition[1] . ' (' . $condition[2]->getSql() . ')';
+                    $query[] = $column . ' ' . $operator . ' (' . $condition[2]->getSql() . ')';
                     continue;
                 }
 
                 throw new \InvalidArgumentException('IN condition must have array or Select as value');
             }
 
-            if (strtolower($condition[1]) === 'like') {
-                $query[] = $column . ' LIKE ?';
+            if ($operator === 'LIKE' || $operator === 'NOT LIKE') {
+                $query[] = $column . ' ' . $operator . ' ?';
                 continue;
             }
 
-            $query[] = $column . $condition[1] . '?';
+            $query[] = $column . $operator . '?';
         }
 
         return implode(' AND ', $query);
+    }
+
+    private function normalizeOperator(string $operator): string
+    {
+        $normalized = preg_replace('/\s+/', ' ', strtoupper(trim($operator)));
+
+        if ($normalized === null || !in_array($normalized, self::AllowedOperators, true)) {
+            throw new \InvalidArgumentException(sprintf('Operator "%s" is not allowed in where condition', $operator));
+        }
+
+        return $normalized;
     }
 
     /**
