@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Tests\Query;
 use InvalidArgumentException;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\EntityFactory;
+use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
@@ -17,6 +18,7 @@ use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\AddressEntitySchemaFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\UserEntityWithAddressSchemaFixture;
 use MarekSkopal\ORM\Utils\NameUtils;
+use MarekSkopal\ORM\Utils\QuoteUtils;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\TestWith;
@@ -29,6 +31,8 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(EntitySchema::class)]
 #[UsesClass(Join::class)]
 #[UsesClass(NameUtils::class)]
+#[UsesClass(QuoteUtils::class)]
+#[UsesClass(RawExpression::class)]
 final class WhereBuilderTest extends TestCase
 {
     /** @var Select<UserFixture> */
@@ -315,6 +319,36 @@ final class WhereBuilderTest extends TestCase
             '`u`.`id`' . $operator . '?',
             $whereBuilder->build(),
         );
+    }
+
+    public function testBuildRawExpressionColumn(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where([
+            new RawExpression('lower(`u`.`email`)'),
+            '=',
+            'john@example.com',
+        ]);
+
+        self::assertSame(
+            'lower(`u`.`email`)=?',
+            $whereBuilder->build(),
+        );
+    }
+
+    public function testBuildInvalidColumnThrowsException(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where([
+            'id` = 1 OR (SELECT 1) -- ',
+            '=',
+            1,
+        ]);
+
+        $this->expectException(InvalidArgumentException::class);
+        $whereBuilder->build();
     }
 
     #[TestWith(['= 1 OR 1=1 -- '])]

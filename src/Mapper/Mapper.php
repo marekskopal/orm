@@ -18,6 +18,7 @@ use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
+use MarekSkopal\ORM\Utils\QuoteUtils;
 use MarekSkopal\ORM\Utils\ValidationUtils;
 use PDO;
 use Ramsey\Uuid\Uuid;
@@ -242,13 +243,9 @@ class Mapper implements MapperInterface
             function (Collection $object) use ($entityClass, $joinTable, $joinColumn, $inverseJoinColumn, $value): void {
                 $q = $this->database->getIdentifierQuoteChar();
                 $stmt = $this->database->getPdo()->prepare(
-                    sprintf(
-                        'SELECT %1$s%2$s%1$s FROM %1$s%3$s%1$s WHERE %1$s%4$s%1$s = ?',
-                        $q,
-                        $inverseJoinColumn,
-                        $joinTable,
-                        $joinColumn,
-                    ),
+                    'SELECT ' . QuoteUtils::quote($inverseJoinColumn, $q)
+                    . ' FROM ' . QuoteUtils::quote($joinTable, $q)
+                    . ' WHERE ' . QuoteUtils::quote($joinColumn, $q) . ' = ?',
                 );
                 $stmt->execute([$value]);
                 /** @var list<int> $ids */
@@ -291,7 +288,9 @@ class Mapper implements MapperInterface
 
             $q = $this->database->getIdentifierQuoteChar();
             $stmt = $this->database->getPdo()->prepare(
-                sprintf('SELECT %1$s%2$s%1$s FROM %1$s%3$s%1$s WHERE %1$s%4$s%1$s = ?', $q, $joinColumn, $joinTable, $inverseJoinColumn),
+                'SELECT ' . QuoteUtils::quote($joinColumn, $q)
+                . ' FROM ' . QuoteUtils::quote($joinTable, $q)
+                . ' WHERE ' . QuoteUtils::quote($inverseJoinColumn, $q) . ' = ?',
             );
             $stmt->execute([$value]);
             /** @var list<int> $ids */

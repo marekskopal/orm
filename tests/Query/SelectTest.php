@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Query;
 
+use InvalidArgumentException;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
+use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
@@ -18,6 +20,7 @@ use MarekSkopal\ORM\Tests\Fixtures\Schema\AddressEntitySchemaFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\CountryEntitySchemaFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\UserEntityWithAddressSchemaFixture;
 use MarekSkopal\ORM\Utils\NameUtils;
+use MarekSkopal\ORM\Utils\QuoteUtils;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\TestWith;
@@ -30,6 +33,8 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(WhereBuilder::class)]
 #[UsesClass(Join::class)]
 #[UsesClass(NameUtils::class)]
+#[UsesClass(QuoteUtils::class)]
+#[UsesClass(RawExpression::class)]
 final class SelectTest extends TestCase
 {
     /** @var Select<UserWithAddressFixture> */
@@ -171,11 +176,60 @@ final class SelectTest extends TestCase
 
     #[TestWith(['id', '`u`.`id`'])]
     #[TestWith(['address.id', '`a`.`id`'])]
-    #[TestWith(['count(*)', 'count(*)'])]
     public function testParseColumn(string $column, string $expected): void
     {
         $select = $this->select;
 
         self::assertSame($expected, $select->parseColumn($column));
+    }
+
+    public function testParseColumnRawExpression(): void
+    {
+        $select = $this->select;
+
+        self::assertSame('count(*)', $select->parseColumn(new RawExpression('count(*)')));
+    }
+
+    #[TestWith(['count(*)'])]
+    #[TestWith(['(SELECT password FROM users LIMIT 1)'])]
+    #[TestWith(['id` , (SELECT 1) -- '])]
+    #[TestWith(['id; DROP TABLE users'])]
+    #[TestWith([''])]
+    public function testParseColumnInvalidThrowsException(string $column): void
+    {
+        $select = $this->select;
+
+        $this->expectException(InvalidArgumentException::class);
+        $select->parseColumn($column);
+    }
+
+    public function testOrderByInvalidColumnThrowsException(): void
+    {
+        $select = $this->select;
+
+        $this->expectException(InvalidArgumentException::class);
+        $select->orderBy('name` DESC, (SELECT 1) -- ');
+    }
+
+    public function testColumnsRawExpression(): void
+    {
+        $select = $this->select;
+
+        $select->columns([new RawExpression('count(*) as c'), 'id']);
+        self::assertSame(
+            'SELECT count(*) as c,`u`.`id` FROM `users` `u`',
+            $select->getSql(),
+        );
+    }
+
+    public function testGroupByRawExpression(): void
+    {
+        $select = $this->select;
+
+        $select->groupBy([new RawExpression('lower(`u`.`email`)')]);
+        self::assertSame(
+            self::BaseSql . ' GROUP BY lower(`u`.`email`)',
+            $select->getSql(),
+        );
     }
 }

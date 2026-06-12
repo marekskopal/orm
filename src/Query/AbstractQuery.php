@@ -6,6 +6,7 @@ namespace MarekSkopal\ORM\Query;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Utils\QuoteUtils;
 use PDO;
 
 abstract class AbstractQuery implements QueryInterface
@@ -30,6 +31,6 @@ abstract class AbstractQuery implements QueryInterface
 
     protected function escape(string $name): string
     {
-        return $this->identifierQuoteChar . $name . $this->identifierQuoteChar;
+        return QuoteUtils::quote($name, $this->identifierQuoteChar);
     }
 }

@@ -6,13 +6,14 @@ namespace MarekSkopal\ORM\Query\Where;
 
 use BackedEnum;
 use DateTimeInterface;
+use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Select;
 use Ramsey\Uuid\UuidInterface;
 
 /**
  * @phpstan-type WhereValues scalar|DateTimeInterface|UuidInterface|BackedEnum|Select<covariant object>|array<scalar|DateTimeInterface|UuidInterface|BackedEnum>
  * @phpstan-type WhereList array<string,WhereValues>
- * @phpstan-type WhereParams array{0: string, 1: string, 2: WhereValues}
+ * @phpstan-type WhereParams array{0: string|RawExpression, 1: string, 2: WhereValues}
  * @phpstan-type WhereListParams list<WhereParams>
  * @phpstan-type WhereBuilderCallable callable(WhereBuilder $builder):WhereBuilder
  * @phpstan-type Where WhereList|WhereParams|WhereListParams|WhereBuilderCallable
@@ -47,7 +48,10 @@ class WhereBuilder
 
         if (
             count($params) === 3
-            && is_string($params[0] ?? null)
+            && (
+                is_string($params[0] ?? null)
+                || ($params[0] ?? null) instanceof RawExpression
+            )
             && is_string($params[1] ?? null)
             && !is_null($params[2] ?? null)
         ) {

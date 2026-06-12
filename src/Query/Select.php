@@ -9,6 +9,7 @@ use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
+use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
@@ -70,7 +71,7 @@ class Select extends AbstractQuery
     }
 
     /** @return Select<T> */
-    public function orderBy(string $column, DirectionEnum|string $direction = DirectionEnum::Asc): self
+    public function orderBy(string|RawExpression $column, DirectionEnum|string $direction = DirectionEnum::Asc): self
     {
         if (is_string($direction)) {
             $direction = DirectionEnum::from(strtoupper($direction));
@@ -82,22 +83,22 @@ class Select extends AbstractQuery
     }
 
     /**
-     * @param list<string> $columns
+     * @param list<string|RawExpression> $columns
      * @return Select<T>
      */
     public function columns(array $columns): self
     {
-        $this->columns = array_map(fn(string $column): string => $this->parseColumn($column), $columns);
+        $this->columns = array_map(fn(string|RawExpression $column): string => $this->parseColumn($column), $columns);
         return $this;
     }
 
     /**
-     * @param list<string> $columns
+     * @param list<string|RawExpression> $columns
      * @return Select<T>
      */
     public function groupBy(array $columns): self
     {
-        $this->groupBy = array_map(fn(string $column): string => $this->parseColumn($column), $columns);
+        $this->groupBy = array_map(fn(string|RawExpression $column): string => $this->parseColumn($column), $columns);
         return $this;
     }
 
@@ -230,14 +231,20 @@ class Select extends AbstractQuery
     }
 
     /** @internal */
-    public function parseColumn(string $column): string
+    public function parseColumn(string|RawExpression $column): string
     {
+        if ($column instanceof RawExpression) {
+            return $column->expression;
+        }
+
         $parts = explode('.', $column);
         $partsCount = count($parts);
 
         if ($partsCount === 1) {
-            if (str_contains($column, '(')) {
-                return $column;
+            if (preg_match('/^[A-Za-z0-9_]+$/', $column) !== 1) {
+                throw new \InvalidArgumentException(
+                    sprintf('Invalid column name "%s". Use %s for SQL expressions.', $column, RawExpression::class),
+                );
             }
 
             return $this->escape($this->schema->tableAlias) . '.' . $this->escape($column);

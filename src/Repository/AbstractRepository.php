@@ -12,6 +12,7 @@ use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Enum\CascadeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
+use MarekSkopal\ORM\Utils\QuoteUtils;
 
 /**
  * @template T of object
@@ -196,16 +197,13 @@ abstract class AbstractRepository implements RepositoryInterface
         $pdo = $database->getPdo();
         $q = $database->getIdentifierQuoteChar();
 
-        $pdo->prepare(sprintf('DELETE FROM %1$s%2$s%1$s WHERE %1$s%3$s%1$s = ?', $q, $joinTable, $joinColumn))->execute([$entityId]);
+        $pdo->prepare(
+            'DELETE FROM ' . QuoteUtils::quote($joinTable, $q) . ' WHERE ' . QuoteUtils::quote($joinColumn, $q) . ' = ?',
+        )->execute([$entityId]);
 
         $insertStatement = $pdo->prepare(
-            sprintf(
-                'INSERT INTO %1$s%2$s%1$s (%1$s%3$s%1$s, %1$s%4$s%1$s) VALUES (?, ?)',
-                $q,
-                $joinTable,
-                $joinColumn,
-                $inverseJoinColumn,
-            ),
+            'INSERT INTO ' . QuoteUtils::quote($joinTable, $q)
+            . ' (' . QuoteUtils::quote($joinColumn, $q) . ', ' . QuoteUtils::quote($inverseJoinColumn, $q) . ') VALUES (?, ?)',
         );
 
         // @phpstan-ignore-next-line property.dynamicName
@@ -228,8 +226,8 @@ abstract class AbstractRepository implements RepositoryInterface
         $database = $this->queryProvider->getDatabase();
         $q = $database->getIdentifierQuoteChar();
 
-        $database->getPdo()->prepare(sprintf('DELETE FROM %1$s%2$s%1$s WHERE %1$s%3$s%1$s = ?', $q, $joinTable, $joinColumn))->execute(
-            [$entityId],
-        );
+        $database->getPdo()->prepare(
+            'DELETE FROM ' . QuoteUtils::quote($joinTable, $q) . ' WHERE ' . QuoteUtils::quote($joinColumn, $q) . ' = ?',
+        )->execute([$entityId]);
     }
 }
