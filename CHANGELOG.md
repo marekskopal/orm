@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-07-02
+
+### Changed
+- Performance: `ManyToOne`/`OneToOne` lazy proxies are created with their primary key pre-seeded, so reading the id (including mapping foreign key columns during insert/update) no longer triggers a query to initialize the proxy.
+- Performance: cascade persist skips relations whose lazy proxy or ghost collection was never initialized — persisting a parent no longer loads and rewrites untouched child rows or rewrites unchanged `ManyToMany` join-table rows.
+
+### Fixed
+- Entities whose primary key property name differs from its column name (`#[Column(name: '...')]`) were broken in relation mapping and `persist()`: the primary key was read using the column name as a property name, causing repeated inserts instead of updates.
+
 ## [1.2.0] - 2026-06-12
 
 ### Added
@@ -107,6 +116,7 @@ Initial release.
 - Extension mapper support for custom property mapping.
 - MySQL and SQLite database drivers.
 
+[1.3.0]: https://github.com/marekskopal/orm/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/marekskopal/orm/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/marekskopal/orm/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/marekskopal/orm/compare/v1.0.0...v1.0.1
