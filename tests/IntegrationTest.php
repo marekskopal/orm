@@ -791,4 +791,193 @@ final class IntegrationTest extends TestCase
         self::assertCount(0, iterator_to_array($authorRepository->findAll()));
         self::assertCount(0, iterator_to_array($postRepository->findAll()));
     }
+
+    public function testPersistSkipsUninitializedOneToManyCollection(): void
+    {
+        $orm = $this->createCascadeOrm();
+        $authorRepository = $orm->getRepository(AuthorFixture::class);
+
+        $post1 = new PostFixture('First Post', new AuthorFixture('', new Collection()));
+        $author = new AuthorFixture('John', new Collection([$post1]));
+        $post1->author = $author;
+        $authorRepository->persist($author);
+
+        $orm->getEntityCache()->clear();
+        $author = $authorRepository->findOne(['id' => 1]);
+        self::assertInstanceOf(AuthorFixture::class, $author);
+
+        $author->name = 'Johnny';
+        $authorRepository->persist($author);
+
+        // The posts collection was never accessed, so persisting the author
+        // must not load it (and must not rewrite the unchanged posts).
+        self::assertTrue(new \ReflectionClass(Collection::class)->isUninitializedLazyObject($author->posts));
+
+        $orm->getEntityCache()->clear();
+        $author = $authorRepository->findOne(['id' => 1]);
+        self::assertInstanceOf(AuthorFixture::class, $author);
+        self::assertSame('Johnny', $author->name);
+        self::assertCount(1, $author->posts);
+    }
+
+    public function testPersistCascadesInitializedOneToManyCollection(): void
+    {
+        $orm = $this->createCascadeOrm();
+        $authorRepository = $orm->getRepository(AuthorFixture::class);
+        $postRepository = $orm->getRepository(PostFixture::class);
+
+        $post1 = new PostFixture('First Post', new AuthorFixture('', new Collection()));
+        $author = new AuthorFixture('John', new Collection([$post1]));
+        $post1->author = $author;
+        $authorRepository->persist($author);
+
+        $orm->getEntityCache()->clear();
+        $author = $authorRepository->findOne(['id' => 1]);
+        self::assertInstanceOf(AuthorFixture::class, $author);
+
+        $author->posts[0]->title = 'Updated Post';
+        $authorRepository->persist($author);
+
+        $orm->getEntityCache()->clear();
+        $post = $postRepository->findOne(['id' => 1]);
+        self::assertInstanceOf(PostFixture::class, $post);
+        self::assertSame('Updated Post', $post->title);
+    }
+
+    public function testPersistSkipsUninitializedManyToOneProxy(): void
+    {
+        $orm = $this->createCascadeOrm();
+        $authorRepository = $orm->getRepository(AuthorFixture::class);
+        $postRepository = $orm->getRepository(PostFixture::class);
+
+        $post1 = new PostFixture('First Post', new AuthorFixture('', new Collection()));
+        $author = new AuthorFixture('John', new Collection([$post1]));
+        $post1->author = $author;
+        $authorRepository->persist($author);
+
+        $orm->getEntityCache()->clear();
+        $post = $postRepository->findOne(['id' => 1]);
+        self::assertInstanceOf(PostFixture::class, $post);
+
+        $post->title = 'Updated Post';
+        $postRepository->persist($post);
+
+        // The author proxy was never accessed, so the cascade must not initialize it.
+        self::assertTrue(new \ReflectionClass(AuthorFixture::class)->isUninitializedLazyObject($post->author));
+
+        $orm->getEntityCache()->clear();
+        $post = $postRepository->findOne(['id' => 1]);
+        self::assertInstanceOf(PostFixture::class, $post);
+        self::assertSame('Updated Post', $post->title);
+        self::assertSame(1, $post->author->id);
+    }
+
+    private function createManyToManyOrm(): ORM
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_many_to_many.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database_many_to_many.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        return $orm;
+    }
+
+    public function testPersistSkipsUninitializedManyToManyCollection(): void
+    {
+        $orm = $this->createManyToManyOrm();
+        $repository = $orm->getRepository(UserWithTagsFixture::class);
+
+        $user = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(UserWithTagsFixture::class, $user);
+
+        $user->name = 'Johnny';
+        $repository->persist($user);
+
+        // The tags collection was never accessed, so persisting the user must not
+        // load it or rewrite the join table.
+        self::assertTrue(new \ReflectionClass(Collection::class)->isUninitializedLazyObject($user->tags));
+
+        $orm->getEntityCache()->clear();
+        $user = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(UserWithTagsFixture::class, $user);
+        self::assertSame('Johnny', $user->name);
+        self::assertCount(2, $user->tags);
+    }
+
+    public function testPersistSyncsInitializedManyToManyCollection(): void
+    {
+        $orm = $this->createManyToManyOrm();
+        $userRepository = $orm->getRepository(UserWithTagsFixture::class);
+        $tagRepository = $orm->getRepository(TagFixture::class);
+
+        $user = $userRepository->findOne(['id' => 1]);
+        self::assertInstanceOf(UserWithTagsFixture::class, $user);
+        $tag = $tagRepository->findOne(['id' => 3]);
+        self::assertInstanceOf(TagFixture::class, $tag);
+
+        $user->tags[] = $tag;
+        $userRepository->persist($user);
+
+        $orm->getEntityCache()->clear();
+        $user = $userRepository->findOne(['id' => 1]);
+        self::assertInstanceOf(UserWithTagsFixture::class, $user);
+        self::assertCount(3, $user->tags);
+    }
+
+    public function testPersistSkipsUninitializedOneToOneInverseProxy(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_one_to_one.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database_one_to_one.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(ProfileFixture::class);
+
+        $profile = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(ProfileFixture::class, $profile);
+
+        $profile->bio = 'Updated bio';
+        $repository->persist($profile);
+
+        $user = $profile->user;
+        self::assertNotNull($user);
+        self::assertTrue(new \ReflectionClass(UserWithProfileFixture::class)->isUninitializedLazyObject($user));
+
+        $orm->getEntityCache()->clear();
+        $profile = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(ProfileFixture::class, $profile);
+        self::assertSame('Updated bio', $profile->bio);
+    }
 }

@@ -13,6 +13,7 @@ use MarekSkopal\ORM\Schema\Enum\CascadeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Utils\QuoteUtils;
+use ReflectionClass;
 
 /**
  * @template T of object
@@ -83,11 +84,10 @@ abstract class AbstractRepository implements RepositoryInterface
         foreach ($owningRelations as $columnSchema) {
             // @phpstan-ignore-next-line property.dynamicName
             $related = $entity->{$columnSchema->propertyName};
-            if ($related === null) {
+            if (!is_object($related) || $this->isUninitializedLazyObject($related)) {
                 continue;
             }
 
-            // @phpstan-ignore-next-line argument.type
             $this->persistEntity($related);
         }
 
@@ -102,20 +102,27 @@ abstract class AbstractRepository implements RepositoryInterface
 
         // Cascade persist collection-side relations after the entity (entity PK is now available)
         foreach ($collectionRelations as $columnSchema) {
-            if ($columnSchema->relationType === RelationEnum::OneToOneInverse) {
-                // @phpstan-ignore-next-line property.dynamicName
-                $related = $entity->{$columnSchema->propertyName};
-                if ($related !== null) {
-                    // @phpstan-ignore-next-line argument.type
-                    $this->persistEntity($related);
-                }
+            // @phpstan-ignore-next-line property.dynamicName
+            $related = $entity->{$columnSchema->propertyName};
+
+            // An uninitialized lazy relation cannot contain user changes, so persisting
+            // it would only load and rewrite unchanged rows.
+            if (!is_object($related) || $this->isUninitializedLazyObject($related)) {
                 continue;
             }
 
-            // @phpstan-ignore-next-line property.dynamicName
-            foreach ($entity->{$columnSchema->propertyName} as $related) {
-                // @phpstan-ignore-next-line argument.type
+            if ($columnSchema->relationType === RelationEnum::OneToOneInverse) {
                 $this->persistEntity($related);
+                continue;
+            }
+
+            if (!is_iterable($related)) {
+                continue;
+            }
+
+            foreach ($related as $relatedItem) {
+                // @phpstan-ignore-next-line argument.type
+                $this->persistEntity($relatedItem);
             }
 
             if ($columnSchema->relationType === RelationEnum::ManyToMany) {
@@ -158,6 +165,11 @@ abstract class AbstractRepository implements RepositoryInterface
         }
 
         $this->queryProvider->delete($entity::class)->entity($entity)->execute();
+    }
+
+    private function isUninitializedLazyObject(object $object): bool
+    {
+        return new ReflectionClass($object)->isUninitializedLazyObject($object);
     }
 
     private function persistEntity(object $entity): void

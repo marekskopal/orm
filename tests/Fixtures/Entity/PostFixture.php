@@ -9,6 +9,7 @@ use MarekSkopal\ORM\Attribute\Entity;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Repository\Repository;
+use MarekSkopal\ORM\Schema\Enum\CascadeEnum;
 
 #[Entity(table: 'posts', repositoryClass: Repository::class)]
 class PostFixture
@@ -19,7 +20,7 @@ class PostFixture
     public function __construct(
         #[Column(type: Type::String)]
         public string $title,
-        #[ManyToOne(entityClass: AuthorFixture::class)]
+        #[ManyToOne(entityClass: AuthorFixture::class, cascade: [CascadeEnum::Persist])]
         public AuthorFixture $author,
     ) {
     }

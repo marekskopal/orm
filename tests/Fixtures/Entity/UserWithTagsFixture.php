@@ -10,6 +10,7 @@ use MarekSkopal\ORM\Attribute\ManyToMany;
 use MarekSkopal\ORM\Enum\Type;
 use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Repository\Repository;
+use MarekSkopal\ORM\Schema\Enum\CascadeEnum;
 
 #[Entity(table: 'users', repositoryClass: Repository::class)]
 class UserWithTagsFixture
@@ -21,7 +22,13 @@ class UserWithTagsFixture
         #[Column(type: Type::String)]
         public string $name,
         /** @var Collection<TagFixture> */
-        #[ManyToMany(entityClass: TagFixture::class, joinTable: 'user_tags', joinColumn: 'user_id', inverseJoinColumn: 'tag_id')]
+        #[ManyToMany(
+            entityClass: TagFixture::class,
+            joinTable: 'user_tags',
+            joinColumn: 'user_id',
+            inverseJoinColumn: 'tag_id',
+            cascade: [CascadeEnum::Persist],
+        )]
         public Collection $tags,
     ) {
     }
