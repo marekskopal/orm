@@ -94,7 +94,7 @@ abstract class AbstractRepository implements RepositoryInterface
         // Persist the entity itself
         $primaryColumnSchema = $entitySchema->getPrimaryColumn();
         // @phpstan-ignore-next-line property.dynamicName
-        if (!isset($entity->{$primaryColumnSchema->columnName})) {
+        if (!isset($entity->{$primaryColumnSchema->propertyName})) {
             $this->queryProvider->insert($entity::class)->entity($entity)->execute();
         } else {
             $this->queryProvider->update($entity::class)->entity($entity)->execute();
@@ -164,7 +164,7 @@ abstract class AbstractRepository implements RepositoryInterface
     {
         $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entity::class);
         // @phpstan-ignore-next-line property.dynamicName
-        if (!isset($entity->{$primaryColumnSchema->columnName})) {
+        if (!isset($entity->{$primaryColumnSchema->propertyName})) {
             $this->queryProvider->insert($entity::class)->entity($entity)->execute();
         } else {
             $this->queryProvider->update($entity::class)->entity($entity)->execute();

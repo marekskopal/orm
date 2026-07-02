@@ -41,6 +41,7 @@ use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\ArticleFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AuthorFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\PostFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\ProfileFixture;
@@ -640,6 +641,46 @@ final class IntegrationTest extends TestCase
 
         $posts = iterator_to_array($postRepository->findAll());
         self::assertCount(2, $posts);
+    }
+
+    public function testPersistEntityWithCustomPrimaryColumnName(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_articles.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database_articles.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(ArticleFixture::class);
+
+        $article = new ArticleFixture('First Article');
+        $repository->persist($article);
+
+        self::assertSame(1, $article->id);
+
+        // Second persist must update the existing row, not insert a new one.
+        $article->title = 'Updated Article';
+        $repository->persist($article);
+
+        $orm->getEntityCache()->clear();
+        $articles = iterator_to_array($repository->findAll());
+        self::assertCount(1, $articles);
+        self::assertSame('Updated Article', $articles[0]->title);
     }
 
     public function testCascadeRemoveOneToMany(): void

@@ -332,7 +332,7 @@ class Mapper implements MapperInterface
     {
         $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
         // @phpstan-ignore-next-line property.dynamicName
-        return $value->{$primaryColumnSchema->columnName};
+        return $value->{$primaryColumnSchema->propertyName};
     }
 
     private function mapDateTimeToProperty(ColumnSchema $columnSchema, string|int $value): DateTimeInterface

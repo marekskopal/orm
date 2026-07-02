@@ -304,4 +304,29 @@ final class MapperTest extends TestCase
         $result = $mapper->mapToColumn($columnSchema, new DateTimeImmutable('2024-01-01 00:00:00'));
         self::assertSame('2024-01-01 00:00:00', $result);
     }
+
+    public function testMapToColumnRelationWithCustomPrimaryColumnName(): void
+    {
+        $primaryColumnSchema = new ColumnSchema('id', PropertyTypeEnum::Int, 'user_id', Type::Int, isPrimary: true);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $schemaProvider->method('getPrimaryColumnSchema')->willReturn($primaryColumnSchema);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
+
+        $mapper = new Mapper($schemaProvider, $entityCache, static fn() => $queryProvider, $this::createStub(DatabaseInterface::class));
+
+        $columnSchema = new ColumnSchema(
+            'user',
+            PropertyTypeEnum::Relation,
+            'user_id',
+            Type::Int,
+            RelationEnum::ManyToOne,
+            UserFixture::class,
+        );
+
+        $user = UserFixture::create();
+        $user->id = 5;
+
+        self::assertSame(5, $mapper->mapToColumn($columnSchema, $user));
+    }
 }
