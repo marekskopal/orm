@@ -57,6 +57,7 @@ use MarekSkopal\ORM\Utils\ValidationUtils;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 #[CoversClass(ORM::class)]
 #[UsesClass(TransactionProvider::class)]
@@ -204,7 +205,7 @@ final class IntegrationTest extends TestCase
         self::assertInstanceOf(UserWithAddressFixture::class, $user);
 
         $address = $user->address;
-        $reflection = new \ReflectionClass(AddressWithUsersFixture::class);
+        $reflection = new ReflectionClass(AddressWithUsersFixture::class);
         self::assertTrue($reflection->isUninitializedLazyObject($address));
 
         // The primary key is seeded on the proxy, so reading it must not trigger a query.
@@ -249,7 +250,7 @@ final class IntegrationTest extends TestCase
         $user->firstName = 'Johnny';
         $repository->persist($user);
 
-        $reflection = new \ReflectionClass(AddressWithUsersFixture::class);
+        $reflection = new ReflectionClass(AddressWithUsersFixture::class);
         self::assertTrue($reflection->isUninitializedLazyObject($user->address));
 
         $orm->getEntityCache()->clear();
@@ -811,7 +812,7 @@ final class IntegrationTest extends TestCase
 
         // The posts collection was never accessed, so persisting the author
         // must not load it (and must not rewrite the unchanged posts).
-        self::assertTrue(new \ReflectionClass(Collection::class)->isUninitializedLazyObject($author->posts));
+        self::assertTrue(new ReflectionClass(Collection::class)->isUninitializedLazyObject($author->posts));
 
         $orm->getEntityCache()->clear();
         $author = $authorRepository->findOne(['id' => 1]);
@@ -863,7 +864,7 @@ final class IntegrationTest extends TestCase
         $postRepository->persist($post);
 
         // The author proxy was never accessed, so the cascade must not initialize it.
-        self::assertTrue(new \ReflectionClass(AuthorFixture::class)->isUninitializedLazyObject($post->author));
+        self::assertTrue(new ReflectionClass(AuthorFixture::class)->isUninitializedLazyObject($post->author));
 
         $orm->getEntityCache()->clear();
         $post = $postRepository->findOne(['id' => 1]);
@@ -911,7 +912,7 @@ final class IntegrationTest extends TestCase
 
         // The tags collection was never accessed, so persisting the user must not
         // load it or rewrite the join table.
-        self::assertTrue(new \ReflectionClass(Collection::class)->isUninitializedLazyObject($user->tags));
+        self::assertTrue(new ReflectionClass(Collection::class)->isUninitializedLazyObject($user->tags));
 
         $orm->getEntityCache()->clear();
         $user = $repository->findOne(['id' => 1]);
@@ -973,7 +974,7 @@ final class IntegrationTest extends TestCase
 
         $user = $profile->user;
         self::assertNotNull($user);
-        self::assertTrue(new \ReflectionClass(UserWithProfileFixture::class)->isUninitializedLazyObject($user));
+        self::assertTrue(new ReflectionClass(UserWithProfileFixture::class)->isUninitializedLazyObject($user));
 
         $orm->getEntityCache()->clear();
         $profile = $repository->findOne(['id' => 1]);
