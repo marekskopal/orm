@@ -175,6 +175,90 @@ final class IntegrationTest extends TestCase
         self::assertEquals(1, $address->id);
     }
 
+    public function testManyToOneProxyPrimaryKeyReadDoesNotInitializeProxy(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_users_with_address.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(UserWithAddressFixture::class);
+
+        $user = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(UserWithAddressFixture::class, $user);
+
+        $address = $user->address;
+        $reflection = new \ReflectionClass(AddressWithUsersFixture::class);
+        self::assertTrue($reflection->isUninitializedLazyObject($address));
+
+        // The primary key is seeded on the proxy, so reading it must not trigger a query.
+        self::assertSame(1, $address->id);
+        self::assertTrue($reflection->isUninitializedLazyObject($address));
+
+        // Reading any other property initializes the proxy.
+        self::assertSame('Springfield', $address->city);
+        self::assertFalse($reflection->isUninitializedLazyObject($address));
+    }
+
+    public function testPersistDoesNotInitializeManyToOneProxy(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_users_with_address.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(UserWithAddressFixture::class);
+
+        $user = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(UserWithAddressFixture::class, $user);
+
+        // Updating the user maps its address foreign key column from the relation
+        // property; the seeded primary key must be used instead of loading the address.
+        $user->firstName = 'Johnny';
+        $repository->persist($user);
+
+        $reflection = new \ReflectionClass(AddressWithUsersFixture::class);
+        self::assertTrue($reflection->isUninitializedLazyObject($user->address));
+
+        $orm->getEntityCache()->clear();
+        $user = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(UserWithAddressFixture::class, $user);
+        self::assertSame('Johnny', $user->firstName);
+        self::assertSame(1, $user->address->id);
+    }
+
     public function testSelectWithEagerLoadsManyToOne(): void
     {
         $database = new SqliteDatabase(':memory:');

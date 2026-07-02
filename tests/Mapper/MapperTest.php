@@ -29,6 +29,7 @@ use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Lazy\LazyUuidFromString;
 use Ramsey\Uuid\Uuid;
+use ReflectionClass;
 
 #[CoversClass(Mapper::class)]
 #[UsesClass(ColumnSchema::class)]
@@ -268,8 +269,36 @@ final class MapperTest extends TestCase
         $mapper = new Mapper($schemaProvider, $entityCache, static fn() => $queryProvider, $this::createStub(DatabaseInterface::class));
 
         $property = $mapper->mapToProperty($entitySchema, $columnSchema, 1);
+        // Reading a non-primary-key property triggers proxy initialization
         // @phpstan-ignore-next-line property.nonObject expr.resultUnused
-        $property->id;
+        $property->firstName;
+    }
+
+    public function testMapToPropertyRelationManyToOnePrimaryKeyDoesNotInitializeProxy(): void
+    {
+        $primaryColumnSchema = new ColumnSchema('id', PropertyTypeEnum::Int, 'id', Type::Int, isPrimary: true);
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $schemaProvider->method('getPrimaryColumnSchema')->willReturn($primaryColumnSchema);
+        $queryProvider = $this->createMock(QueryProvider::class);
+        $queryProvider->expects($this->never())->method('select');
+        $entityCache = $this::createStub(EntityCache::class);
+
+        $mapper = new Mapper($schemaProvider, $entityCache, static fn() => $queryProvider, $this::createStub(DatabaseInterface::class));
+
+        $columnSchema = new ColumnSchema(
+            'user',
+            PropertyTypeEnum::Relation,
+            'user_id',
+            Type::Int,
+            RelationEnum::ManyToOne,
+            UserFixture::class,
+        );
+        $entitySchema = EntitySchemaFixture::create(columns: ['user' => $columnSchema]);
+
+        $result = $mapper->mapToProperty($entitySchema, $columnSchema, 42);
+        self::assertInstanceOf(UserFixture::class, $result);
+        self::assertSame(42, $result->id);
+        self::assertTrue(new ReflectionClass(UserFixture::class)->isUninitializedLazyObject($result));
     }
 
     public function testMapToPropertyExtension(): void

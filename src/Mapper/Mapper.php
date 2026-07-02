@@ -180,15 +180,14 @@ class Mapper implements MapperInterface
         }
 
         $reflector = $this->getReflectionClass($entityClass);
+        $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
 
         /** @var T $entity */
-        $entity = $reflector->newLazyProxy(function (object $object) use ($entityClass, $value): object {
+        $entity = $reflector->newLazyProxy(function (object $object) use ($entityClass, $primaryColumnSchema, $value): object {
             $entity = $this->entityCache->getEntity($entityClass, $value);
             if ($entity !== null) {
                 return $entity;
             }
-
-            $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
 
             /** @var T|null $realEntity */
             $realEntity = $this->getQueryProvider()->select($entityClass)->where(
@@ -200,6 +199,10 @@ class Mapper implements MapperInterface
 
             return $realEntity;
         });
+
+        // Seed the primary key so reading it (e.g. when persisting the owning entity's
+        // foreign key column) does not trigger a query to initialize the proxy.
+        $reflector->getProperty($primaryColumnSchema->propertyName)->setRawValueWithoutLazyInitialization($entity, $value);
 
         return $entity;
     }
