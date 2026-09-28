@@ -177,6 +177,31 @@ final class SelectTest extends TestCase
         );
     }
 
+    public function testOrWhere(): void
+    {
+        $select = $this->select;
+
+        $select->where(['id' => 1])->orWhere(['first_name' => 'John']);
+
+        self::assertSame(self::BaseSql . ' WHERE `u`.`id`=? OR `u`.`first_name`=?', $select->getSql());
+        self::assertSame([1, 'John'], $select->getWhereBuilder()->getParams());
+    }
+
+    public function testWhereWithVoidClosure(): void
+    {
+        $select = $this->select;
+
+        $select->where(['id' => 1])->where(static function (WhereBuilder $where): void {
+            $where->where(['first_name' => 'John'])->orWhere(['last_name' => 'Doe']);
+        });
+
+        self::assertSame(
+            self::BaseSql . ' WHERE `u`.`id`=? AND (`u`.`first_name`=? OR `u`.`last_name`=?)',
+            $select->getSql(),
+        );
+        self::assertSame([1, 'John', 'Doe'], $select->getWhereBuilder()->getParams());
+    }
+
     public function testGetCountSqlIgnoresColumnsOrderLimitOffsetAndKeepsBuilderIntact(): void
     {
         $select = $this->select;

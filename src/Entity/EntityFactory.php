@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Entity;
 
 use MarekSkopal\ORM\Mapper\Mapper;
+use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 
@@ -21,7 +22,7 @@ class EntityFactory
     /**
      * @template T of object
      * @param class-string<T> $entityClass
-     * @param array<string, float|int|string|null> $values
+     * @param array<string, float|int|string|bool|null> $values
      * @return T
      */
     public function create(string $entityClass, array $values): object
@@ -42,11 +43,12 @@ class EntityFactory
         $properties = [];
         foreach ($constructorParameters as $parameter) {
             $columnSchema = $entitySchema->columns[$parameter->getName()];
-            $value = $this->isVirtualRelation(
-                $columnSchema->relationType,
-            ) ? $values[$primaryColumnName] : $values[$columnSchema->columnName] ?? null;
 
-            $properties[] = $this->mapper->mapToProperty($entitySchema, $columnSchema, $value);
+            $properties[] = $this->mapper->mapToProperty(
+                $entitySchema,
+                $columnSchema,
+                $this->columnValue($values, $columnSchema, $primaryColumnName),
+            );
         }
 
         $entity = new $entityClass(...$properties);
@@ -54,17 +56,34 @@ class EntityFactory
         $propertiesNotInConstructor = $this->entityReflection->getPropertiesNotInConstructor($entityClass);
         foreach ($propertiesNotInConstructor as $property) {
             $columnSchema = $entitySchema->columns[$property->getName()];
-            $value = $this->isVirtualRelation(
-                $columnSchema->relationType,
-            ) ? $values[$primaryColumnName] : $values[$columnSchema->columnName] ?? null;
 
             // @phpstan-ignore-next-line property.dynamicName
-            $entity->{$property->getName()} = $this->mapper->mapToProperty($entitySchema, $columnSchema, $value);
+            $entity->{$property->getName()} = $this->mapper->mapToProperty(
+                $entitySchema,
+                $columnSchema,
+                $this->columnValue($values, $columnSchema, $primaryColumnName),
+            );
         }
 
         $this->entityCache->addEntity($entity, $primaryValue);
 
         return $entity;
+    }
+
+    /**
+     * Picks the raw database value for a column. Virtual (collection / inverse) relations are
+     * keyed by the entity's own primary key. Native booleans, which pdo_pgsql returns for
+     * BOOLEAN columns, are normalised to int so every driver hands the mapper the same types.
+     *
+     * @param array<string, float|int|string|bool|null> $values
+     */
+    private function columnValue(array $values, ColumnSchema $columnSchema, string $primaryColumnName): float|int|string|null
+    {
+        $value = $this->isVirtualRelation($columnSchema->relationType)
+            ? $values[$primaryColumnName]
+            : $values[$columnSchema->columnName] ?? null;
+
+        return is_bool($value) ? (int) $value : $value;
     }
 
     private function isVirtualRelation(?RelationEnum $relationType): bool
