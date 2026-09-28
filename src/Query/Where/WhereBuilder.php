@@ -11,7 +11,7 @@ use MarekSkopal\ORM\Query\Select;
 use Ramsey\Uuid\UuidInterface;
 
 /**
- * @phpstan-type WhereValues scalar|null|DateTimeInterface|UuidInterface|BackedEnum|Select<covariant object>|array<scalar|DateTimeInterface|UuidInterface|BackedEnum>
+ * @phpstan-type WhereValues scalar|DateTimeInterface|UuidInterface|BackedEnum|Select<covariant object>|array<scalar|DateTimeInterface|UuidInterface|BackedEnum>|null
  * @phpstan-type WhereList array<string,WhereValues>
  * @phpstan-type WhereParams array{0: string|RawExpression, 1: string, 2: WhereValues}
  * @phpstan-type WhereListParams list<WhereParams>
