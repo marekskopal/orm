@@ -77,6 +77,19 @@ class Select extends AbstractQuery
         return $this;
     }
 
+    /**
+     * Adds a condition group joined to the previous ones with OR.
+     *
+     * @param Where $params
+     * @return Select<T>
+     */
+    public function orWhere(array|callable $params): self
+    {
+        $this->whereBuilder->orWhere($params);
+
+        return $this;
+    }
+
     /** @return Select<T> */
     public function orderBy(string|RawExpression $column, DirectionEnum|string $direction = DirectionEnum::Asc): self
     {
