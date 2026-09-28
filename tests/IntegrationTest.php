@@ -43,6 +43,7 @@ use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\ArticleFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AuthorFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\CategoryFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\PostFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\ProfileFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\TagFixture;
@@ -980,5 +981,79 @@ final class IntegrationTest extends TestCase
         $profile = $repository->findOne(['id' => 1]);
         self::assertInstanceOf(ProfileFixture::class, $profile);
         self::assertSame('Updated bio', $profile->bio);
+    }
+
+    public function testWhereOnTwoRelationsToSameTable(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_users_with_address.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $database->getPdo()->exec('UPDATE `users` SET `second_address_id` = 2 WHERE `id` = 1');
+
+        $repository = $orm->getRepository(UserWithAddressFixture::class);
+
+        $user = $repository->findOne(['address.city' => 'Springfield', 'secondAddress.city' => 'Shelbyville']);
+        self::assertInstanceOf(UserWithAddressFixture::class, $user);
+        self::assertSame(1, $user->id);
+
+        $noUser = $repository->findOne(['address.city' => 'Shelbyville', 'secondAddress.city' => 'Springfield']);
+        self::assertNull($noUser);
+
+        $users = iterator_to_array($repository->findAll(['address.country' => 'USA']));
+        self::assertCount(2, $users);
+    }
+
+    public function testWhereOnSelfReferencingRelation(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_categories.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(CategoryFixture::class);
+
+        $children = iterator_to_array($repository->findAll(['parent.name' => 'Root']));
+        self::assertCount(2, $children);
+        self::assertSame(['Books', 'Music'], array_map(static fn(CategoryFixture $c): string => $c->name, $children));
+
+        $grandchild = $repository->findOne(['parent.parent.name' => 'Root']);
+        self::assertInstanceOf(CategoryFixture::class, $grandchild);
+        self::assertSame('Novels', $grandchild->name);
+        self::assertNotNull($grandchild->parent);
+        self::assertSame('Books', $grandchild->parent->name);
     }
 }

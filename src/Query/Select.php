@@ -43,6 +43,12 @@ class Select extends AbstractQuery
     /** @var array<string, Join> */
     private array $joins = [];
 
+    /** @var array<string, string> relation path (e.g. "address.country") => table alias used for its join */
+    private array $joinAliases = [];
+
+    /** @var array<string, true> */
+    private array $usedAliases = [];
+
     /** @var list<string> */
     private array $with = [];
 
@@ -57,6 +63,7 @@ class Select extends AbstractQuery
         parent::__construct($database, $entityClass, $schema);
 
         $this->whereBuilder = new WhereBuilder($this);
+        $this->usedAliases[$schema->tableAlias] = true;
     }
 
     /**
@@ -130,6 +137,7 @@ class Select extends AbstractQuery
             return $this;
         }
 
+        $this->usedAliases[$referenceTableAlias] = true;
         $this->joins[$key] = new Join(
             $tableAlias ?? $this->schema->tableAlias,
             $column,
@@ -250,12 +258,10 @@ class Select extends AbstractQuery
             return $this->escape($this->schema->tableAlias) . '.' . $this->escape($column);
         }
 
-        $relationEntitySchema = null;
-
-        $entityClass = $this->entityClass;
+        $entitySchema = $this->schema;
+        $tableAlias = $this->schema->tableAlias;
+        $relationPath = '';
         for ($i = 0; $i < $partsCount - 1; $i++) {
-            $entitySchema = $this->schemaProvider->getEntitySchema($entityClass);
-
             $columnSchema = $entitySchema->getColumnByPropertyName($parts[$i]);
 
             if ($columnSchema->relationEntityClass === null) {
@@ -264,24 +270,54 @@ class Select extends AbstractQuery
 
             $relationEntitySchema = $this->schemaProvider->getEntitySchema($columnSchema->relationEntityClass);
 
+            // Aliases are assigned per relation path, not per table, so two relations to the
+            // same table (or a self-referencing relation) get distinct aliases.
+            $relationPath = $relationPath === '' ? $parts[$i] : $relationPath . '.' . $parts[$i];
+            $relationTableAlias = $this->resolveJoinAlias($relationPath, $relationEntitySchema->tableAlias);
+
             $this->join(
                 column: $columnSchema->columnName,
                 referenceTable: $relationEntitySchema->table,
-                referenceTableAlias: $relationEntitySchema->tableAlias,
+                referenceTableAlias: $relationTableAlias,
                 referenceColumn: $relationEntitySchema->getPrimaryColumn()->columnName,
-                tableAlias: $entitySchema->tableAlias,
+                tableAlias: $tableAlias,
             );
 
-            $entityClass = $columnSchema->relationEntityClass;
+            $entitySchema = $relationEntitySchema;
+            $tableAlias = $relationTableAlias;
         }
 
-        if ($relationEntitySchema === null) {
-            throw new \InvalidArgumentException('Relation entity schema is not loaded');
+        $relationColumnSchema = $entitySchema->getColumnByColumnName($parts[$partsCount - 1]);
+
+        return $this->escape($tableAlias) . '.' . $this->escape($relationColumnSchema->columnName);
+    }
+
+    /**
+     * Returns the alias to use for the join of the given relation path. The relation entity's
+     * own table alias is used when it is still free; otherwise a path-based alias is derived.
+     */
+    private function resolveJoinAlias(string $relationPath, string $preferredAlias): string
+    {
+        if (isset($this->joinAliases[$relationPath])) {
+            return $this->joinAliases[$relationPath];
         }
 
-        $relationColumnSchema = $relationEntitySchema->getColumnByColumnName($parts[$partsCount - 1]);
+        $alias = $preferredAlias;
+        if (isset($this->usedAliases[$alias])) {
+            $alias = $preferredAlias . '_' . str_replace('.', '_', $relationPath);
 
-        return $this->escape($relationEntitySchema->tableAlias) . '.' . $this->escape($relationColumnSchema->columnName);
+            $base = $alias;
+            $suffix = 2;
+            while (isset($this->usedAliases[$alias])) {
+                $alias = $base . '_' . $suffix;
+                $suffix++;
+            }
+        }
+
+        $this->joinAliases[$relationPath] = $alias;
+        $this->usedAliases[$alias] = true;
+
+        return $alias;
     }
 
     /** @param list<array<string, float|int|string|null>> $rows */

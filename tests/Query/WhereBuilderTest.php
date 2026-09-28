@@ -14,6 +14,7 @@ use MarekSkopal\ORM\Query\Where\WhereBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\AddressEntitySchemaFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\UserEntityWithAddressSchemaFixture;
@@ -48,10 +49,10 @@ final class WhereBuilderTest extends TestCase
         $entityFactory = $this::createStub(EntityFactory::class);
         $schemaProvider = $this::createStub(SchemaProvider::class);
         $schemaProvider->method('getEntitySchema')
-            ->willReturn(
-                UserEntityWithAddressSchemaFixture::create(),
-                AddressEntitySchemaFixture::create(),
-            );
+            ->willReturnMap([
+                [UserFixture::class, UserEntityWithAddressSchemaFixture::create()],
+                [AddressFixture::class, AddressEntitySchemaFixture::create()],
+            ]);
 
         $this->select = new Select(
             $database,
