@@ -11,7 +11,7 @@ use MarekSkopal\ORM\Query\Select;
 use Ramsey\Uuid\UuidInterface;
 
 /**
- * @phpstan-type WhereValues scalar|DateTimeInterface|UuidInterface|BackedEnum|Select<covariant object>|array<scalar|DateTimeInterface|UuidInterface|BackedEnum>
+ * @phpstan-type WhereValues scalar|null|DateTimeInterface|UuidInterface|BackedEnum|Select<covariant object>|array<scalar|DateTimeInterface|UuidInterface|BackedEnum>
  * @phpstan-type WhereList array<string,WhereValues>
  * @phpstan-type WhereParams array{0: string|RawExpression, 1: string, 2: WhereValues}
  * @phpstan-type WhereListParams list<WhereParams>
@@ -53,7 +53,7 @@ class WhereBuilder
                 || ($params[0] ?? null) instanceof RawExpression
             )
             && is_string($params[1] ?? null)
-            && !is_null($params[2] ?? null)
+            && array_key_exists(2, $params)
         ) {
             /** @phpstan-var WhereParams $params */
             $this->where[] = $params;
@@ -105,7 +105,7 @@ class WhereBuilder
         return implode(' OR ', $parts);
     }
 
-    /** @return list<scalar> */
+    /** @return list<string|int|float> */
     public function getParams(): array
     {
         $values = [];
@@ -127,6 +127,17 @@ class WhereBuilder
 
             $column = $this->select->parseColumn($condition[0]);
             $operator = $this->normalizeOperator($condition[1]);
+
+            if ($condition[2] === null) {
+                $query[] = $column . ' ' . match ($operator) {
+                    '=' => 'IS NULL',
+                    '!=', '<>' => 'IS NOT NULL',
+                    default => throw new \InvalidArgumentException(
+                        sprintf('Operator "%s" cannot be used with a null value; use "=" or "!=".', $operator),
+                    ),
+                };
+                continue;
+            }
 
             if ($operator === 'IN' || $operator === 'NOT IN') {
                 if (is_array($condition[2])) {
@@ -169,14 +180,19 @@ class WhereBuilder
 
     /**
      * @param list<WhereParams|WhereBuilder> $params
-     * @param list<scalar> $values
-     * @param-out list<scalar> $values
+     * @param list<string|int|float> $values
+     * @param-out list<string|int|float> $values
      */
     private function collectParamsValues(array $params, array &$values): void
     {
         foreach ($params as $condition) {
             if ($condition instanceof WhereBuilder) {
                 array_push($values, ...$condition->getParams());
+                continue;
+            }
+
+            // Null is rendered as IS NULL / IS NOT NULL and binds no parameter.
+            if ($condition[2] === null) {
                 continue;
             }
 
@@ -192,19 +208,24 @@ class WhereBuilder
     }
 
     /**
-     * @param WhereValues $conditionValue
-     * @return scalar|array<scalar>
+     * @param scalar|DateTimeInterface|UuidInterface|BackedEnum|Select<covariant object>|array<scalar|DateTimeInterface|UuidInterface|BackedEnum> $conditionValue
+     * @return string|int|float|array<string|int|float>
      */
-    private function getScalarParamsValues(string|int|float|bool|object|array $conditionValue): string|int|float|bool|array
+    private function getScalarParamsValues(string|int|float|bool|object|array $conditionValue): string|int|float|array
     {
         if (is_array($conditionValue)) {
             return array_map(
                 // @phpstan-ignore-next-line return.type
-                fn (string|int|float|bool|object $conditionValueItem): string|int|float|bool => $this->getScalarParamsValues(
+                fn (string|int|float|bool|object $conditionValueItem): string|int|float => $this->getScalarParamsValues(
                     $conditionValueItem,
                 ),
                 $conditionValue,
             );
+        }
+
+        // PDO binds false as an empty string, which never matches an integer column.
+        if (is_bool($conditionValue)) {
+            return (int) $conditionValue;
         }
 
         if ($conditionValue instanceof Select) {

@@ -140,6 +140,22 @@ final class IntegrationTest extends TestCase
 
         $users = iterator_to_array($repository->findAll());
         self::assertCount(2, $users);
+
+        $inactiveUser = $repository->findOne(['is_active' => false]);
+        self::assertInstanceOf(UserFixture::class, $inactiveUser);
+        self::assertSame(2, $inactiveUser->id);
+
+        $activeUser = $repository->findOne(['is_active' => true]);
+        self::assertInstanceOf(UserFixture::class, $activeUser);
+        self::assertSame(1, $activeUser->id);
+
+        $userWithoutMiddleName = $repository->findOne(['middle_name' => null]);
+        self::assertInstanceOf(UserFixture::class, $userWithoutMiddleName);
+        self::assertSame(1, $userWithoutMiddleName->id);
+
+        $userWithMiddleName = $repository->findOne(['middle_name', '!=', null]);
+        self::assertInstanceOf(UserFixture::class, $userWithMiddleName);
+        self::assertSame(2, $userWithMiddleName->id);
     }
 
     public function testSelectEntityRelationManyToOne(): void

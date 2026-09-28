@@ -221,6 +221,74 @@ final class WhereBuilderTest extends TestCase
         );
     }
 
+    public function testBuildIsNull(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where(['middle_name' => null]);
+
+        self::assertSame('`u`.`middle_name` IS NULL', $whereBuilder->build());
+        self::assertSame([], $whereBuilder->getParams());
+    }
+
+    #[TestWith(['!='])]
+    #[TestWith(['<>'])]
+    public function testBuildIsNotNull(string $operator): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where(['middle_name', $operator, null]);
+
+        self::assertSame('`u`.`middle_name` IS NOT NULL', $whereBuilder->build());
+        self::assertSame([], $whereBuilder->getParams());
+    }
+
+    public function testBuildNullSkipsParamButKeepsOrder(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where([
+            'id' => 1,
+            'middle_name' => null,
+            'first_name' => 'John',
+        ]);
+
+        self::assertSame('`u`.`id`=? AND `u`.`middle_name` IS NULL AND `u`.`first_name`=?', $whereBuilder->build());
+        self::assertSame([1, 'John'], $whereBuilder->getParams());
+    }
+
+    public function testBuildNullWithUnsupportedOperatorThrowsException(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where(['id', '<', null]);
+
+        $this->expectException(InvalidArgumentException::class);
+        $whereBuilder->build();
+    }
+
+    /** @param list<int> $expectedParams */
+    #[TestWith([true, [1]])]
+    #[TestWith([false, [0]])]
+    public function testGetParamsBool(bool $value, array $expectedParams): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where(['is_active' => $value]);
+
+        self::assertSame('`u`.`is_active`=?', $whereBuilder->build());
+        self::assertSame($expectedParams, $whereBuilder->getParams());
+    }
+
+    public function testGetParamsBoolInArray(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where(['is_active', 'IN', [true, false]]);
+
+        self::assertSame([1, 0], $whereBuilder->getParams());
+    }
+
     public function testBuildIn(): void
     {
         $whereBuilder = $this->whereBuilder;
