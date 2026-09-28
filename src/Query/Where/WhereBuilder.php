@@ -141,6 +141,13 @@ class WhereBuilder
 
             if ($operator === 'IN' || $operator === 'NOT IN') {
                 if (is_array($condition[2])) {
+                    // "IN ()" is a syntax error on MySQL and PostgreSQL. An empty list can
+                    // never match, so IN is always false and NOT IN is always true.
+                    if ($condition[2] === []) {
+                        $query[] = $operator === 'IN' ? '1=0' : '1=1';
+                        continue;
+                    }
+
                     $query[] = $column . ' ' . $operator . ' (' . implode(
                         ',',
                         array_map(fn($value): string => '?', $condition[2]),
