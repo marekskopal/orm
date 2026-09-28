@@ -177,6 +177,37 @@ final class SelectTest extends TestCase
         );
     }
 
+    public function testGetCountSqlIgnoresColumnsOrderLimitOffsetAndKeepsBuilderIntact(): void
+    {
+        $select = $this->select;
+
+        $select
+            ->columns(['id', 'first_name'])
+            ->where(['is_active' => true])
+            ->orderBy('id', DirectionEnum::Desc)
+            ->limit(10)
+            ->offset(5);
+
+        $expectedSql = 'SELECT `u`.`id`,`u`.`first_name` FROM `users` `u` WHERE `u`.`is_active`=? ORDER BY `u`.`id` DESC LIMIT 10 OFFSET 5';
+
+        self::assertSame($expectedSql, $select->getSql());
+        self::assertSame('SELECT count(*) as c FROM `users` `u` WHERE `u`.`is_active`=?', $select->getCountSql());
+        // Building the count SQL must not change the builder.
+        self::assertSame($expectedSql, $select->getSql());
+    }
+
+    public function testGetCountSqlKeepsRelationJoins(): void
+    {
+        $select = $this->select;
+
+        $select->where(['address.city' => 'Brno']);
+
+        self::assertSame(
+            'SELECT count(*) as c FROM `users` `u` LEFT JOIN `addresses` `a` ON `a`.`id`=`u`.`address_id` WHERE `a`.`city`=?',
+            $select->getCountSql(),
+        );
+    }
+
     public function testParseColumnJoinTwoRelationsToSameTable(): void
     {
         $select = $this->select;

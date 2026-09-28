@@ -165,7 +165,7 @@ class Select extends AbstractQuery
     /** @return T|null */
     public function fetchOne(): ?object
     {
-        $result = $this->limit(1)->query()->fetch(mode: PDO::FETCH_ASSOC);
+        $result = $this->query($this->buildSql(limit: 1, offset: $this->offset))->fetch(mode: PDO::FETCH_ASSOC);
         // @phpstan-ignore-next-line argument.type
         return $result === false ? null : $this->entityFactory->create($this->entityClass, $result);
     }
@@ -195,7 +195,7 @@ class Select extends AbstractQuery
     public function fetchAssocOne(): ?array
     {
         /** @var array<string, mixed>|false $result */
-        $result = $this->limit(1)->query()->fetch(mode: PDO::FETCH_ASSOC);
+        $result = $this->query($this->buildSql(limit: 1, offset: $this->offset))->fetch(mode: PDO::FETCH_ASSOC);
         return $result === false ? null : $result;
     }
 
@@ -209,28 +209,42 @@ class Select extends AbstractQuery
         }
     }
 
+    /**
+     * Counts the rows matching the current conditions. Selected columns, ORDER BY,
+     * LIMIT and OFFSET are ignored; the builder itself is left untouched.
+     */
     public function count(): int
     {
-        $this->columns = ['count(*) as c'];
-
-        /** @var array{c: int} $result */
-        $result = $this->query()->fetch(mode: PDO::FETCH_ASSOC);
-        return $result['c'];
+        /** @var array{c: int|string} $result */
+        $result = $this->query($this->getCountSql())->fetch(mode: PDO::FETCH_ASSOC);
+        return (int) $result['c'];
     }
 
     public function getSql(): string
     {
+        return $this->buildSql(limit: $this->limit, offset: $this->offset);
+    }
+
+    public function getCountSql(): string
+    {
+        return $this->buildSql(columns: ['count(*) as c'], withOrderBy: false);
+    }
+
+    /** @param list<string>|null $columns Overrides the selected columns when given. */
+    private function buildSql(?array $columns = null, ?int $limit = null, ?int $offset = null, bool $withOrderBy = true): string
+    {
+        // The where clause must be built first: resolving relation paths registers joins.
         $whereQuery = $this->getWhereQuery();
 
         return 'SELECT '
-            . implode(',', $this->getColumns())
+            . implode(',', $columns ?? $this->getColumns())
             . ' FROM ' . $this->escape($this->schema->table) . ' ' . $this->escape($this->schema->tableAlias)
             . $this->getJoinsQuery()
             . $whereQuery
             . $this->getGroupByQuery()
-            . $this->getOrderByQuery()
-            . $this->getLimitQuery()
-            . $this->getOffsetQuery();
+            . ($withOrderBy ? $this->getOrderByQuery() : '')
+            . ($limit !== null ? ' LIMIT ' . $limit : '')
+            . ($offset !== null ? ' OFFSET ' . $offset : '');
     }
 
     public function getWhereBuilder(): WhereBuilder
@@ -369,10 +383,11 @@ class Select extends AbstractQuery
         }
     }
 
-    private function query(): PDOStatement
+    private function query(?string $sql = null): PDOStatement
     {
+        $sql ??= $this->getSql();
+
         try {
-            $sql = $this->getSql();
             $pdoStatement = $this->pdo->prepare($sql);
             $pdoStatement->execute($this->whereBuilder->getParams());
             return $pdoStatement;
@@ -420,24 +435,6 @@ class Select extends AbstractQuery
         }
 
         return ' GROUP BY ' . implode(', ', $this->groupBy);
-    }
-
-    private function getLimitQuery(): string
-    {
-        if ($this->limit === null) {
-            return '';
-        }
-
-        return ' LIMIT ' . $this->limit;
-    }
-
-    private function getOffsetQuery(): string
-    {
-        if ($this->offset === null) {
-            return '';
-        }
-
-        return ' OFFSET ' . $this->offset;
     }
 
     private function getJoinsQuery(): string

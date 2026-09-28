@@ -159,6 +159,21 @@ final class IntegrationTest extends TestCase
 
         self::assertCount(0, iterator_to_array($repository->findAll(['id', 'IN', []])));
         self::assertCount(2, iterator_to_array($repository->findAll(['id', 'NOT IN', []])));
+
+        // count() and fetchOne() must not change the builder for later calls.
+        $select = $repository->select()->orderBy('id');
+        self::assertSame(2, $select->count());
+        self::assertCount(2, iterator_to_array($select->fetchAll()));
+        $firstUser = $select->fetchOne();
+        self::assertInstanceOf(UserFixture::class, $firstUser);
+        self::assertSame(1, $firstUser->id);
+        self::assertCount(2, iterator_to_array($select->fetchAll()));
+        self::assertNotNull($select->fetchAssocOne());
+        self::assertCount(2, iterator_to_array($select->fetchAssocAll()));
+
+        // count() ignores LIMIT / OFFSET, which would otherwise hide the single count row.
+        self::assertSame(2, $repository->select()->limit(1)->offset(5)->count());
+        self::assertSame(1, $repository->select()->where(['is_active' => true])->count());
     }
 
     public function testSelectEntityRelationManyToOne(): void
