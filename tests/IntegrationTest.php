@@ -166,6 +166,17 @@ final class IntegrationTest extends TestCase
         self::assertCount(0, iterator_to_array($repository->findAll(['id', 'IN', []])));
         self::assertCount(2, iterator_to_array($repository->findAll(['id', 'NOT IN', []])));
 
+        $usersByOr = iterator_to_array($repository->select()->where(['id' => 1])->orWhere(['firstName' => 'Jane'])->fetchAll());
+        self::assertCount(2, $usersByOr);
+
+        $usersByNested = iterator_to_array(
+            $repository->select()->where(['is_active' => true])->where(static function (WhereBuilder $where): void {
+                $where->where(['firstName' => 'John'])->orWhere(['firstName' => 'Jane']);
+            })->fetchAll(),
+        );
+        self::assertCount(1, $usersByNested);
+        self::assertSame(1, $usersByNested[0]->id);
+
         // count() and fetchOne() must not change the builder for later calls.
         $select = $repository->select()->orderBy('id');
         self::assertSame(2, $select->count());

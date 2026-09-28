@@ -15,7 +15,7 @@ use Ramsey\Uuid\UuidInterface;
  * @phpstan-type WhereList array<string,WhereValues>
  * @phpstan-type WhereParams array{0: string|RawExpression, 1: string, 2: WhereValues}
  * @phpstan-type WhereListParams list<WhereParams>
- * @phpstan-type WhereBuilderCallable callable(WhereBuilder $builder):WhereBuilder
+ * @phpstan-type WhereBuilderCallable callable(WhereBuilder $builder): mixed
  * @phpstan-type Where WhereList|WhereParams|WhereListParams|WhereBuilderCallable
  */
 class WhereBuilder
@@ -38,7 +38,11 @@ class WhereBuilder
     {
         if (is_callable($params)) {
             /** @phpstan-var WhereBuilderCallable $params */
-            $this->where[] = $params(new WhereBuilder($this->select));
+            $builder = new WhereBuilder($this->select);
+            // The callable configures the builder in place; its return value is irrelevant,
+            // so closures that do not return anything work too.
+            $params($builder);
+            $this->where[] = $builder;
             return $this;
         }
 
