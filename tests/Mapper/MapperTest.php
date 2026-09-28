@@ -19,12 +19,14 @@ use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserLevelEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Extension\MapperExtension;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
 use MarekSkopal\ORM\Utils\ValidationUtils;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Lazy\LazyUuidFromString;
@@ -167,6 +169,35 @@ final class MapperTest extends TestCase
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 'admin');
         self::assertInstanceOf(UserTypeEnum::class, $result);
         self::assertSame(UserTypeEnum::Admin, $result);
+    }
+
+    #[TestWith([1, UserLevelEnum::Basic])]
+    #[TestWith(['2', UserLevelEnum::Premium])]
+    public function testMapToPropertyIntBackedEnum(int|string $value, UserLevelEnum $expected): void
+    {
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
+
+        $columnSchema = new ColumnSchema('level', PropertyTypeEnum::Enum, 'level', Type::Int, enumClass: UserLevelEnum::class);
+        $entitySchema = EntitySchemaFixture::create(columns: ['level' => $columnSchema]);
+
+        $mapper = new Mapper($schemaProvider, $entityCache, static fn() => $queryProvider, $this::createStub(DatabaseInterface::class));
+        self::assertSame($expected, $mapper->mapToProperty($entitySchema, $columnSchema, $value));
+        // Second call hits the cached backing type.
+        self::assertSame($expected, $mapper->mapToProperty($entitySchema, $columnSchema, $value));
+    }
+
+    public function testMapToColumnIntBackedEnum(): void
+    {
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
+
+        $columnSchema = new ColumnSchema('level', PropertyTypeEnum::Enum, 'level', Type::Int, enumClass: UserLevelEnum::class);
+
+        $mapper = new Mapper($schemaProvider, $entityCache, static fn() => $queryProvider, $this::createStub(DatabaseInterface::class));
+        self::assertSame(2, $mapper->mapToColumn($columnSchema, UserLevelEnum::Premium));
     }
 
     public function testMapToPropertyDatetimeImmutableFromDatetime(): void

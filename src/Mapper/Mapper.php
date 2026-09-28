@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Mapper;
 
+use BackedEnum;
 use Closure;
 use DateTime;
 use DateTimeImmutable;
@@ -23,6 +24,7 @@ use MarekSkopal\ORM\Utils\ValidationUtils;
 use PDO;
 use Ramsey\Uuid\Uuid;
 use ReflectionClass;
+use ReflectionEnum;
 
 class Mapper implements MapperInterface
 {
@@ -33,6 +35,9 @@ class Mapper implements MapperInterface
 
     /** @var array<class-string, ReflectionClass<object>> */
     private array $reflectionCache = [];
+
+    /** @var array<class-string<BackedEnum>, string> enum class => backing type name ("int" or "string") */
+    private array $enumBackingTypes = [];
 
     /** @param Closure(): QueryProvider $queryProviderFactory */
     public function __construct(
@@ -90,8 +95,9 @@ class Mapper implements MapperInterface
             PropertyTypeEnum::Uuid => Uuid::fromString((string) $value),
             PropertyTypeEnum::DateTime => $this->mapDateTimeToProperty($columnSchema, ValidationUtils::checkIntString($value)),
             PropertyTypeEnum::DateTimeImmutable => $this->mapDateTimeToProperty($columnSchema, ValidationUtils::checkIntString($value)),
-            PropertyTypeEnum::Enum => $columnSchema->enumClass !== null ? $columnSchema->enumClass::from(
-                ValidationUtils::checkString($value),
+            PropertyTypeEnum::Enum => $columnSchema->enumClass !== null ? $this->mapEnumToProperty(
+                $columnSchema->enumClass,
+                ValidationUtils::checkIntString($value),
             ) : null,
             PropertyTypeEnum::Relation => $this->mapRelationToProperty($columnSchema, (int) $value),
             PropertyTypeEnum::Extension => $columnSchema->extensionClass !== null ?
@@ -336,6 +342,16 @@ class Mapper implements MapperInterface
         $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
         // @phpstan-ignore-next-line property.dynamicName
         return $value->{$primaryColumnSchema->propertyName};
+    }
+
+    /** @param class-string<BackedEnum> $enumClass */
+    private function mapEnumToProperty(string $enumClass, string|int $value): BackedEnum
+    {
+        // Drivers may return an int column as int (native prepares) or string (emulated prepares,
+        // SQLite text affinity). BackedEnum::from() is strict about the backing type, so cast to it.
+        $backingType = $this->enumBackingTypes[$enumClass] ??= (string) new ReflectionEnum($enumClass)->getBackingType();
+
+        return $enumClass::from($backingType === 'int' ? (int) $value : (string) $value);
     }
 
     private function mapDateTimeToProperty(ColumnSchema $columnSchema, string|int $value): DateTimeInterface
