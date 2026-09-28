@@ -135,6 +135,12 @@ final class IntegrationTest extends TestCase
         self::assertInstanceOf(UserFixture::class, $userByFirstName);
         self::assertEquals(2, $userByFirstName->id);
 
+        // Property names resolve to their mapped columns, both bare and in ORDER BY.
+        $userByPropertyName = $repository->findOne(['firstName' => 'Jane']);
+        self::assertSame($userByFirstName, $userByPropertyName);
+        $usersByFirstName = iterator_to_array($repository->select()->orderBy('firstName')->fetchAll());
+        self::assertSame([2, 1], array_map(static fn(UserFixture $user): int => $user->id, $usersByFirstName));
+
         $userNotFound = $repository->findOne(['id' => 3]);
         self::assertNull($userNotFound);
 
@@ -1053,6 +1059,11 @@ final class IntegrationTest extends TestCase
 
         $users = iterator_to_array($repository->findAll(['address.country' => 'USA']));
         self::assertCount(2, $users);
+
+        // A ManyToOne property name resolves to its foreign key column.
+        $usersByAddress = iterator_to_array($repository->findAll(['address' => 1]));
+        self::assertCount(1, $usersByAddress);
+        self::assertSame(1, $usersByAddress[0]->id);
     }
 
     public function testWhereOnSelfReferencingRelation(): void
