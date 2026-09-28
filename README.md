@@ -312,19 +312,34 @@ $user = $queryProvider->select(User::class)
     ->fetchOne();
 ```
 
-You can also use `where` method with nested conditions by passing function.
+You can also use `where` method with nested conditions by passing function. The function receives a `WhereBuilder` to configure in place.
 
 ```php
+use MarekSkopal\ORM\Query\Where\WhereBuilder;
 
 // Create nested condition: (id = 1 AND (first_name = 'John' OR last_name = 'Doe'))
 $user = $queryProvider->select(User::class)
     ->where(['id' => 1])
-    ->where(function (Where $where) {
+    ->where(function (WhereBuilder $where) {
         $where->where(['first_name' => 'John'])
             ->orWhere(['last_name' => 'Doe']);
     })
     ->fetchOne();
- ```   
+```
+
+Conditions can be written as `['column' => value]` pairs or as `[column, operator, value]` triples. Column names may be given as property names or database column names, and relations can be traversed with dots.
+
+```php
+$users = $queryProvider->select(User::class)
+    ->where([
+        ['createdAt', '>=', new DateTimeImmutable('2024-01-01')],
+        ['type', 'IN', [UserTypeEnum::Admin, UserTypeEnum::User]],
+        ['address.city', 'LIKE', 'Br%'],
+        ['middleName', '=', null], // rendered as IS NULL
+    ])
+    ->fetchAll();
+```
+
 You can pass another instance of `Select` object to where method to create subquery.
 
 ```php
@@ -333,7 +348,7 @@ $subquery = $queryProvider->select(Address::class)
     ->where(['city' => 'Brno']);
     
 $user = $queryProvider->select(User::class)
-    ->where('address_id', 'in', $subquery)
+    ->where(['address_id', 'IN', $subquery])
     ->fetchOne();
 ```
 

@@ -140,16 +140,23 @@ final class PostgresIntegrationTest extends TestCase
         $userById = $repository->findOne(['id' => 1]);
         self::assertInstanceOf(UserFixture::class, $userById);
         self::assertEquals(1, $userById->id);
+        // is_active is a native BOOLEAN column; pdo_pgsql returns it as bool.
+        self::assertTrue($userById->isActive);
 
         $userByFirstName = $repository->findOne(['first_name' => 'Jane']);
         self::assertInstanceOf(UserFixture::class, $userByFirstName);
         self::assertEquals(2, $userByFirstName->id);
+        self::assertFalse($userByFirstName->isActive);
 
         $userNotFound = $repository->findOne(['id' => 3]);
         self::assertNull($userNotFound);
 
         $users = iterator_to_array($repository->findAll());
         self::assertCount(2, $users);
+
+        $inactiveUsers = iterator_to_array($repository->findAll(['is_active' => false]));
+        self::assertCount(1, $inactiveUsers);
+        self::assertSame(2, $inactiveUsers[0]->id);
     }
 
     public function testSelectEntityRelationManyToOne(): void

@@ -18,6 +18,7 @@ use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 
@@ -75,5 +76,54 @@ final class EntityFactoryTest extends TestCase
         self::assertEquals('Doe', $entity->lastName);
         self::assertEquals('johh.doe@example.com', $entity->email);
         self::assertEquals(true, $entity->isActive);
+    }
+
+    /** pdo_pgsql returns native bool for BOOLEAN columns; the mapper must still receive int. */
+    #[TestWith([true, 1])]
+    #[TestWith([false, 0])]
+    public function testCreateEntityNormalisesNativeBooleanValues(bool $databaseValue, int $expectedMapperValue): void
+    {
+        $entityCache = $this::createStub(EntityCache::class);
+        $entityCache->method('getEntity')
+            ->willReturn(null);
+
+        $received = [];
+        $mapper = $this::createStub(Mapper::class);
+        $mapper->method('mapToProperty')
+            ->willReturnCallback(
+                static function (EntitySchema $entitySchema, ColumnSchema $columnSchema, mixed $value) use (&$received): mixed {
+                    $received[$columnSchema->columnName] = $value;
+
+                    return match ($columnSchema->propertyName) {
+                        'createdAt' => new DateTimeImmutable('2024-01-01 00:00'),
+                        'isActive' => (bool) $value,
+                        'type' => UserTypeEnum::Admin,
+                        default => $value,
+                    };
+                },
+            );
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $schemaProvider->method('getEntitySchema')
+            ->willReturn(EntitySchemaFixture::create());
+
+        $entityFactory = new EntityFactory(
+            $schemaProvider,
+            $entityCache,
+            new EntityReflection(),
+            $mapper,
+        );
+        $entity = $entityFactory->create(UserFixture::class, [
+            'id' => 1,
+            'created_at' => '2024-01-01 00:00',
+            'first_name' => 'John',
+            'middle_name' => null,
+            'last_name' => 'Doe',
+            'email' => 'johh.doe@example.com',
+            'is_active' => $databaseValue,
+            'type' => 'admin',
+        ]);
+
+        self::assertSame($expectedMapperValue, $received['is_active']);
+        self::assertSame($databaseValue, $entity->isActive);
     }
 }
