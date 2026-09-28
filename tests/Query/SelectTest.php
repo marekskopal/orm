@@ -15,8 +15,12 @@ use MarekSkopal\ORM\Query\Where\WhereBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\CategoryFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\CountryFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\AddressEntitySchemaFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Schema\CategoryEntitySchemaFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\CountryEntitySchemaFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\UserEntityWithAddressSchemaFixture;
 use MarekSkopal\ORM\Utils\NameUtils;
@@ -50,12 +54,11 @@ final class SelectTest extends TestCase
         $entityFactory = $this::createStub(EntityFactory::class);
         $schemaProvider = $this::createStub(SchemaProvider::class);
         $schemaProvider->method('getEntitySchema')
-            ->willReturn(
-                UserEntityWithAddressSchemaFixture::create(),
-                AddressEntitySchemaFixture::create(),
-                AddressEntitySchemaFixture::create(),
-                CountryEntitySchemaFixture::create(),
-            );
+            ->willReturnMap([
+                [UserWithAddressFixture::class, UserEntityWithAddressSchemaFixture::create()],
+                [AddressFixture::class, AddressEntitySchemaFixture::create()],
+                [CountryFixture::class, CountryEntitySchemaFixture::create()],
+            ]);
 
         $this->select = new Select(
             $database,
@@ -172,6 +175,76 @@ final class SelectTest extends TestCase
             self::BaseSql . ' LEFT JOIN `addresses` `a` ON `a`.`id`=`u`.`address_id` LEFT JOIN `countries` `c` ON `c`.`id`=`a`.`country_id`',
             $select->getSql(),
         );
+    }
+
+    public function testParseColumnJoinTwoRelationsToSameTable(): void
+    {
+        $select = $this->select;
+
+        self::assertSame('`a`.`city`', $select->parseColumn('address.city'));
+        self::assertSame('`a_secondAddress`.`city`', $select->parseColumn('secondAddress.city'));
+        // Repeated use of the same relation path reuses its alias and does not add a join.
+        self::assertSame('`a_secondAddress`.`street`', $select->parseColumn('secondAddress.street'));
+
+        self::assertSame(
+            self::BaseSql
+            . ' LEFT JOIN `addresses` `a` ON `a`.`id`=`u`.`address_id`'
+            . ' LEFT JOIN `addresses` `a_secondAddress` ON `a_secondAddress`.`id`=`u`.`second_address_id`',
+            $select->getSql(),
+        );
+    }
+
+    public function testParseColumnJoinNestedRelationsToSameTable(): void
+    {
+        $select = $this->select;
+
+        self::assertSame('`c`.`name`', $select->parseColumn('address.country.name'));
+        self::assertSame('`c_secondAddress_country`.`name`', $select->parseColumn('secondAddress.country.name'));
+
+        self::assertSame(
+            self::BaseSql
+            . ' LEFT JOIN `addresses` `a` ON `a`.`id`=`u`.`address_id`'
+            . ' LEFT JOIN `countries` `c` ON `c`.`id`=`a`.`country_id`'
+            . ' LEFT JOIN `addresses` `a_secondAddress` ON `a_secondAddress`.`id`=`u`.`second_address_id`'
+            . ' LEFT JOIN `countries` `c_secondAddress_country` ON `c_secondAddress_country`.`id`=`a_secondAddress`.`country_id`',
+            $select->getSql(),
+        );
+    }
+
+    public function testParseColumnJoinSelfReference(): void
+    {
+        $database = $this::createStub(DatabaseInterface::class);
+        $database->method('getPdo')->willReturn($this::createStub(PDO::class));
+        $database->method('getIdentifierQuoteChar')->willReturn('`');
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $schemaProvider->method('getEntitySchema')->willReturn(CategoryEntitySchemaFixture::create());
+
+        $select = new Select(
+            $database,
+            CategoryFixture::class,
+            CategoryEntitySchemaFixture::create(),
+            $this::createStub(EntityFactory::class),
+            $schemaProvider,
+        );
+
+        self::assertSame('`c_parent`.`name`', $select->parseColumn('parent.name'));
+        self::assertSame('`c_parent_parent`.`name`', $select->parseColumn('parent.parent.name'));
+
+        self::assertSame(
+            'SELECT `c`.`id`,`c`.`name`,`c`.`parent_id` FROM `categories` `c`'
+            . ' LEFT JOIN `categories` `c_parent` ON `c_parent`.`id`=`c`.`parent_id`'
+            . ' LEFT JOIN `categories` `c_parent_parent` ON `c_parent_parent`.`id`=`c_parent`.`parent_id`',
+            $select->getSql(),
+        );
+    }
+
+    public function testParseColumnAvoidsManualJoinAlias(): void
+    {
+        $select = $this->select;
+
+        $select->join('address_id', 'addresses', 'a', 'id');
+
+        self::assertSame('`a_secondAddress`.`city`', $select->parseColumn('secondAddress.city'));
     }
 
     #[TestWith(['id', '`u`.`id`'])]
