@@ -195,7 +195,7 @@ class Select extends AbstractQuery
             return;
         }
 
-        /** @var list<array<string, float|int|string|null>> $rows */
+        /** @var list<array<string, float|int|string|bool|null>> $rows */
         $rows = $this->query()->fetchAll(PDO::FETCH_ASSOC);
         $this->preloadWith($rows);
         foreach ($rows as $row) {
@@ -365,7 +365,7 @@ class Select extends AbstractQuery
         return $alias;
     }
 
-    /** @param list<array<string, float|int|string|null>> $rows */
+    /** @param list<array<string, float|int|string|bool|null>> $rows */
     private function preloadWith(array $rows): void
     {
         if ($rows === []) {

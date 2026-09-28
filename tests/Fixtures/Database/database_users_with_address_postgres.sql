@@ -6,7 +6,7 @@ CREATE TABLE users (
     middle_name VARCHAR(255) NULL,
     last_name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
-    is_active SMALLINT NOT NULL,
+    is_active BOOLEAN NOT NULL,
     type TEXT NOT NULL,
     address_id INTEGER NOT NULL,
     second_address_id INTEGER NULL
@@ -27,7 +27,7 @@ INSERT INTO addresses (id, street, city, country) VALUES
 SELECT setval(pg_get_serial_sequence('addresses', 'id'), 2);
 
 INSERT INTO users (id, created_at, first_name, middle_name, last_name, email, is_active, type, address_id, second_address_id) VALUES
-    (1, '2024-01-01 00:00:00', 'John', null, 'Doe', 'john.doe@example.com', 1, 'admin', 1, NULL),
-    (2, '2024-01-01 00:00:00', 'Jane', 'Janet', 'Doe', 'jane.doe@example.com', 0, 'user', 2, NULL);
+    (1, '2024-01-01 00:00:00', 'John', null, 'Doe', 'john.doe@example.com', true, 'admin', 1, NULL),
+    (2, '2024-01-01 00:00:00', 'Jane', 'Janet', 'Doe', 'jane.doe@example.com', false, 'user', 2, NULL);
 
 SELECT setval(pg_get_serial_sequence('users', 'id'), 2);
