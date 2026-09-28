@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-09-28
+
+### Added
+- `Select::orWhere()` adds an OR condition group directly on the query builder; previously this was only possible inside a nested `where()` closure.
+- `Select::getCountSql()` exposes the SQL used by `count()`.
+- Where conditions accept `null`: `['column' => null]` renders `IS NULL` and `['column', '!=', null]` renders `IS NOT NULL`. Any other operator with `null` throws `InvalidArgumentException`.
+- Column paths in `where()`, `orderBy()`, `columns()` and `groupBy()` accept property names as well as database column names (`firstName` and `first_name` address the same column), and a `ManyToOne` property name (`address`) resolves to its foreign key column (`address_id`). Bare names that match neither still pass through unchanged, so unmapped database columns remain addressable.
+- Int-backed enums are supported on `#[ColumnEnum]` properties; the column value is cast to the enum's backing type before `from()`, so both `1` and `"1"` from the driver work.
+- README documents the `[column, operator, value]` form, relation paths, `IS NULL` and subqueries with examples that match the API.
+
+### Changed
+- `count()` ignores `ORDER BY`, `LIMIT` and `OFFSET`. A builder with a limit or offset set now returns the total number of matching rows instead of no row at all.
+- CI runs for `release/**` branches as well as `main`.
+
+### Fixed
+- A nested `where()` closure that only called `orWhere()` rendered `WHERE (1 OR ...)` and matched every row.
+- Two relations to the same table (`address` and `secondAddress`) or a self-referencing relation (`parent`) produced duplicate join aliases and "ambiguous column" errors. Join aliases are now assigned per relation path (`a`, `a_secondAddress`, `c_parent`), and aliases passed to `join()` are never reused.
+- `where(['column' => false])` bound `false` as an empty string and never matched an integer column. Booleans are bound as `0`/`1`, including inside `IN` lists.
+- `IN` / `NOT IN` with an empty array emitted `IN ()`, a syntax error on MySQL and PostgreSQL. They now render `1=0` / `1=1` and bind no parameters.
+- `count()` permanently replaced the selected columns with `count(*)`, and `fetchOne()` / `fetchAssocOne()` permanently set `LIMIT 1`, so later `fetchAll()` calls on the same builder failed or returned one row.
+- A nested `where()` closure without a return value stored `null` in the condition list and crashed at build time. The closure now configures the builder in place and its return value is ignored.
+- Hydrating an entity with a `BOOLEAN` column on PostgreSQL threw a `TypeError`, because pdo_pgsql returns native `bool` and the mapper accepted only `string|int|float|null`. Values are normalised before mapping; the PostgreSQL test fixtures now use a real `BOOLEAN` column.
+
 ## [1.3.0] - 2026-07-02
 
 ### Changed
