@@ -269,17 +269,23 @@ class Select extends AbstractQuery
                 );
             }
 
-            return $this->escape($this->schema->tableAlias) . '.' . $this->escape($column);
+            // A name that is neither a property nor a mapped column is passed through verbatim,
+            // so columns that exist only in the database remain addressable.
+            $columnSchema = $this->resolveColumnSchema($this->schema, $column);
+
+            return $this->escape($this->schema->tableAlias) . '.' . $this->escape($columnSchema->columnName ?? $column);
         }
 
         $entitySchema = $this->schema;
         $tableAlias = $this->schema->tableAlias;
         $relationPath = '';
         for ($i = 0; $i < $partsCount - 1; $i++) {
-            $columnSchema = $entitySchema->getColumnByPropertyName($parts[$i]);
+            $columnSchema = $this->resolveColumnSchema($entitySchema, $parts[$i]);
 
-            if ($columnSchema->relationEntityClass === null) {
-                throw new \InvalidArgumentException('Column is not relation');
+            if ($columnSchema?->relationEntityClass === null) {
+                throw new \InvalidArgumentException(
+                    sprintf('"%s" in "%s" is not a relation of entity "%s".', $parts[$i], $column, $entitySchema->entityClass),
+                );
             }
 
             $relationEntitySchema = $this->schemaProvider->getEntitySchema($columnSchema->relationEntityClass);
@@ -301,9 +307,21 @@ class Select extends AbstractQuery
             $tableAlias = $relationTableAlias;
         }
 
-        $relationColumnSchema = $entitySchema->getColumnByColumnName($parts[$partsCount - 1]);
+        $relationColumnSchema = $this->resolveColumnSchema($entitySchema, $parts[$partsCount - 1])
+            ?? throw new \InvalidArgumentException(
+                sprintf('Column "%s" in "%s" not found on entity "%s".', $parts[$partsCount - 1], $column, $entitySchema->entityClass),
+            );
 
         return $this->escape($tableAlias) . '.' . $this->escape($relationColumnSchema->columnName);
+    }
+
+    /**
+     * Resolves a segment of a column path against an entity: property names take precedence,
+     * then database column names, so both "firstName" and "first_name" address the same column.
+     */
+    private function resolveColumnSchema(EntitySchema $entitySchema, string $name): ?ColumnSchema
+    {
+        return $entitySchema->columns[$name] ?? $entitySchema->columnsByColumnName[$name] ?? null;
     }
 
     /**

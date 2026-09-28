@@ -280,11 +280,31 @@ final class SelectTest extends TestCase
 
     #[TestWith(['id', '`u`.`id`'])]
     #[TestWith(['address.id', '`a`.`id`'])]
+    #[TestWith(['firstName', '`u`.`first_name`'])]
+    #[TestWith(['first_name', '`u`.`first_name`'])]
+    #[TestWith(['address', '`u`.`address_id`'])]
+    #[TestWith(['address_id', '`u`.`address_id`'])]
+    #[TestWith(['unmapped_column', '`u`.`unmapped_column`'])]
+    #[TestWith(['address.country', '`a`.`country_id`'])]
+    #[TestWith(['address.country_id', '`a`.`country_id`'])]
+    #[TestWith(['address_id.city', '`a`.`city`'])]
+    #[TestWith(['address.country.name', '`c`.`name`'])]
     public function testParseColumn(string $column, string $expected): void
     {
         $select = $this->select;
 
         self::assertSame($expected, $select->parseColumn($column));
+    }
+
+    #[TestWith(['address.unknown'])]
+    #[TestWith(['unknown.city'])]
+    #[TestWith(['firstName.city'])]
+    public function testParseColumnUnknownPathThrowsException(string $column): void
+    {
+        $select = $this->select;
+
+        $this->expectException(InvalidArgumentException::class);
+        $select->parseColumn($column);
     }
 
     public function testParseColumnRawExpression(): void
