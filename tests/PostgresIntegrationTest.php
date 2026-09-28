@@ -188,9 +188,7 @@ final class PostgresIntegrationTest extends TestCase
 
         $address = $repository->findOne(['id' => 1]);
         self::assertInstanceOf(AddressWithUsersFixture::class, $address);
-        self::assertInstanceOf(Collection::class, $address->users);
         self::assertEquals(1, count($address->users));
-        self::assertInstanceOf(UserWithAddressFixture::class, $address->users[0]);
         self::assertEquals(1, $address->users[0]->id);
     }
 

@@ -9,7 +9,6 @@ use Closure;
 use DateTime;
 use DateTimeImmutable;
 use DateTimeInterface;
-use Iterator;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\EntityCache;
 use MarekSkopal\ORM\Enum\Type;
@@ -158,9 +157,9 @@ class Mapper implements MapperInterface
     /**
      * @template T of object
      * @param class-string<T> $entityClass
-     * @return Iterator<T>
+     * @return Collection<T>
      */
-    private function mapRelationOneToManyToProperty(string $entityClass, string $columnName, int $value): Iterator
+    private function mapRelationOneToManyToProperty(string $entityClass, string $columnName, int $value): Collection
     {
         $reflector = $this->getReflectionClass(Collection::class);
         /** @var Collection<T> $lazyCollection */
@@ -238,8 +237,8 @@ class Mapper implements MapperInterface
         return $proxy;
     }
 
-    /** @return Iterator<object> */
-    private function mapRelationManyToManyToProperty(ColumnSchema $columnSchema, int $value): Iterator
+    /** @return Collection<object> */
+    private function mapRelationManyToManyToProperty(ColumnSchema $columnSchema, int $value): Collection
     {
         $entityClass = $columnSchema->relationEntityClass ?? throw new \RuntimeException('Relation entity class not found');
         $joinTable = $columnSchema->joinTable ?? throw new \RuntimeException('joinTable not found on ManyToMany');
@@ -279,8 +278,8 @@ class Mapper implements MapperInterface
         return $lazyCollection;
     }
 
-    /** @return Iterator<object> */
-    private function mapRelationManyToManyInverseToProperty(ColumnSchema $columnSchema, int $value): Iterator
+    /** @return Collection<object> */
+    private function mapRelationManyToManyInverseToProperty(ColumnSchema $columnSchema, int $value): Collection
     {
         $entityClass = $columnSchema->relationEntityClass ?? throw new \RuntimeException('Relation entity class not found');
         $mappedBy = $columnSchema->mappedBy ?? throw new \RuntimeException('mappedBy not found on ManyToManyInverse');

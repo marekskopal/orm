@@ -5,48 +5,37 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Mapper;
 
 use ArrayAccess;
+use ArrayIterator;
 use Countable;
-use Iterator;
+use IteratorAggregate;
 
 /**
+ * Collection of related entities.
+ *
+ * Implemented as an IteratorAggregate rather than an Iterator so every foreach gets its own
+ * cursor: nested loops over the same instance and re-iteration after a partial loop both work.
+ *
  * @template T of object
- * @implements Iterator<T>
+ * @implements IteratorAggregate<int|string, T>
  * @implements ArrayAccess<int|string, T>
  */
-class Collection implements Iterator, ArrayAccess, Countable
+class Collection implements IteratorAggregate, ArrayAccess, Countable
 {
     /** @param array<T> $items */
     public function __construct(private array $items = [])
     {
     }
 
-    /**
-     * @return T|false $item
-     * @phpstan-ignore-next-line method.childReturnType
-     */
-    public function current(): object|false
+    /** @return ArrayIterator<int|string, T> */
+    public function getIterator(): ArrayIterator
     {
-        return current($this->items);
+        return new ArrayIterator($this->items);
     }
 
-    public function next(): void
+    /** @return array<T> */
+    public function toArray(): array
     {
-        next($this->items);
-    }
-
-    public function key(): int|string|null
-    {
-        return key($this->items);
-    }
-
-    public function valid(): bool
-    {
-        return key($this->items) !== null;
-    }
-
-    public function rewind(): void
-    {
-        reset($this->items);
+        return $this->items;
     }
 
     public function offsetExists(mixed $offset): bool

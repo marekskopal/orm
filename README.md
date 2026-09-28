@@ -117,7 +117,7 @@ final class User
     public Address $address;
 
     #[OneToMany(entityClass: User::class)]
-    public \Iterator $children;
+    public Collection $children;
 }
 ```
 
