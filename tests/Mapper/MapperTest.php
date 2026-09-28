@@ -6,10 +6,10 @@ namespace MarekSkopal\ORM\Tests\Mapper;
 
 use DateTime;
 use DateTimeImmutable;
-use Iterator;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\EntityCache;
 use MarekSkopal\ORM\Enum\Type;
+use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Query\QueryProvider;
@@ -269,7 +269,7 @@ final class MapperTest extends TestCase
         $entitySchema = EntitySchemaFixture::create(columns: ['users' => $columnSchema]);
 
         $result = $mapper->mapToProperty($entitySchema, $columnSchema, 1);
-        self::assertInstanceOf(Iterator::class, $result);
+        self::assertInstanceOf(Collection::class, $result);
     }
 
     public function testMapToPropertyRelationNotFound(): void
