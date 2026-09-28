@@ -90,18 +90,19 @@ class WhereBuilder
 
     public function build(): string
     {
-        $where = '';
+        $parts = [];
         if (count($this->where) > 0) {
-            $where = $this->buildWhere($this->where);
+            $parts[] = $this->buildWhere($this->where);
         }
 
-        if (count($this->orWhere) > 0) {
-            $where = $where !== '' ? $where : '1';
-
-            $where .= ' OR ' . implode(' OR ', array_map(fn (WhereBuilder $builder): string => $builder->build(), $this->orWhere));
+        foreach ($this->orWhere as $builder) {
+            $part = $builder->build();
+            if ($part !== '') {
+                $parts[] = $part;
+            }
         }
 
-        return $where;
+        return implode(' OR ', $parts);
     }
 
     /** @return list<scalar> */

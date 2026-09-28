@@ -134,6 +134,44 @@ final class WhereBuilderTest extends TestCase
         );
     }
 
+    public function testBuildOrWithoutWhere(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->orWhere(['first_name' => 'John']);
+        $whereBuilder->orWhere(['last_name' => 'Doe']);
+
+        self::assertSame(
+            '`u`.`first_name`=? OR `u`.`last_name`=?',
+            $whereBuilder->build(),
+        );
+    }
+
+    public function testBuildSubOrWithoutWhere(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where(fn(WhereBuilder $builder) => $builder->orWhere(['first_name' => 'John']));
+
+        self::assertSame(
+            '(`u`.`first_name`=?)',
+            $whereBuilder->build(),
+        );
+    }
+
+    public function testBuildEmptyOrWhereIsIgnored(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where(['id' => 1]);
+        $whereBuilder->orWhere([]);
+
+        self::assertSame(
+            '`u`.`id`=?',
+            $whereBuilder->build(),
+        );
+    }
+
     public function testBuildSub(): void
     {
         // id=1 AND ((first_name='John' AND last_name='Doe') OR (first_name='Jane' AND last_name='Doe'))
