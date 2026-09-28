@@ -305,6 +305,33 @@ final class WhereBuilderTest extends TestCase
         );
     }
 
+    #[TestWith(['IN', '1=0'])]
+    #[TestWith(['NOT IN', '1=1'])]
+    #[TestWith(['not in', '1=1'])]
+    public function testBuildInEmptyArray(string $operator, string $expectedSql): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where(['id', $operator, []]);
+
+        self::assertSame($expectedSql, $whereBuilder->build());
+        self::assertSame([], $whereBuilder->getParams());
+    }
+
+    public function testBuildInEmptyArrayKeepsOtherConditionsAndParams(): void
+    {
+        $whereBuilder = $this->whereBuilder;
+
+        $whereBuilder->where([
+            ['first_name', '=', 'John'],
+            ['id', 'IN', []],
+            ['last_name', '=', 'Doe'],
+        ]);
+
+        self::assertSame('`u`.`first_name`=? AND 1=0 AND `u`.`last_name`=?', $whereBuilder->build());
+        self::assertSame(['John', 'Doe'], $whereBuilder->getParams());
+    }
+
     public function testGetParamsIn(): void
     {
         $whereBuilder = $this->whereBuilder;

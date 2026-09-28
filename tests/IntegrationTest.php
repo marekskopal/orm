@@ -156,6 +156,9 @@ final class IntegrationTest extends TestCase
         $userWithMiddleName = $repository->findOne(['middle_name', '!=', null]);
         self::assertInstanceOf(UserFixture::class, $userWithMiddleName);
         self::assertSame(2, $userWithMiddleName->id);
+
+        self::assertCount(0, iterator_to_array($repository->findAll(['id', 'IN', []])));
+        self::assertCount(2, iterator_to_array($repository->findAll(['id', 'NOT IN', []])));
     }
 
     public function testSelectEntityRelationManyToOne(): void
