@@ -14,13 +14,14 @@ readonly class MySqlDatabase extends AbstractDatabase
         string $password,
         private string $database,
         private string $charset = 'utf8mb4',
+        private int $port = 3306,
     ) {
         parent::__construct($username, $password);
     }
 
     protected function getDsn(): string
     {
-        return 'mysql:host=' . $this->host . ';dbname=' . $this->database . ';charset=' . $this->charset;
+        return 'mysql:host=' . $this->host . ';port=' . $this->port . ';dbname=' . $this->database . ';charset=' . $this->charset;
     }
 
     public function getIdentifierQuoteChar(): string

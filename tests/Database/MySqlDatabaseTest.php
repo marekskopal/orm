@@ -17,14 +17,21 @@ final class MySqlDatabaseTest extends TestCase
     {
         $database = $this->createDatabase();
 
-        self::assertSame('mysql:host=localhost;dbname=orm;charset=utf8mb4', $this->invokeGetDsn($database));
+        self::assertSame('mysql:host=localhost;port=3306;dbname=orm;charset=utf8mb4', $this->invokeGetDsn($database));
     }
 
     public function testGetDsnWithCustomCharset(): void
     {
         $database = $this->createDatabase(charset: 'utf8');
 
-        self::assertSame('mysql:host=localhost;dbname=orm;charset=utf8', $this->invokeGetDsn($database));
+        self::assertSame('mysql:host=localhost;port=3306;dbname=orm;charset=utf8', $this->invokeGetDsn($database));
+    }
+
+    public function testGetDsnWithCustomPort(): void
+    {
+        $database = $this->createDatabase(port: 33060);
+
+        self::assertSame('mysql:host=localhost;port=33060;dbname=orm;charset=utf8mb4', $this->invokeGetDsn($database));
     }
 
     public function testGetOptionsDisablesEmulatedPrepares(): void
@@ -53,7 +60,7 @@ final class MySqlDatabaseTest extends TestCase
      * The constructor connects immediately, so the instance is created without
      * the constructor and the readonly properties are initialized via reflection.
      */
-    private function createDatabase(string $charset = 'utf8mb4'): MySqlDatabase
+    private function createDatabase(string $charset = 'utf8mb4', int $port = 3306): MySqlDatabase
     {
         $reflectionClass = new ReflectionClass(MySqlDatabase::class);
         $database = $reflectionClass->newInstanceWithoutConstructor();
@@ -61,6 +68,7 @@ final class MySqlDatabaseTest extends TestCase
         $reflectionClass->getProperty('host')->setValue($database, 'localhost');
         $reflectionClass->getProperty('database')->setValue($database, 'orm');
         $reflectionClass->getProperty('charset')->setValue($database, $charset);
+        $reflectionClass->getProperty('port')->setValue($database, $port);
 
         return $database;
     }

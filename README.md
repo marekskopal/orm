@@ -562,3 +562,26 @@ Never build a `RawExpression` from user input — it bypasses all escaping and v
 
 Values bound to `LIKE` conditions are safely parameterized, but `%` and `_` inside the value still act as wildcards. If user input must be matched literally, escape those characters yourself (e.g. `addcslashes($value, '%_\\')` on MySQL/PostgreSQL).
 
+## Running tests
+
+```bash
+vendor/bin/phpunit
+```
+
+The SQLite tests always run. The MySQL and PostgreSQL integration tests connect to real servers and are skipped when the server is unreachable. They read their connection settings from these environment variables:
+
+| Driver | Variables | Defaults |
+|---|---|---|
+| MySQL | `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DB` | `127.0.0.1`, `3306`, `root`, empty, `orm_test` |
+| PostgreSQL | `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `localhost`, `5432`, `postgres`, empty, `orm_test` |
+
+To run them against throwaway containers:
+
+```bash
+docker run -d --rm --name orm-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=orm_test -p 5432:5432 postgres:16
+docker run -d --rm --name orm-mysql -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=orm_test -p 3306:3306 mysql:8
+
+POSTGRES_PASSWORD=postgres MYSQL_PASSWORD=root ORM_TEST_REQUIRE_DATABASES=1 vendor/bin/phpunit
+```
+
+`ORM_TEST_REQUIRE_DATABASES=1` turns a skipped driver test into a failure, which is how CI runs them.
