@@ -11,7 +11,7 @@ use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Database\PostgresDatabase;
+use MarekSkopal\ORM\Database\MySqlDatabase;
 use MarekSkopal\ORM\Entity\EntityCache;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Entity\EntityReflection;
@@ -46,7 +46,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\Attributes\UsesClass;
 
-#[CoversClass(PostgresDatabase::class)]
+#[CoversClass(MySqlDatabase::class)]
 #[UsesClass(Column::class)]
 #[UsesClass(ColumnEnum::class)]
 #[UsesClass(Entity::class)]
@@ -83,22 +83,23 @@ use PHPUnit\Framework\Attributes\UsesClass;
 #[UsesClass(WhereBuilder::class)]
 #[UsesClass(Collection::class)]
 #[UsesClass(Join::class)]
-#[RequiresPhpExtension('pdo_pgsql')]
-final class PostgresIntegrationTest extends AbstractDriverIntegrationTestCase
+#[RequiresPhpExtension('pdo_mysql')]
+final class MySqlIntegrationTest extends AbstractDriverIntegrationTestCase
 {
     protected function connect(): DatabaseInterface
     {
-        return new PostgresDatabase(
-            self::env('POSTGRES_HOST', 'localhost'),
-            self::env('POSTGRES_USER', 'postgres'),
-            self::env('POSTGRES_PASSWORD', ''),
-            self::env('POSTGRES_DB', 'orm_test'),
-            (int) self::env('POSTGRES_PORT', '5432'),
+        // PDO treats host "localhost" as a Unix socket for MySQL, so the default is the TCP address.
+        return new MySqlDatabase(
+            host: self::env('MYSQL_HOST', '127.0.0.1'),
+            username: self::env('MYSQL_USER', 'root'),
+            password: self::env('MYSQL_PASSWORD', ''),
+            database: self::env('MYSQL_DB', 'orm_test'),
+            port: (int) self::env('MYSQL_PORT', '3306'),
         );
     }
 
     protected function getFixtureSuffix(): string
     {
-        return 'postgres';
+        return 'mysql';
     }
 }

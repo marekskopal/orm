@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `Select::iterate()` and `Select::iterateAssoc()` stream results one row at a time as generators, for result sets too large to hold in memory.
 - Cloning a `Select` copies its where conditions, including nested condition groups, so the clone can be changed without affecting the original.
+- `MySqlDatabase` accepts a `port` constructor parameter (default `3306`), matching `PostgresDatabase`.
+- CI runs the integration tests against MySQL 8 and PostgreSQL 16 service containers as well as SQLite. The MySQL and PostgreSQL suites share one set of tests, and CI fails rather than skips when a database is unreachable.
 
 ### Changed
 - **Breaking:** `Select::fetchAll()` and `Select::fetchAssocAll()` return a `list` instead of a one-shot `Iterator`, so the result can be counted, indexed and iterated more than once. Code that streamed large results should switch to `iterate()` or `iterateAssoc()`. Wrapping calls in `iterator_to_array()` no longer works and should be removed.

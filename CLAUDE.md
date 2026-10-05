@@ -42,13 +42,13 @@ This is a lightweight PHP ORM library (PHP 8.4+, namespace `MarekSkopal\ORM`). S
 
 6. **Repositories** (`src/Repository/`) — `AbstractRepository` provides `findAll()`, `findOne()`, `persist()` (insert or update based on primary key presence), and `delete()`. Custom repositories extend `AbstractRepository` and are referenced in `#[Entity(repositoryClass: MyRepository::class)]`.
 
-7. **Database layer** (`src/Database/`) — `DatabaseInterface` abstraction over PDO; implementations for `MySqlDatabase` and `SqliteDatabase`.
+7. **Database layer** (`src/Database/`) — `DatabaseInterface` abstraction over PDO; implementations for `MySqlDatabase`, `PostgresDatabase` and `SqliteDatabase`.
 
 ### Key conventions
 
 - All attributes live in `src/Attribute/`: `Entity`, `Column`, `ColumnEnum`, `ManyToOne`, `OneToMany`, `ForeignKey`.
 - `src/Enum/Type.php` defines column types (`Type::Int`, `Type::String`, `Type::Timestamp`, etc.).
 - `ColumnSchema` is keyed by **property name** in `EntitySchema::$columns`; column name is a separate field.
-- Tests use fixtures in `tests/Fixtures/` (entity, schema, repository fixtures) rather than a database; `IntegrationTest.php` uses SQLite.
+- Tests use fixtures in `tests/Fixtures/` (entity, schema, repository fixtures) rather than a database; `IntegrationTest.php` uses SQLite. `MySqlIntegrationTest` and `PostgresIntegrationTest` extend `AbstractDriverIntegrationTestCase` and run against real servers (skipped when unreachable; see README "Running tests"). Driver-specific SQL fixtures are named `database_<name>_<driver>.sql`.
 - PHPStan runs at max level; all new code must be fully typed.
 - Tests require `#[CoversClass]` attributes (strict coverage metadata is enforced).

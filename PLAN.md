@@ -13,7 +13,7 @@ codebase review of 2026-09-28; the numbers below are its baseline measurements.
 | 3 | Relation loading without per-row proxies | not started |
 | 4 | Unit of work and identity map | not started |
 | 5 | Connection layer with statement cache | not started |
-| 6 | CI coverage for MySQL and PostgreSQL | not started |
+| 6 | CI coverage for MySQL and PostgreSQL | done |
 
 Suggested order: 1, then 2 and 3 together (the hydrator is where relation resolution lives),
 then 4, then 5. 6 can land at any point and should land before 2 so hydrator changes are
@@ -275,13 +275,21 @@ The PostgreSQL integration tests exist and read `POSTGRES_*` environment variabl
 CI because the workflow has no database service. Bug 12 (native booleans on PostgreSQL) was
 invisible to CI for that reason.
 
-Steps:
+Done:
 
-1. Add `postgres:16` and `mysql:8` services to `.github/workflows/ci.yml` and export the
-   connection variables to the PHPUnit job.
-2. Add `MySqlIntegrationTest` mirroring the PostgreSQL one; add MySQL variants of the SQL
-   fixtures where syntax differs.
-3. Run the query-count and identity assertions from workstreams 3 and 4 on all three drivers.
+- `postgres:16` and `mysql:8` services run in the PHPUnit job of `.github/workflows/ci.yml`,
+  which exports the connection variables and sets `ORM_TEST_REQUIRE_DATABASES=1` so an
+  unreachable database fails the build instead of skipping.
+- `MySqlIntegrationTest` and `PostgresIntegrationTest` both extend
+  `tests/AbstractDriverIntegrationTestCase.php`, so every driver test runs on both servers.
+  Fixtures are `database_<name>_<driver>.sql`. Beyond the original CRUD cases, the shared
+  suite covers empty `IN`, bool binding, `IS NULL`, `orWhere`, `count()` with limits,
+  relation-path joins and `with()`.
+- `MySqlDatabase` gained a `port` parameter.
+
+Remaining, owned by workstreams 3 and 4: add their query-count and identity assertions to
+`AbstractDriverIntegrationTestCase` (alongside the SQLite `IntegrationTest`) so they run on
+all three drivers.
 
 ## Migration notes for the release
 
