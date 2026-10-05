@@ -18,8 +18,11 @@ readonly class EntitySchema
     /** @var array<string, ColumnSchema> */
     public array $selectableColumns;
 
-    /** @var array<string, ColumnSchema> */
+    /** @var array<string, ColumnSchema> written on insert: every owning column, plus a primary key that is not auto-increment */
     public array $insertableColumns;
+
+    /** @var array<string, ColumnSchema> written on update and compared for changes: the insertable columns without the primary key */
+    public array $updatableColumns;
 
     /** @var array<string, ColumnSchema> */
     public array $columnsByColumnName;
@@ -33,6 +36,8 @@ readonly class EntitySchema
      *        set when the schema is loaded from a dumped file; compiled on first use otherwise
      * @param (Closure(object, ExtensionMapperProvider): array<string, string|int|float|null>)|null $extractor generated
      *        entity-to-row closure for the insertable columns, keyed by column name
+     * @param (Closure(list<mixed>, ExtensionMapperProvider): array<string, string|int|float|null>)|null $normalizer generated
+     *        closure that turns a hydration snapshot (raw values of the updatable columns) into extractor format
      */
     public function __construct(
         public string $entityClass,
@@ -42,6 +47,7 @@ readonly class EntitySchema
         public array $columns,
         public ?Closure $hydrator = null,
         public ?Closure $extractor = null,
+        public ?Closure $normalizer = null,
     ) {
         $this->primaryColumn = array_find($this->columns, fn(ColumnSchema $column): bool => $column->isPrimary);
 
@@ -54,12 +60,13 @@ readonly class EntitySchema
 
         $this->insertableColumns = array_filter(
             $this->columns,
-            fn(ColumnSchema $column): bool => !$column->isPrimary && (
+            fn(ColumnSchema $column): bool => !($column->isPrimary && $column->isAutoIncrement) && (
                 $column->relationType === null
                 || $column->relationType === RelationEnum::ManyToOne
                 || $column->relationType === RelationEnum::OneToOne
             ),
         );
+        $this->updatableColumns = array_filter($this->insertableColumns, fn(ColumnSchema $column): bool => !$column->isPrimary);
 
         $columnsByColumnName = [];
         foreach ($this->columns as $column) {
@@ -95,6 +102,12 @@ readonly class EntitySchema
     public function getInsertableColumns(): array
     {
         return $this->insertableColumns;
+    }
+
+    /** @return array<string, ColumnSchema> */
+    public function getUpdatableColumns(): array
+    {
+        return $this->updatableColumns;
     }
 
     public function getColumnByPropertyName(string $propertyName): ColumnSchema

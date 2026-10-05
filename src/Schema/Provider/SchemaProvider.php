@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Schema\Provider;
 
 use Closure;
+use MarekSkopal\ORM\Entity\IdentityMap;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Schema\ColumnSchema;
@@ -19,6 +20,18 @@ class SchemaProvider
 
     /** @var array<class-string, Closure(object, ExtensionMapperProvider): array<string, string|int|float|null>> */
     private array $extractors = [];
+
+    /** @var array<class-string, Closure(list<mixed>, ExtensionMapperProvider): array<string, string|int|float|null>> */
+    private array $normalizers = [];
+
+    /** @var array<class-string, Closure(object): mixed> */
+    private array $primaryKeyReaders = [];
+
+    /** @var array<class-string, Closure(object, mixed): void> */
+    private array $primaryKeyWriters = [];
+
+    /** @var array<class-string, Closure(object): bool> */
+    private array $primaryKeyCheckers = [];
 
     private ?SchemaCompiler $compiler = null;
 
@@ -78,6 +91,90 @@ class SchemaProvider
     public function extract(object $entity): array
     {
         return ($this->getExtractor($entity::class))($entity, $this->getExtensionMapperProvider());
+    }
+
+    /**
+     * @param class-string $entityClass
+     * @return Closure(list<mixed>, ExtensionMapperProvider): array<string, string|int|float|null>
+     */
+    public function getNormalizer(string $entityClass): Closure
+    {
+        return $this->normalizers[$entityClass] ??= $this->getEntitySchema($entityClass)->normalizer
+            ?? $this->getCompiler()->compileNormalizer($entityClass);
+    }
+
+    /**
+     * Converts a hydration snapshot to the extractor's format, so it can be compared with extract().
+     *
+     * @param list<mixed> $snapshot
+     * @return array<string, string|int|float|null>
+     */
+    public function normalizeSnapshot(object $entity, array $snapshot): array
+    {
+        return ($this->getNormalizer($entity::class))($snapshot, $this->getExtensionMapperProvider());
+    }
+
+    /** The primary key property value, read in the entity's scope so private keys work. */
+    public function getPrimaryKey(object $entity): mixed
+    {
+        $entityClass = $entity::class;
+        $reader = $this->primaryKeyReaders[$entityClass] ??= $this->bindToEntity(
+            $entityClass,
+            // @phpstan-ignore-next-line property.dynamicName
+            static fn(string $property): Closure => static fn(object $entity): mixed => $entity->{$property},
+        );
+
+        return $reader($entity);
+    }
+
+    public function hasPrimaryKey(object $entity): bool
+    {
+        $entityClass = $entity::class;
+        $checker = $this->primaryKeyCheckers[$entityClass] ??= $this->bindToEntity(
+            $entityClass,
+            // @phpstan-ignore-next-line property.dynamicName
+            static fn(string $property): Closure => static fn(object $entity): bool => isset($entity->{$property}),
+        );
+
+        return $checker($entity);
+    }
+
+    public function setPrimaryKey(object $entity, mixed $value): void
+    {
+        $entityClass = $entity::class;
+        $writer = $this->primaryKeyWriters[$entityClass] ??= $this->bindToEntity(
+            $entityClass,
+            static fn(string $property): Closure => static function (object $entity, mixed $value) use ($property): void {
+                // @phpstan-ignore-next-line property.dynamicName
+                $entity->{$property} = $value;
+            },
+        );
+
+        $writer($entity, $value);
+    }
+
+    /** The primary key as a database value: integers and strings as they are, UUIDs and other objects as strings. */
+    public function getPrimaryKeyValue(object $entity): int|string
+    {
+        $value = $this->getPrimaryKey($entity);
+
+        return is_int($value) ? $value : IdentityMap::key($value);
+    }
+
+    /**
+     * @template TClosure of Closure
+     * @param class-string $entityClass
+     * @param Closure(string): TClosure $factory builds the accessor for the primary key property name
+     * @return TClosure
+     */
+    private function bindToEntity(string $entityClass, Closure $factory): Closure
+    {
+        $accessor = $factory($this->getPrimaryColumnSchema($entityClass)->propertyName);
+
+        /** @var TClosure $bound */
+        $bound = Closure::bind($accessor, null, $entityClass) ?? throw new \LogicException('Cannot bind to ' . $entityClass);
+
+        return $bound;
     }
 
     public function getExtensionMapperProvider(): ExtensionMapperProvider

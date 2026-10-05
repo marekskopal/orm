@@ -11,7 +11,7 @@ codebase review of 2026-09-28; the numbers below are its baseline measurements.
 | 1 | Query and collection API cleanup | done |
 | 2 | Compiled schema and generated hydrators | done |
 | 3 | Relation loading without per-row proxies | done |
-| 4 | Unit of work and identity map | not started |
+| 4 | Unit of work and identity map | done |
 | 5 | Connection layer with statement cache | not started |
 | 6 | CI coverage for MySQL and PostgreSQL | done |
 
@@ -72,10 +72,13 @@ Landed on this branch:
   are no longer PHP lazy ghosts; `Collection::isInitialized()` replaces
   `ReflectionClass::isUninitializedLazyObject()` for them.
 
+- (4) `UnitOfWork` schedules and flushes work; repository `persist()` and `delete()` flush it.
+  `EntityCache` is now `IdentityMap` (`ORM::getIdentityMap()`) with normalised keys.
+  `persist()` of an unmanaged entity with a non-auto-increment primary key inserts it with that
+  key. `AbstractRepository` and `Delete` take extra constructor arguments.
+
 Planned, by workstream:
 
-- (4) `persist()` and `delete()` register work; `flush()` executes it. `EntityCache` is keyed by
-  string. `persist()` of an entity with a non-auto-increment primary key sends that key.
 - (5) `DatabaseInterface` gains `connect()`, `execute()` and `prepareCached()`; `getPdo()`
   connects lazily.
 
@@ -294,6 +297,49 @@ a UUID-keyed entity round-trips; 2000 persists in one flush issue a single inser
 Acceptance: 2000 new entities persisted and flushed in at most 2 statements; updating one
 field of one entity emits an `UPDATE` with one column.
 
+Done. 2000 new entities flush with 1 statement (5 ms on SQLite; 2000 statements before), an
+unchanged entity costs no query, and changing one field emits `UPDATE ... SET "email"=?`. Every
+test listed above exists in `tests/UnitOfWork/UnitOfWorkTest.php`; batching, one-column updates
+and join-table diffing also run on MySQL and PostgreSQL. Review bugs 7 and 8 are fixed.
+
+Cost of change tracking, 20k rows, same benchmark as workstream 2:
+
+| Scenario | Before | After |
+|---|---|---|
+| 2-column entity | 8.7 ms | 11.7 ms |
+| 5 columns + 3 relations | 21.6 ms, 392 B | 24 ms, 673 B |
+| Same, with a `DateTimeImmutable` column | 33.4 ms, 768 B | 37.4 ms, 1,097 B |
+
+So the workstream 2 and 3 targets (under 10 ms, under 400 B) hold for hydration without tracking,
+but not with it. A read-only query mode that skips snapshots would win this back.
+
+How it differs from the design above:
+
+- `flush()` writes only the entities passed to `persist()` or `remove()` and those their cascades
+  reach (explicit change tracking), not every entity in the identity map. Otherwise a repository
+  `persist($a)` would also write every other modified entity, and each flush would extract every
+  loaded entity.
+- Snapshots are the raw values of the updatable columns, recorded by the generated hydrator as a
+  list. A third generated closure (`NormalizerGenerator`) turns them into the extractor's format on
+  flush, only for the entities being flushed, and the diff is a strict comparison per column.
+  Extracting every entity at hydration time would have cost more CPU per row.
+- Snapshots are keyed by object id in an array, not a `WeakMap`. The identity map holds every
+  entity with a snapshot strongly, so weak keys never fire, and writing arrays into a `WeakMap`
+  queued each one for the cycle collector: rich hydration took 41 ms instead of 34 ms.
+- New or existing is decided by whether the entity is managed (has a snapshot or is the registered
+  proxy), not by whether its primary key is set. A hand-built entity with an auto-increment id
+  already set is still updated in full, as before.
+- `flush()` runs in a transaction when it writes more than one statement and none is open. A
+  failed flush rolls back and keeps the work scheduled.
+- Insert ordering uses dependency levels rather than a fixed owning-first order, so
+  self-referencing entities (a category and its parent) insert correctly in one flush.
+- `refresh()` lives on `UnitOfWork`. It cannot rewrite readonly properties, so those keep their
+  value.
+- Deleting an entity deletes join rows referencing it from either side of a ManyToMany relation,
+  with or without cascade; before, only a cascade-remove owning side did.
+- Repository `persist()` of a single entity is about 3 µs slower than before (cascade walk,
+  managed check, identity registration), while batches through `flush()` are much faster.
+
 ## Workstream 5: connection layer with statement cache
 
 Goal: cut the per-query round trips and stop paying for connections that are never used.
@@ -354,4 +400,5 @@ all three drivers.
 To be written before tagging, covering: the `Collection` interface change, `fetchAll()` return
 type, extension mapper signature, schema dumping, shared relation proxies and identity,
 `Collection::isInitialized()`, the removed `EntityFactory` / `EntityReflection` / `Mapper` and
-the changed query constructors, deferred flushing, and the lazy connection.
+the changed query constructors, `IdentityMap` replacing `EntityCache`, repository writes going
+through the unit of work, inserts of non-auto-increment keys, and the lazy connection.

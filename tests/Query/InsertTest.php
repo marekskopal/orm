@@ -6,6 +6,7 @@ namespace MarekSkopal\ORM\Tests\Query;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Query\Insert;
+use MarekSkopal\ORM\Schema\Builder\SchemaBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
 use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
@@ -14,6 +15,7 @@ use MarekSkopal\ORM\Schema\Compiler\SchemaCompiler;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\Code;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
 use MarekSkopal\ORM\Utils\NameUtils;
@@ -23,6 +25,7 @@ use PDOStatement;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
+use Ramsey\Uuid\Uuid;
 
 #[CoversClass(Insert::class)]
 #[UsesClass(ColumnSchema::class)]
@@ -132,6 +135,28 @@ final class InsertTest extends TestCase
 
         self::assertSame(10, $userA->id);
         self::assertSame(11, $userB->id);
+    }
+
+    public function testPrimaryKeyThatIsNotAutoIncrementIsSentAndKept(): void
+    {
+        $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        $pdo->exec('CREATE TABLE codes (id INTEGER PRIMARY KEY, code TEXT NOT NULL)');
+        $database = $this::createStub(DatabaseInterface::class);
+        $database->method('getPdo')->willReturn($pdo);
+        $database->method('getIdentifierQuoteChar')->willReturn('"');
+        $database->method('getInsertReturningClause')->willReturn('RETURNING "id"');
+
+        $schema = new SchemaBuilder()->addEntityPath(__DIR__ . '/../Fixtures/Entity')->build();
+        $insert = new Insert($database, Code::class, $schema->entities[Code::class], new SchemaProvider($schema));
+        $code = new Code(7, Uuid::fromString('f47ac10b-58cc-4372-a567-0e02b2c3d479'));
+
+        self::assertSame('INSERT INTO "codes" ("id","code") VALUES (?,?)', $insert->entity($code)->getSql());
+        $insert->execute();
+
+        self::assertSame(7, $code->id);
+        $statement = $pdo->query('SELECT id FROM codes');
+        self::assertNotFalse($statement);
+        self::assertSame(7, $statement->fetchColumn());
     }
 
     private function fetchEmail(PDO $pdo, int $id): mixed

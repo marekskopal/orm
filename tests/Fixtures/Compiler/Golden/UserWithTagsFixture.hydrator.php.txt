@@ -5,5 +5,6 @@
     $p_tags = $r->collection('MarekSkopal\\ORM\\Tests\\Fixtures\\Entity\\UserWithTagsFixture::tags', $id);
     $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithTagsFixture(name: $p_name, tags: $p_tags);
     $e->id = $p_id;
+    $r->snapshots[\spl_object_id($e)] = [$row['name'] ?? null];
     return $e;
 }, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithTagsFixture::class)

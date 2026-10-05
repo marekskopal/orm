@@ -15,5 +15,6 @@
     $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\TypesFixture(name: $p_name, count: $p_count, ratio: $p_ratio, enabled: $p_enabled, uuid: $p_uuid, createdAt: $p_createdAt, day: $p_day, type: $p_type, level: $p_level, price: $p_price, secret: $p_secret);
     $e->id = $p_id;
     $e->note = $p_note;
+    $r->snapshots[\spl_object_id($e)] = [$row['note'] ?? null, $row['name'] ?? null, $row['count'] ?? null, $row['ratio'] ?? null, $row['enabled'] ?? null, $row['uuid'] ?? null, $row['created_at'] ?? null, $row['day'] ?? null, $row['type'] ?? null, $row['level'] ?? null, $row['price'] ?? null, $row['secret'] ?? null];
     return $e;
 }, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\TypesFixture::class)

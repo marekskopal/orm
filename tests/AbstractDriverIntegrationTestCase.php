@@ -15,6 +15,7 @@ use MarekSkopal\ORM\Tests\Fixtures\Entity\TagFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithTagsFixture;
+use PDO;
 use PDOException;
 use PHPUnit\Framework\TestCase;
 
@@ -154,14 +155,14 @@ abstract class AbstractDriverIntegrationTestCase extends TestCase
         self::assertSame([1], $this->ids($repository->findAll(['address' => 1])));
         self::assertSame(2, $repository->select()->where(['address.country' => 'USA'])->count());
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $users = $repository->select()->with('address')->orderBy('id')->fetchAll();
         self::assertSame(['Springfield', 'Shelbyville'], array_map(
             static fn(UserWithAddressFixture $user): string => $user->address->city,
             $users,
         ));
         self::assertSame(
-            $orm->getEntityCache()->getEntity(AddressWithUsersFixture::class, 1),
+            $orm->getIdentityMap()->get(AddressWithUsersFixture::class, 1),
             $users[0]->address,
         );
     }
@@ -215,11 +216,65 @@ abstract class AbstractDriverIntegrationTestCase extends TestCase
         // The user, then the tags with one query joining the join table.
         self::assertSame(2, CountingStatement::$count);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         CountingStatement::$count = 0;
         $tags = $orm->getRepository(TagFixture::class)->select()->with('users')->orderBy('id')->fetchAll();
         self::assertSame([1, 2, 1], array_map(static fn(TagFixture $tag): int => count($tag->users), $tags));
         self::assertSame(2, CountingStatement::$count);
+    }
+
+    public function testFlushBatchesInsertsAndUpdatesOnlyChangedColumns(): void
+    {
+        $orm = $this->createOrm('database_users');
+        $pdo = $orm->getQueryProvider()->getDatabase()->getPdo();
+        CountingStatement::attach($pdo);
+
+        $users = [];
+        for ($i = 0; $i < 50; $i++) {
+            $users[] = $user = UserFixture::create(email: 'batch' . $i . '@example.com');
+            $orm->getUnitOfWork()->persist($user);
+        }
+
+        $orm->getUnitOfWork()->flush();
+
+        // One multi-row INSERT; ids continue the sequence in row order.
+        self::assertSame(1, CountingStatement::$count);
+        self::assertSame(range(3, 52), array_map(static fn(UserFixture $user): int => $user->id, $users));
+        self::assertSame($users[10], $orm->getRepository(UserFixture::class)->findOne(['id' => 13]));
+        $statement = $pdo->query('SELECT email FROM users WHERE id = 13');
+        self::assertNotFalse($statement);
+        self::assertSame('batch10@example.com', $statement->fetchColumn());
+
+        CountingStatement::reset();
+        $users[10]->firstName = 'Changed';
+        $orm->getRepository(UserFixture::class)->persist($users[10]);
+        self::assertCount(1, CountingStatement::$queries);
+        self::assertMatchesRegularExpression('/^UPDATE .users. SET .first_name.=\\? WHERE .id.=\\?$/', CountingStatement::$queries[0]);
+    }
+
+    public function testManyToManyJoinRowsAreDiffed(): void
+    {
+        $orm = $this->createOrm('database_many_to_many');
+        $user = $orm->getRepository(UserWithTagsFixture::class)->findOne(['id' => 1]);
+        $tag = $orm->getRepository(TagFixture::class)->findOne(['id' => 3]);
+        self::assertInstanceOf(UserWithTagsFixture::class, $user);
+        self::assertInstanceOf(TagFixture::class, $tag);
+
+        foreach ($user->tags as $key => $existingTag) {
+            if ($existingTag->name === 'php') {
+                unset($user->tags[$key]);
+            }
+        }
+        $user->tags[] = $tag;
+        $orm->getRepository(UserWithTagsFixture::class)->persist($user);
+
+        $statement = $orm->getQueryProvider()->getDatabase()->getPdo()->query(
+            'SELECT tag_id FROM user_tags WHERE user_id = 1 ORDER BY tag_id',
+        );
+        self::assertNotFalse($statement);
+        /** @var list<int|string> $tagIds pdo_mysql and pdo_pgsql may return integers or numeric strings */
+        $tagIds = $statement->fetchAll(PDO::FETCH_COLUMN);
+        self::assertSame([2, 3], array_map(static fn(int|string $id): int => (int) $id, $tagIds));
     }
 
     public function testSelectEntityRelationOneToMany(): void
@@ -271,7 +326,7 @@ abstract class AbstractDriverIntegrationTestCase extends TestCase
         $user->isActive = false;
         $repository->persist($user);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $user = $repository->findOne(['id' => 1]);
         self::assertInstanceOf(UserFixture::class, $user);
         self::assertSame('Jane', $user->firstName);

@@ -63,9 +63,12 @@ class Insert extends AbstractQuery
             $this->getValuesQuery(),
         ];
 
-        $returningClause = $this->database->getInsertReturningClause($this->schema->getPrimaryColumn()->columnName);
-        if ($returningClause !== '') {
-            $parts[] = $returningClause;
+        $primaryColumnSchema = $this->schema->getPrimaryColumn();
+        if ($primaryColumnSchema->isAutoIncrement) {
+            $returningClause = $this->database->getInsertReturningClause($primaryColumnSchema->columnName);
+            if ($returningClause !== '') {
+                $parts[] = $returningClause;
+            }
         }
 
         return implode(' ', $parts);
@@ -87,12 +90,21 @@ class Insert extends AbstractQuery
     {
         $primaryColumnSchema = $this->schema->getPrimaryColumn();
 
+        // A primary key that is not auto-increment was sent with the row and is never overwritten.
+        if (!$primaryColumnSchema->isAutoIncrement) {
+            return;
+        }
+
         if ($this->database->getInsertReturningClause($primaryColumnSchema->columnName) !== '') {
             /** @var list<array<string, mixed>> $rows */
             $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
             foreach ($this->entities as $i => $entity) {
-                // @phpstan-ignore-next-line property.dynamicName
-                $entity->{$primaryColumnSchema->propertyName} = (int) $rows[$i][$primaryColumnSchema->columnName];
+                $id = $rows[$i][$primaryColumnSchema->columnName] ?? null;
+                if (!is_int($id) && !is_string($id)) {
+                    throw new \RuntimeException(sprintf('Insert did not return a value for "%s".', $primaryColumnSchema->columnName));
+                }
+
+                $this->schemaProvider->setPrimaryKey($entity, (int) $id);
             }
 
             return;
@@ -105,8 +117,7 @@ class Insert extends AbstractQuery
         // consecutiveness is not guaranteed under concurrent insert load — see README.
         $firstInsertId = (int) $this->pdo->lastInsertId();
         foreach ($this->entities as $i => $entity) {
-            // @phpstan-ignore-next-line property.dynamicName
-            $entity->{$primaryColumnSchema->propertyName} = $firstInsertId + $i;
+            $this->schemaProvider->setPrimaryKey($entity, $firstInsertId + $i);
         }
     }
 

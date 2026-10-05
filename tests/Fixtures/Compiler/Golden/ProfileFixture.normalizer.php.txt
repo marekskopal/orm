@@ -1,0 +1,5 @@
+static function (array $s, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'bio' => $s[0] === null ? null : ((string) $s[0]),
+    ];
+}

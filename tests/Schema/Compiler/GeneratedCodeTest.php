@@ -22,6 +22,7 @@ use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
 use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
 use MarekSkopal\ORM\Schema\Compiler\HydratorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\NormalizerGenerator;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
@@ -45,6 +46,7 @@ use stdClass;
 #[CoversClass(HydratorGenerator::class)]
 #[CoversClass(ExtractorGenerator::class)]
 #[CoversClass(CodeExporter::class)]
+#[CoversClass(NormalizerGenerator::class)]
 #[UsesClass(Column::class)]
 #[UsesClass(ColumnEnum::class)]
 #[UsesClass(Entity::class)]
@@ -82,7 +84,11 @@ final class GeneratedCodeTest extends TestCase
     {
         $entitySchema = self::buildSchema()->entities[$entityClass];
 
-        $this->assertGolden($entityClass, 'hydrator', new HydratorGenerator()->generate($entitySchema));
+        $this->assertGolden(
+            $entityClass,
+            'hydrator',
+            new HydratorGenerator(new SchemaProvider(self::buildSchema()))->generate($entitySchema),
+        );
     }
 
     /** @param class-string $entityClass */
@@ -98,12 +104,27 @@ final class GeneratedCodeTest extends TestCase
         );
     }
 
+    /** @param class-string $entityClass */
+    #[DataProvider('entityProvider')]
+    public function testNormalizerMatchesGoldenFile(string $entityClass): void
+    {
+        $schema = self::buildSchema();
+        $schemaProvider = new SchemaProvider($schema);
+        $hydratorGenerator = new HydratorGenerator($schemaProvider);
+
+        $this->assertGolden(
+            $entityClass,
+            'normalizer',
+            new NormalizerGenerator($hydratorGenerator, new ExtractorGenerator($schemaProvider))->generate($schema->entities[$entityClass]),
+        );
+    }
+
     public function testRequiredConstructorParameterWithoutColumnIsRejected(): void
     {
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage('Constructor parameter "required" of entity "' . UnmappedConstructorFixture::class . '"');
 
-        new HydratorGenerator()->generate(new EntitySchema(
+        new HydratorGenerator(new SchemaProvider(new Schema([])))->generate(new EntitySchema(
             entityClass: UnmappedConstructorFixture::class,
             repositoryClass: Repository::class,
             table: 'unmapped',

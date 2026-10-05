@@ -4,5 +4,6 @@
     $p_parent = ($v = $row['parent_id'] ?? null) === null ? null : $r->manyToOne(\MarekSkopal\ORM\Tests\Fixtures\Entity\CategoryFixture::class, (int) $v);
     $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\CategoryFixture(name: $p_name, parent: $p_parent);
     $e->id = $p_id;
+    $r->snapshots[\spl_object_id($e)] = [$row['name'] ?? null, $row['parent_id'] ?? null];
     return $e;
 }, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\CategoryFixture::class)

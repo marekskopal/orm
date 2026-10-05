@@ -2,5 +2,6 @@
     $p_id = (int) ($row['id'] ?? throw new \RuntimeException('Column "id" is not nullable'));
     $p_code = \Ramsey\Uuid\Uuid::fromString((string) ($row['code'] ?? throw new \RuntimeException('Column "code" is not nullable')));
     $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\Code(id: $p_id, code: $p_code);
+    $r->snapshots[\spl_object_id($e)] = [$row['code'] ?? null];
     return $e;
 }, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\Code::class)

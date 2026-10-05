@@ -13,7 +13,7 @@ use MarekSkopal\ORM\Attribute\OneToMany;
 use MarekSkopal\ORM\Attribute\OneToOne;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\SqliteDatabase;
-use MarekSkopal\ORM\Entity\EntityCache;
+use MarekSkopal\ORM\Entity\IdentityMap;
 use MarekSkopal\ORM\Exception\TransactionException;
 use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
@@ -73,7 +73,7 @@ use ReflectionClass;
 #[UsesClass(OneToOne::class)]
 #[UsesClass(AbstractDatabase::class)]
 #[UsesClass(SqliteDatabase::class)]
-#[UsesClass(EntityCache::class)]
+#[UsesClass(IdentityMap::class)]
 #[UsesClass(QueryProvider::class)]
 #[UsesClass(Select::class)]
 #[UsesClass(SelectFactory::class)]
@@ -252,7 +252,7 @@ final class RelationResolverTest extends TestCase
         self::assertSame($users[0]->tags[1], $users[1]->tags[0]);
         self::assertSame(2, CountingStatement::$count);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         CountingStatement::$count = 0;
         $tags = $orm->getRepository(TagFixture::class)->select()->with('users.tags')->orderBy('id')->fetchAll();
         foreach ($tags as $tag) {
@@ -276,7 +276,7 @@ final class RelationResolverTest extends TestCase
         self::assertSame(2, CountingStatement::$count);
 
         $orm->getQueryProvider()->getDatabase()->getPdo()->exec('INSERT INTO profiles (id, bio) VALUES (3, \'Nobody\')');
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $orphan = $orm->getRepository(ProfileFixture::class)->select()->with('user')->where(['id' => 3])->fetchOne();
         self::assertInstanceOf(ProfileFixture::class, $orphan);
         self::assertNull($orphan->user);
@@ -316,7 +316,7 @@ final class RelationResolverTest extends TestCase
         $orm = $this->createOrm('database_users_with_address.sql');
         $users = $orm->getRepository(UserWithAddressFixture::class)->select()->orderBy('id')->fetchAll();
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
 
         CountingStatement::$count = 0;
         self::assertSame('Shelbyville', $users[1]->address->city);

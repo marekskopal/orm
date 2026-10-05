@@ -4,5 +4,6 @@
     $p_city = (string) ($row['city'] ?? throw new \RuntimeException('Column "city" is not nullable'));
     $p_country = (string) ($row['country'] ?? throw new \RuntimeException('Column "country" is not nullable'));
     $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\AddressFixture(id: $p_id, street: $p_street, city: $p_city, country: $p_country);
+    $r->snapshots[\spl_object_id($e)] = [$row['street'] ?? null, $row['city'] ?? null, $row['country'] ?? null];
     return $e;
 }, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\AddressFixture::class)

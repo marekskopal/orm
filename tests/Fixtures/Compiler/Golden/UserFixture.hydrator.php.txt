@@ -9,5 +9,6 @@
     $p_type = \MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum::from((string) ($row['type'] ?? throw new \RuntimeException('Column "type" is not nullable')));
     $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture(createdAt: $p_createdAt, firstName: $p_firstName, middleName: $p_middleName, lastName: $p_lastName, email: $p_email, isActive: $p_isActive, type: $p_type);
     $e->id = $p_id;
+    $r->snapshots[\spl_object_id($e)] = [$row['created_at'] ?? null, $row['first_name'] ?? null, $row['middle_name'] ?? null, $row['last_name'] ?? null, $row['email'] ?? null, $row['is_active'] ?? null, $row['type'] ?? null];
     return $e;
 }, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture::class)
