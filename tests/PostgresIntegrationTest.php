@@ -151,10 +151,10 @@ final class PostgresIntegrationTest extends TestCase
         $userNotFound = $repository->findOne(['id' => 3]);
         self::assertNull($userNotFound);
 
-        $users = iterator_to_array($repository->findAll());
+        $users = $repository->findAll();
         self::assertCount(2, $users);
 
-        $inactiveUsers = iterator_to_array($repository->findAll(['is_active' => false]));
+        $inactiveUsers = $repository->findAll(['is_active' => false]);
         self::assertCount(1, $inactiveUsers);
         self::assertSame(2, $inactiveUsers[0]->id);
     }
@@ -217,7 +217,7 @@ final class PostgresIntegrationTest extends TestCase
         self::assertSame(3, $user->id);
 
         $users = $repository->findAll();
-        self::assertCount(3, iterator_to_array($users));
+        self::assertCount(3, $users);
     }
 
     public function testDeleteEntity(): void
@@ -236,7 +236,7 @@ final class PostgresIntegrationTest extends TestCase
         self::assertInstanceOf(UserFixture::class, $user);
         $repository->delete($user);
 
-        $users = iterator_to_array($repository->findAll());
+        $users = $repository->findAll();
         self::assertCount(1, $users);
         self::assertSame(2, $users[0]->id);
     }

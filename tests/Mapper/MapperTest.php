@@ -96,6 +96,21 @@ final class MapperTest extends TestCase
         self::assertTrue($result);
     }
 
+    #[TestWith([true])]
+    #[TestWith([false])]
+    public function testMapToPropertyNativeBool(bool $value): void
+    {
+        $schemaProvider = $this::createStub(SchemaProvider::class);
+        $queryProvider = $this::createStub(QueryProvider::class);
+        $entityCache = $this::createStub(EntityCache::class);
+
+        $columnSchema = new ColumnSchema('isActive', PropertyTypeEnum::Bool, 'is_active', Type::Boolean);
+        $entitySchema = EntitySchemaFixture::create(columns: ['isActive' => $columnSchema]);
+
+        $mapper = new Mapper($schemaProvider, $entityCache, static fn() => $queryProvider, $this::createStub(DatabaseInterface::class));
+        self::assertSame($value, $mapper->mapToProperty($entitySchema, $columnSchema, $value));
+    }
+
     public function testMapToPropertyUuid(): void
     {
         $schemaProvider = $this::createStub(SchemaProvider::class);

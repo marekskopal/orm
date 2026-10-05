@@ -280,6 +280,38 @@ $user = $queryProvider->select(User::class)
     ->fetchOne();
 ```
 
+#### Fetching results
+
+`fetchAll()` returns a plain list of entities, so the result can be counted, indexed and iterated more than once. `fetchAssocAll()` does the same with raw rows as associative arrays. Repository `findAll()` returns the same list.
+
+```php
+$users = $queryProvider->select(User::class)
+    ->where(['isActive' => true])
+    ->fetchAll();
+
+count($users);
+$firstUser = $users[0] ?? null;
+```
+
+For large result sets, `iterate()` and `iterateAssoc()` stream rows one at a time instead of building the whole list in memory. They return generators, which can be consumed only once. When relations are eager-loaded with `with()`, `iterate()` buffers the raw rows first so the related entities can be loaded in a single query.
+
+```php
+foreach ($queryProvider->select(User::class)->iterate() as $user) {
+    // process $user
+}
+```
+
+#### Builder state
+
+`Select` is a mutable builder: `where()`, `orWhere()`, `orderBy()`, `limit()`, `columns()` and the other configuration methods change the builder and return the same instance. Clone it before branching into two different queries.
+
+```php
+$active = $queryProvider->select(User::class)->where(['isActive' => true]);
+$activeAdmins = (clone $active)->where(['type' => UserTypeEnum::Admin]);
+```
+
+The terminal methods `fetchOne()`, `fetchAll()`, `iterate()`, `count()` and their `Assoc` variants do not modify the builder, so the same builder can be executed repeatedly.
+
 #### Where
 
 You can use `where` method to filter results. 

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `Select::iterate()` and `Select::iterateAssoc()` stream results one row at a time as generators, for result sets too large to hold in memory.
+- Cloning a `Select` copies its where conditions, including nested condition groups, so the clone can be changed without affecting the original.
+
+### Changed
+- **Breaking:** `Select::fetchAll()` and `Select::fetchAssocAll()` return a `list` instead of a one-shot `Iterator`, so the result can be counted, indexed and iterated more than once. Code that streamed large results should switch to `iterate()` or `iterateAssoc()`. Wrapping calls in `iterator_to_array()` no longer works and should be removed.
+- **Breaking:** `RepositoryInterface::findAll()` and `AbstractRepository::findAll()` return `list<T>` instead of `iterable<T>` / `Iterator<T>`. Custom repositories that override `findAll()` must change their return type to `array`.
+- **Breaking:** `MapperInterface::mapToProperty()` accepts `string|int|float|bool|null`. Extension mappers must widen the `$value` parameter to include `bool`.
+- **Breaking:** `Collection` implements `IteratorAggregate` instead of `Iterator`. The cursor methods `current()`, `next()`, `key()`, `valid()` and `rewind()` are removed and `toArray()` is added. Relation properties must be typed `Collection` or `iterable`, not `\Iterator`.
+- README documents `Select` as a mutable builder whose terminal methods leave it unchanged.
+
 ## [1.4.0] - 2026-09-28
 
 ### Added
