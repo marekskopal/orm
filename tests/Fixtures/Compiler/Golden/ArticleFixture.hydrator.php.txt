@@ -1,0 +1,7 @@
+\Closure::bind(static function (array $row, \MarekSkopal\ORM\Relation\RelationResolver $r): \MarekSkopal\ORM\Tests\Fixtures\Entity\ArticleFixture {
+    $p_id = (int) ($row['article_id'] ?? throw new \RuntimeException('Column "article_id" is not nullable'));
+    $p_title = (string) ($row['title'] ?? throw new \RuntimeException('Column "title" is not nullable'));
+    $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\ArticleFixture(title: $p_title);
+    $e->id = $p_id;
+    return $e;
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\ArticleFixture::class)

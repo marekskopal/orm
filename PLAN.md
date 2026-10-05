@@ -9,8 +9,8 @@ codebase review of 2026-09-28; the numbers below are its baseline measurements.
 | # | Workstream | Status |
 |---|---|---|
 | 1 | Query and collection API cleanup | done |
-| 2 | Compiled schema and generated hydrators | not started |
-| 3 | Relation loading without per-row proxies | not started |
+| 2 | Compiled schema and generated hydrators | done |
+| 3 | Relation loading without per-row proxies | done |
 | 4 | Unit of work and identity map | not started |
 | 5 | Connection layer with statement cache | not started |
 | 6 | CI coverage for MySQL and PostgreSQL | done |
@@ -62,15 +62,18 @@ Landed on this branch:
   `Select::iterate()` and `Select::iterateAssoc()`. `findAll()` returns `list<T>`.
 - `MapperInterface::mapToProperty()` accepts `bool`; custom extension mappers must widen
   their signature.
+- (2) `SchemaBuilder::dump()` and `Schema::fromFile()` write and load a compiled schema;
+  `EntitySchema` gains hydrator and extractor closures. `EntityFactory`, `EntityReflection` and
+  `Mapper` are removed. Query classes, their factories and `QueryProvider` take a
+  `RelationResolver` or `SchemaProvider` instead.
+- (3) ManyToOne and OneToOne proxies are shared per related id and are the identity-mapped
+  instance; `===` between a proxy held by two parents now holds. Entities obtained through a
+  relation may be initialised by a batch load rather than a single-row query. Lazy collections
+  are no longer PHP lazy ghosts; `Collection::isInitialized()` replaces
+  `ReflectionClass::isUninitializedLazyObject()` for them.
 
 Planned, by workstream:
 
-- (2) `SchemaBuilder::build()` returns a compiled schema that can be dumped to a PHP file;
-  `EntitySchema` and `ColumnSchema` gain hydrator and extractor closures. `EntityReflection`
-  is removed.
-- (3) ManyToOne and OneToOne proxies are shared per related id; `===` between a proxy held by
-  two parents now holds. Entities obtained through a relation may be initialised by a batch
-  load rather than a single-row query.
 - (4) `persist()` and `delete()` register work; `flush()` executes it. `EntityCache` is keyed by
   string. `persist()` of an entity with a non-auto-increment primary key sends that key.
 - (5) `DatabaseInterface` gains `connect()`, `execute()` and `prepareCached()`; `getPdo()`
@@ -149,6 +152,38 @@ loads and hydrates identically to an in-process one.
 Acceptance: 20k-row hydration of the 2-column entity under 10 ms; entities with private or
 readonly properties hydrate; schema build from a dumped file under 0.1 ms.
 
+Done. Measured on SQLite in-memory, PHP 8.5, 20k rows, no coverage extension loaded:
+
+| Scenario | Before | After |
+|---|---|---|
+| 2-column entity | 20.1 ms | 8.5 ms |
+| 5 columns + 3 relations | 78 ms, 2,981 B per entity | 21.3 ms, 392 B per entity |
+| Same, one column a `DateTimeImmutable` | 100.8 ms, 3,351 B | 33.2 ms, 768 B |
+| Load dumped schema, 22 entities, opcache | | 0.004 ms |
+
+A `DateTimeImmutable` alone is about 350 B and 0.45 µs to parse, so entities with date columns
+cannot reach the 400 B target. Baselines measured with pcov loaded are roughly 2x slower and
+are not comparable.
+
+How it differs from the steps above:
+
+- Generators live in `src/Schema/Compiler/`: `HydratorGenerator`, `ExtractorGenerator`,
+  `SchemaCompiler` (in-process `eval` of generated source) and `SchemaDumper`. Closures are
+  compiled lazily by `SchemaProvider` on first use rather than in `SchemaBuilder::build()`, so a
+  request only compiles the entities it touches. Only `EntitySchema` gains closures;
+  `ColumnSchema` is unchanged.
+- The dumped file wraps each `EntitySchema` in a lazy proxy, so loading the file builds no schema
+  objects until an entity is used. Opcache does not cache a file modified in the last two seconds
+  (`opcache.file_update_protection`), which matters only right after a dump.
+- `Mapper` is deleted rather than slimmed down: after the generators took over, nothing called
+  it. Extension mappers run through `ExtensionMapperProvider`, which the generated code calls
+  only for columns that declare one.
+- `fetchAll()` hydrates through `RelationResolver::hydrateAll()`, which binds the `EntityCache`
+  identity map by reference. Going through `EntityCache` method calls cost more than the
+  hydrator itself on the 2-column entity.
+- The bool normalisation in `EntityFactory` is gone with the class; the generated casts accept
+  native booleans directly.
+
 ## Workstream 3: relation loading without per-row proxies
 
 Goal: remove the N+1 by default and cut per-entity memory to the hand-written baseline.
@@ -188,6 +223,29 @@ relation kind and on a nested path.
 
 Acceptance: 200 rows touching a ManyToOne, no `with()`: at most 2 queries. 20k-row hydration
 of the 3-relation entity under 40 ms and under 400 B per entity.
+
+Done. 200 rows touching a ManyToOne take 2 queries (100 distinct ids before: 101 queries).
+`with('comments', 'author')` on 200 rows takes 3 queries; before, `with()` rejected collections.
+Hydration numbers are in workstream 2.
+
+How it differs from the steps above:
+
+- `RelationResolver` also owns the identity-map check and hydration (`hydrate()`,
+  `hydrateAll()`), since every relation callback needs the identity map.
+- Batch initialisation keeps loaded rows instead of hydrating them eagerly: when one proxy
+  initialises, the rows of every pending id of its class are fetched and each proxy hydrates its
+  own row when first read. A row that arrives through any later `Select` is handed to the
+  matching uninitialised proxy, so that proxy needs no query either.
+- Collections are lazy by themselves instead of PHP lazy ghosts. A ghost plus the side table
+  needed to find its owner cost about 430 B per row; the collection holding the resolver, a
+  literal relation key and the owner id costs about 120 B.
+- `with()` also handles the inverse side of `OneToOne` and of `ManyToMany`, and `fetchOne()`
+  applies it. Lazy OneToMany collections are not batched across parents; only `with()` loads
+  several parents' collections in one query.
+- Query-count and identity tests run on SQLite (`tests/Relation/RelationResolverTest.php`) and
+  on MySQL and PostgreSQL (`tests/AbstractDriverIntegrationTestCase.php`). Queries are counted
+  with `tests/Fixtures/Database/CountingStatement.php`, attached through
+  `PDO::ATTR_STATEMENT_CLASS`.
 
 ## Workstream 4: unit of work and identity map
 
@@ -294,4 +352,6 @@ all three drivers.
 ## Migration notes for the release
 
 To be written before tagging, covering: the `Collection` interface change, `fetchAll()` return
-type, extension mapper signature, schema dumping, deferred flushing, and the lazy connection.
+type, extension mapper signature, schema dumping, shared relation proxies and identity,
+`Collection::isInitialized()`, the removed `EntityFactory` / `EntityReflection` / `Mapper` and
+the changed query constructors, deferred flushing, and the lazy connection.

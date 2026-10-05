@@ -1,0 +1,8 @@
+\Closure::bind(static function (array $row, \MarekSkopal\ORM\Relation\RelationResolver $r): \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithProfileFixture {
+    $p_id = (int) ($row['id'] ?? throw new \RuntimeException('Column "id" is not nullable'));
+    $p_name = (string) ($row['name'] ?? throw new \RuntimeException('Column "name" is not nullable'));
+    $p_profile = $r->manyToOne(\MarekSkopal\ORM\Tests\Fixtures\Entity\ProfileFixture::class, (int) ($row['profile_id'] ?? throw new \RuntimeException('Column "profile_id" is not nullable')));
+    $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithProfileFixture(name: $p_name, profile: $p_profile);
+    $e->id = $p_id;
+    return $e;
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithProfileFixture::class)

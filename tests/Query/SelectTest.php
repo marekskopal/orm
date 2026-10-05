@@ -6,12 +6,12 @@ namespace MarekSkopal\ORM\Tests\Query;
 
 use InvalidArgumentException;
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
 use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
+use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
@@ -51,7 +51,7 @@ final class SelectTest extends TestCase
         $database = $this::createStub(DatabaseInterface::class);
         $database->method('getPdo')->willReturn($this::createStub(PDO::class));
         $database->method('getIdentifierQuoteChar')->willReturn('`');
-        $entityFactory = $this::createStub(EntityFactory::class);
+        $relationResolver = $this::createStub(RelationResolver::class);
         $schemaProvider = $this::createStub(SchemaProvider::class);
         $schemaProvider->method('getEntitySchema')
             ->willReturnMap([
@@ -64,7 +64,7 @@ final class SelectTest extends TestCase
             $database,
             UserWithAddressFixture::class,
             UserEntityWithAddressSchemaFixture::create(),
-            $entityFactory,
+            $relationResolver,
             $schemaProvider,
         );
     }
@@ -314,7 +314,7 @@ final class SelectTest extends TestCase
             $database,
             CategoryFixture::class,
             CategoryEntitySchemaFixture::create(),
-            $this::createStub(EntityFactory::class),
+            $this::createStub(RelationResolver::class),
             $schemaProvider,
         );
 

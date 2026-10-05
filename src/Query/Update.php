@@ -6,9 +6,9 @@ namespace MarekSkopal\ORM\Query;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Exception\ExceptionFactory;
-use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use PDOStatement;
 
 /** @template T of object */
@@ -18,7 +18,12 @@ class Update extends AbstractQuery
     private object $entity;
 
     /** @param class-string<T> $entityClass */
-    public function __construct(DatabaseInterface $database, string $entityClass, EntitySchema $schema, private readonly Mapper $mapper)
+    public function __construct(
+        DatabaseInterface $database,
+        string $entityClass,
+        EntitySchema $schema,
+        private readonly SchemaProvider $schemaProvider,
+    )
     {
         parent::__construct($database, $entityClass, $schema);
     }
@@ -69,7 +74,7 @@ class Update extends AbstractQuery
     private function getSetQuery(): string
     {
         return implode(',', array_map(
-            fn(ColumnSchema $column): string => $this->escape($column->columnName) . '=:' . $column->propertyName,
+            fn(ColumnSchema $column): string => $this->escape($column->columnName) . '=?',
             $this->schema->getInsertableColumns(),
         ));
     }
@@ -78,24 +83,17 @@ class Update extends AbstractQuery
     {
         $primaryColumnSchema = $this->schema->getPrimaryColumn();
 
-        return 'WHERE ' . $this->escape($primaryColumnSchema->columnName) . '=:' . $primaryColumnSchema->propertyName;
+        return 'WHERE ' . $this->escape($primaryColumnSchema->columnName) . '=?';
     }
 
-    /** @return array<string, string|int|float|null> */
+    /** @return list<string|int|float|null> */
     private function getValues(): array
     {
         $primaryColumnSchema = $this->schema->getPrimaryColumn();
 
-        $values = array_map(
-            fn(ColumnSchema $column): string|int|float|null => $this->mapper->mapToColumn(
-                $column,
-                // @phpstan-ignore-next-line argument.type property.dynamicName
-                $this->entity->{$column->propertyName},
-            ),
-            $this->schema->getInsertableColumns(),
-        );
+        $values = array_values($this->schemaProvider->extract($this->entity));
         // @phpstan-ignore-next-line property.dynamicName
-        $values[$primaryColumnSchema->propertyName] = (int) $this->entity->{$primaryColumnSchema->propertyName};
+        $values[] = (int) $this->entity->{$primaryColumnSchema->propertyName};
 
         return $values;
     }

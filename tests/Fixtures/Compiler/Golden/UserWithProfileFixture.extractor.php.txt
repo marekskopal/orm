@@ -1,0 +1,6 @@
+\Closure::bind(static function (\MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithProfileFixture $e, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'name' => ($e->name ?? throw new \RuntimeException('Column "name" is not nullable')),
+        'profile_id' => ($e->profile ?? throw new \RuntimeException('Column "profile_id" is not nullable'))->id,
+    ];
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithProfileFixture::class)

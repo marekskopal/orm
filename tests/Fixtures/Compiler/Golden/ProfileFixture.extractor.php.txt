@@ -1,0 +1,5 @@
+\Closure::bind(static function (\MarekSkopal\ORM\Tests\Fixtures\Entity\ProfileFixture $e, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'bio' => ($e->bio ?? throw new \RuntimeException('Column "bio" is not nullable')),
+    ];
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\ProfileFixture::class)

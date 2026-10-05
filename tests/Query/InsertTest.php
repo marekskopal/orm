@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Query;
 
-use DateTimeImmutable;
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Query\Insert;
 use MarekSkopal\ORM\Schema\ColumnSchema;
+use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
+use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\HydratorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\SchemaCompiler;
 use MarekSkopal\ORM\Schema\EntitySchema;
-use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
+use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
 use MarekSkopal\ORM\Utils\NameUtils;
@@ -26,6 +29,12 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(EntitySchema::class)]
 #[UsesClass(NameUtils::class)]
 #[UsesClass(QuoteUtils::class)]
+#[UsesClass(SchemaProvider::class)]
+#[UsesClass(Schema::class)]
+#[UsesClass(SchemaCompiler::class)]
+#[UsesClass(ExtractorGenerator::class)]
+#[UsesClass(HydratorGenerator::class)]
+#[UsesClass(CodeExporter::class)]
 final class InsertTest extends TestCase
 {
     public function testGetSql(): void
@@ -34,9 +43,7 @@ final class InsertTest extends TestCase
         $database->method('getPdo')->willReturn($this::createStub(PDO::class));
         $database->method('getIdentifierQuoteChar')->willReturn('`');
         $entitySchema = EntitySchemaFixture::create();
-        $mapper = $this::createStub(Mapper::class);
-
-        $insert = new Insert($database, UserFixture::class, $entitySchema, $mapper);
+        $insert = new Insert($database, UserFixture::class, $entitySchema, $this->createSchemaProvider());
         $insert->entity(UserFixture::create());
         $insert->entity(UserFixture::create());
 
@@ -53,9 +60,7 @@ final class InsertTest extends TestCase
         $database->method('getIdentifierQuoteChar')->willReturn('"');
         $database->method('getInsertReturningClause')->willReturn('RETURNING "id"');
         $entitySchema = EntitySchemaFixture::create();
-        $mapper = $this::createStub(Mapper::class);
-
-        $insert = new Insert($database, UserFixture::class, $entitySchema, $mapper);
+        $insert = new Insert($database, UserFixture::class, $entitySchema, $this->createSchemaProvider());
         $insert->entity(UserFixture::create());
 
         self::assertSame(
@@ -72,9 +77,7 @@ final class InsertTest extends TestCase
         $database->method('getPdo')->willReturn($this::createStub(PDO::class));
         $database->method('getIdentifierQuoteChar')->willReturn('`');
         $entitySchema = EntitySchemaFixture::create();
-        $mapper = $this::createStub(Mapper::class);
-
-        $insert = new Insert($database, UserFixture::class, $entitySchema, $mapper);
+        $insert = new Insert($database, UserFixture::class, $entitySchema, $this->createSchemaProvider());
 
         $insert->getSql();
     }
@@ -87,9 +90,7 @@ final class InsertTest extends TestCase
         $database->method('getPdo')->willReturn($this::createStub(PDO::class));
         $database->method('getIdentifierQuoteChar')->willReturn('`');
         $entitySchema = EntitySchemaFixture::create();
-        $mapper = $this::createStub(Mapper::class);
-
-        $insert = new Insert($database, UserFixture::class, $entitySchema, $mapper);
+        $insert = new Insert($database, UserFixture::class, $entitySchema, $this->createSchemaProvider());
 
         $insert->execute();
     }
@@ -123,9 +124,7 @@ final class InsertTest extends TestCase
         $database->method('getIdentifierQuoteChar')->willReturn('`');
         $database->method('getInsertReturningClause')->willReturn('');
 
-        $mapper = $this::createStub(Mapper::class);
-
-        $insert = new Insert($database, UserFixture::class, EntitySchemaFixture::create(), $mapper);
+        $insert = new Insert($database, UserFixture::class, EntitySchemaFixture::create(), $this->createSchemaProvider());
 
         $userA = UserFixture::create(email: 'a@example.com');
         $userB = UserFixture::create(email: 'b@example.com');
@@ -169,29 +168,11 @@ final class InsertTest extends TestCase
         $database->method('getIdentifierQuoteChar')->willReturn('"');
         $database->method('getInsertReturningClause')->willReturn($returningClause);
 
-        $mapper = $this::createStub(Mapper::class);
-        $mapper->method('mapToColumn')->willReturnCallback(
-            static function (ColumnSchema $column, string|int|float|bool|object|null $value): string|int|float|null {
-                if ($value instanceof DateTimeImmutable) {
-                    return $value->format('Y-m-d H:i:s');
-                }
+        return new Insert($database, UserFixture::class, EntitySchemaFixture::create(), $this->createSchemaProvider());
+    }
 
-                if ($value instanceof UserTypeEnum) {
-                    return $value->value;
-                }
-
-                if (is_bool($value)) {
-                    return (int) $value;
-                }
-
-                if (is_object($value)) {
-                    throw new \InvalidArgumentException('Unsupported value type');
-                }
-
-                return $value;
-            },
-        );
-
-        return new Insert($database, UserFixture::class, EntitySchemaFixture::create(), $mapper);
+    private function createSchemaProvider(): SchemaProvider
+    {
+        return new SchemaProvider(new Schema([UserFixture::class => EntitySchemaFixture::create()]));
     }
 }

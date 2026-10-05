@@ -1,0 +1,5 @@
+\Closure::bind(static function (\MarekSkopal\ORM\Tests\Fixtures\Entity\Code $e, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'code' => (string) ($e->code ?? throw new \RuntimeException('Column "code" is not nullable')),
+    ];
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\Code::class)

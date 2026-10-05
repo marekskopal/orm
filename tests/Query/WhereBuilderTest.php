@@ -6,11 +6,11 @@ namespace MarekSkopal\ORM\Tests\Query;
 
 use InvalidArgumentException;
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
+use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
@@ -46,7 +46,7 @@ final class WhereBuilderTest extends TestCase
         $database = $this::createStub(DatabaseInterface::class);
         $database->method('getPdo')->willReturn($this::createStub(PDO::class));
         $database->method('getIdentifierQuoteChar')->willReturn('`');
-        $entityFactory = $this::createStub(EntityFactory::class);
+        $relationResolver = $this::createStub(RelationResolver::class);
         $schemaProvider = $this::createStub(SchemaProvider::class);
         $schemaProvider->method('getEntitySchema')
             ->willReturnMap([
@@ -58,7 +58,7 @@ final class WhereBuilderTest extends TestCase
             $database,
             UserFixture::class,
             UserEntityWithAddressSchemaFixture::create(),
-            $entityFactory,
+            $relationResolver,
             $schemaProvider,
         );
 

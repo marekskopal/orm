@@ -61,4 +61,35 @@ final class EntityCacheTest extends TestCase
         self::assertSame($user1, $cache->getEntity(UserFixture::class, 1));
         self::assertSame($user2, $cache->getEntity(UserFixture::class, 2));
     }
+
+    public function testClearRunsListeners(): void
+    {
+        $cache = new EntityCache();
+        $calls = 0;
+        $cache->onClear(static function () use (&$calls): void {
+            $calls++;
+        });
+
+        $cache->clear();
+        $cache->clear();
+
+        self::assertSame(2, $calls);
+    }
+
+    public function testIdentityMapReferenceSharesStorage(): void
+    {
+        $cache = new EntityCache();
+        $user = UserFixture::create();
+
+        $identityMap = &$cache->getIdentityMap();
+        $identityMap[UserFixture::class][3] = $user;
+        self::assertSame($user, $cache->getEntity(UserFixture::class, 3));
+
+        $cache->clear();
+        self::assertNull($cache->getEntity(UserFixture::class, 3));
+
+        // Clearing reassigns the storage; the reference must still point at the live map.
+        $identityMap[UserFixture::class][4] = $user;
+        self::assertSame($user, $cache->getEntity(UserFixture::class, 4));
+    }
 }

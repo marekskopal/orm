@@ -1,0 +1,8 @@
+\Closure::bind(static function (array $row, \MarekSkopal\ORM\Relation\RelationResolver $r): \MarekSkopal\ORM\Tests\Fixtures\Entity\PostFixture {
+    $p_id = (int) ($row['id'] ?? throw new \RuntimeException('Column "id" is not nullable'));
+    $p_title = (string) ($row['title'] ?? throw new \RuntimeException('Column "title" is not nullable'));
+    $p_author = $r->manyToOne(\MarekSkopal\ORM\Tests\Fixtures\Entity\AuthorFixture::class, (int) ($row['author_id'] ?? throw new \RuntimeException('Column "author_id" is not nullable')));
+    $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\PostFixture(title: $p_title, author: $p_author);
+    $e->id = $p_id;
+    return $e;
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\PostFixture::class)

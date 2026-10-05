@@ -1,0 +1,6 @@
+\Closure::bind(static function (\MarekSkopal\ORM\Tests\Fixtures\Entity\CategoryFixture $e, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'name' => ($e->name ?? throw new \RuntimeException('Column "name" is not nullable')),
+        'parent_id' => ($v = $e->parent) === null ? null : $v->id,
+    ];
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\CategoryFixture::class)

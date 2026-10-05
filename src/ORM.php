@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM;
 
-use Closure;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\EntityCache;
-use MarekSkopal\ORM\Entity\EntityFactory;
-use MarekSkopal\ORM\Entity\EntityReflection;
-use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Query\QueryProvider;
+use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Repository\RepositoryInterface;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
@@ -24,11 +21,7 @@ readonly class ORM
 
     private EntityCache $entityCache;
 
-    private EntityReflection $entityReflection;
-
-    private EntityFactory $entityFactory;
-
-    private Mapper $mapper;
+    private RelationResolver $relationResolver;
 
     private TransactionProvider $transactionProvider;
 
@@ -36,21 +29,8 @@ readonly class ORM
     {
         $this->schemaProvider = new SchemaProvider($this->schema);
         $this->entityCache = new EntityCache();
-        $this->entityReflection = new EntityReflection();
-
-        $queryProviderContainer = new class {
-            public ?QueryProvider $queryProvider = null;
-        };
-
-        /** @var Closure(): QueryProvider $queryProviderFactory */
-        $queryProviderFactory = static function () use ($queryProviderContainer): QueryProvider {
-            return $queryProviderContainer->queryProvider ?? throw new \LogicException('QueryProvider not yet initialized');
-        };
-
-        $this->mapper = new Mapper($this->schemaProvider, $this->entityCache, $queryProviderFactory, $this->database);
-        $this->entityFactory = new EntityFactory($this->schemaProvider, $this->entityCache, $this->entityReflection, $this->mapper);
-        $this->queryProvider = new QueryProvider($this->database, $this->entityFactory, $this->schemaProvider, $this->mapper);
-        $queryProviderContainer->queryProvider = $this->queryProvider;
+        $this->relationResolver = new RelationResolver($this->database, $this->schemaProvider, $this->entityCache);
+        $this->queryProvider = new QueryProvider($this->database, $this->relationResolver, $this->schemaProvider);
         $this->transactionProvider = new TransactionProvider($this->database);
     }
 

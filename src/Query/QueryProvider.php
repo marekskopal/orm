@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Query;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Entity\EntityFactory;
-use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Query\Factory\DeleteFactory;
 use MarekSkopal\ORM\Query\Factory\InsertFactory;
 use MarekSkopal\ORM\Query\Factory\SelectFactory;
 use MarekSkopal\ORM\Query\Factory\UpdateFactory;
+use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 
 readonly class QueryProvider
@@ -25,14 +24,13 @@ readonly class QueryProvider
 
     public function __construct(
         private DatabaseInterface $database,
-        private EntityFactory $entityFactory,
+        private RelationResolver $relationResolver,
         private SchemaProvider $schemaProvider,
-        private Mapper $mapper,
     )
     {
-        $this->selectFactory = new SelectFactory($this->database, $this->entityFactory, $this->schemaProvider);
-        $this->insertFactory = new InsertFactory($this->database, $this->schemaProvider, $this->mapper);
-        $this->updateFactory = new UpdateFactory($this->database, $this->schemaProvider, $this->mapper);
+        $this->selectFactory = new SelectFactory($this->database, $this->relationResolver, $this->schemaProvider);
+        $this->insertFactory = new InsertFactory($this->database, $this->schemaProvider);
+        $this->updateFactory = new UpdateFactory($this->database, $this->schemaProvider);
         $this->deleteFactory = new DeleteFactory($this->database, $this->schemaProvider);
     }
 

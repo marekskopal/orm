@@ -9,9 +9,12 @@ use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\ORM;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
 use MarekSkopal\ORM\Schema\Builder\SchemaBuilder;
+use MarekSkopal\ORM\Tests\Fixtures\Database\CountingStatement;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\TagFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithTagsFixture;
 use PDOException;
 use PHPUnit\Framework\TestCase;
 
@@ -161,6 +164,62 @@ abstract class AbstractDriverIntegrationTestCase extends TestCase
             $orm->getEntityCache()->getEntity(AddressWithUsersFixture::class, 1),
             $users[0]->address,
         );
+    }
+
+    public function testManyToOneProxiesAreSharedAndBatchLoaded(): void
+    {
+        $orm = $this->createOrm('database_users_with_address');
+        $users = $orm->getRepository(UserWithAddressFixture::class)->select()->orderBy('id')->fetchAll();
+        CountingStatement::attach($orm->getQueryProvider()->getDatabase()->getPdo());
+
+        // Reading the seeded id does not load the address.
+        self::assertSame(2, $users[1]->address->id);
+        self::assertSame(0, CountingStatement::$count);
+
+        self::assertSame(['Springfield', 'Shelbyville'], array_map(
+            static fn(UserWithAddressFixture $user): string => $user->address->city,
+            $users,
+        ));
+        // Every pending address loads with one WHERE id IN (...) query.
+        self::assertSame(1, CountingStatement::$count);
+
+        // The proxy is the identity-mapped instance for its id.
+        self::assertSame($users[0]->address, $orm->getRepository(AddressWithUsersFixture::class)->findOne(['id' => 1]));
+    }
+
+    public function testWithPreloadsEachRelationLevelWithOneQuery(): void
+    {
+        $orm = $this->createOrm('database_users_with_address');
+        CountingStatement::attach($orm->getQueryProvider()->getDatabase()->getPdo());
+
+        $addresses = $orm->getRepository(AddressWithUsersFixture::class)->select()->with('users.address')->orderBy('id')->fetchAll();
+        self::assertSame(['John'], array_map(
+            static fn(UserWithAddressFixture $user): string => $user->firstName,
+            $addresses[0]->users->toArray(),
+        ));
+        self::assertSame($addresses[1], $addresses[1]->users[0]->address);
+        // Addresses, their users, and the users' addresses.
+        self::assertSame(3, CountingStatement::$count);
+    }
+
+    public function testManyToManyLoadsThroughJoinTable(): void
+    {
+        $orm = $this->createOrm('database_many_to_many');
+        CountingStatement::attach($orm->getQueryProvider()->getDatabase()->getPdo());
+
+        $user = $orm->getRepository(UserWithTagsFixture::class)->findOne(['id' => 1]);
+        self::assertInstanceOf(UserWithTagsFixture::class, $user);
+        $tagNames = array_map(static fn(TagFixture $tag): string => $tag->name, $user->tags->toArray());
+        sort($tagNames);
+        self::assertSame(['orm', 'php'], $tagNames);
+        // The user, then the tags with one query joining the join table.
+        self::assertSame(2, CountingStatement::$count);
+
+        $orm->getEntityCache()->clear();
+        CountingStatement::$count = 0;
+        $tags = $orm->getRepository(TagFixture::class)->select()->with('users')->orderBy('id')->fetchAll();
+        self::assertSame([1, 2, 1], array_map(static fn(TagFixture $tag): int => count($tag->users), $tags));
+        self::assertSame(2, CountingStatement::$count);
     }
 
     public function testSelectEntityRelationOneToMany(): void

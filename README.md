@@ -96,6 +96,8 @@ final class User
 
 Table and column names are derived from class name and parameters, but can be customized by providing additional parameters to attributes.
 
+Entities are hydrated by calling the constructor with the mapped values, then setting the remaining mapped properties. Constructor parameters must have the same names as their properties. Properties may be `private`, `protected` or `readonly`: the generated hydrator runs in the entity's own scope.
+
 ```php
 #[Entity(table: 'users')]
 final class User
@@ -384,28 +386,39 @@ $user = $queryProvider->select(User::class)
     ->fetchOne();
 ```
 
+#### Loading relations
+
+Relations are loaded lazily, but never one query per row:
+
+- A `ManyToOne` or `OneToOne` property holds a lazy proxy until it is first read. All entities that reference the same id share one proxy, and that proxy is the instance the identity map returns for the id, so `$a->author === $b->author` holds. Reading the related entity's primary key does not load it.
+- When one proxy loads, every pending proxy of the same class loads with it in a single `WHERE id IN (...)` query. Iterating 200 posts and reading `$post->author->name` costs one query for the posts and one for all their authors.
+- A `OneToMany` or `ManyToMany` collection loads on first access with one query; `ManyToMany` joins the join table. `Collection::isInitialized()` tells whether it has been loaded.
+
 #### Eager loading relations (`with`)
 
-By default, `ManyToOne` and `OneToOne` relations are loaded lazily — accessing the relation property triggers a query the first time. When iterating result sets that traverse such relations, this leads to N+1 queries (one extra query per row).
-
-Use `with()` to eager-load related entities in a single batched `WHERE id IN (...)` query, regardless of how many parent rows you have.
+Use `with()` to load relations together with the result, one query per relation level regardless of the number of rows. It accepts every relation kind and dotted paths.
 
 ```php
-// Without with(): 1 query for users + N queries (one per user) when accessing $user->address
-$users = $queryProvider->select(User::class)->fetchAll();
-
-// With with(): 1 query for users + 1 batched query for all distinct addresses
+// 1 query for users + 1 for all their addresses
 $users = $queryProvider->select(User::class)
     ->with('address')
     ->fetchAll();
 
-// Multiple relations can be eager-loaded at once
+// Collections: 1 query for authors + 1 for all their posts
+$authors = $queryProvider->select(Author::class)
+    ->with('posts')
+    ->fetchAll();
+
+// Several relations at once
 $users = $queryProvider->select(User::class)
-    ->with('address', 'profile')
+    ->with('address', 'profile', 'tags')
+    ->fetchAll();
+
+// Nested paths: tags, their users, and those users' addresses
+$tags = $queryProvider->select(Tag::class)
+    ->with('users.address')
     ->fetchAll();
 ```
-
-Eager loading is currently supported for `ManyToOne` and `OneToOne` relations.
 
 ### Insert
 
@@ -526,6 +539,22 @@ try {
 ```
 
 Nesting transactions is not supported — calling `transaction()` inside an active transaction throws a `TransactionException`.
+
+## Schema caching
+
+Building the schema scans the entity classes and reads their attributes, and the hydrator and extractor of each entity are generated on first use. In production, do both once in a build or deploy step and load the result:
+
+```php
+// Build or deploy step
+new SchemaBuilder()
+    ->addEntityPath(__DIR__ . '/Entity')
+    ->dump(__DIR__ . '/var/schema.php');
+
+// Every request
+$orm = new ORM($database, Schema::fromFile(__DIR__ . '/var/schema.php'));
+```
+
+The file contains the schema and the generated code. With opcache enabled it is served from shared memory, and each entity's schema is only built when a request first uses it. Opcache skips files modified in the last two seconds (`opcache.file_update_protection`), so a schema dumped right before a request is cached from the following ones on. Dump the schema again whenever an entity changes.
 
 ## Long-running applications
 

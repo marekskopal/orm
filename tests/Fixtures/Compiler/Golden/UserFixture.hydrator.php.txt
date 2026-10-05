@@ -1,0 +1,13 @@
+\Closure::bind(static function (array $row, \MarekSkopal\ORM\Relation\RelationResolver $r): \MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture {
+    $p_id = (int) ($row['id'] ?? throw new \RuntimeException('Column "id" is not nullable'));
+    $p_createdAt = (\is_int(($v = ($row['created_at'] ?? throw new \RuntimeException('Column "created_at" is not nullable')))) ? new \DateTimeImmutable('@' . $v) : new \DateTimeImmutable($v));
+    $p_firstName = (string) ($row['first_name'] ?? throw new \RuntimeException('Column "first_name" is not nullable'));
+    $p_middleName = ($v = $row['middle_name'] ?? null) === null ? null : (string) $v;
+    $p_lastName = (string) ($row['last_name'] ?? throw new \RuntimeException('Column "last_name" is not nullable'));
+    $p_email = (string) ($row['email'] ?? throw new \RuntimeException('Column "email" is not nullable'));
+    $p_isActive = (bool) ($row['is_active'] ?? throw new \RuntimeException('Column "is_active" is not nullable'));
+    $p_type = \MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum::from((string) ($row['type'] ?? throw new \RuntimeException('Column "type" is not nullable')));
+    $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture(createdAt: $p_createdAt, firstName: $p_firstName, middleName: $p_middleName, lastName: $p_lastName, email: $p_email, isActive: $p_isActive, type: $p_type);
+    $e->id = $p_id;
+    return $e;
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture::class)

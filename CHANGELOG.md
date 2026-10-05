@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cloning a `Select` copies its where conditions, including nested condition groups, so the clone can be changed without affecting the original.
 - `MySqlDatabase` accepts a `port` constructor parameter (default `3306`), matching `PostgresDatabase`.
 - CI runs the integration tests against MySQL 8 and PostgreSQL 16 service containers as well as SQLite. The MySQL and PostgreSQL suites share one set of tests, and CI fails rather than skips when a database is unreachable.
+- Generated hydrators and extractors: each entity gets straight-line code that converts a row to an entity and back, with types, enum backing types and relation kinds resolved once instead of per row. Hydrating 20,000 rows is about 2.5 times faster and uses about 75% less memory per entity.
+- `SchemaBuilder::dump()` writes the schema, including the generated code, to a PHP file; `Schema::fromFile()` loads it. Under opcache, loading needs no attribute scan, reflection or code generation, and each entity's schema is built on first use.
+- Entities with `private`, `protected` or `readonly` properties can be hydrated.
+- `Select::with()` accepts every relation kind (`OneToMany`, `ManyToMany` and both inverse sides, besides `ManyToOne` and `OneToOne`) and dotted paths such as `posts.tags`, with one query per relation level. `fetchOne()` honours `with()` too.
+- Lazy `ManyToOne` and `OneToOne` relations load in batches: when one proxy is read, every pending proxy of the same class loads with one `WHERE id IN (...)` query.
+- `Collection::isInitialized()` tells whether a lazy collection has been loaded.
 
 ### Changed
 - **Breaking:** `Select::fetchAll()` and `Select::fetchAssocAll()` return a `list` instead of a one-shot `Iterator`, so the result can be counted, indexed and iterated more than once. Code that streamed large results should switch to `iterate()` or `iterateAssoc()`. Wrapping calls in `iterator_to_array()` no longer works and should be removed.
@@ -19,6 +25,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `MapperInterface::mapToProperty()` accepts `string|int|float|bool|null`. Extension mappers must widen the `$value` parameter to include `bool`.
 - **Breaking:** `Collection` implements `IteratorAggregate` instead of `Iterator`. The cursor methods `current()`, `next()`, `key()`, `valid()` and `rewind()` are removed and `toArray()` is added. Relation properties must be typed `Collection` or `iterable`, not `\Iterator`.
 - README documents `Select` as a mutable builder whose terminal methods leave it unchanged.
+- **Breaking:** a `ManyToOne` or `OneToOne` proxy is shared by every entity that references the same id, and it is the instance the identity map returns for that id. Fetching that entity afterwards returns the proxy, so `$post->author === $authorRepository->findOne(['id' => $id])`. An entity reached through a relation may be loaded by a batch query instead of its own `WHERE id = ?`.
+- **Breaking:** lazy collections are no longer PHP lazy ghosts. `ReflectionClass::isUninitializedLazyObject()` returns `false` for them; use `Collection::isInitialized()`.
+- **Breaking:** `QueryProvider`, `SelectFactory`, `InsertFactory`, `UpdateFactory`, `Select`, `Insert` and `Update` take a `RelationResolver` or `SchemaProvider` instead of `EntityFactory` or `Mapper` in their constructors. `SchemaProvider` is no longer `readonly`.
+- **Breaking:** `ExtensionMapperProvider` takes a `SchemaProvider` in its constructor.
+- `Update` binds positional parameters instead of named ones.
+- A lazy `ManyToMany` collection loads with one query joining the join table instead of two queries.
+- A `NULL` foreign key on a nullable `OneToOne` owning side hydrates as `null`. Previously it produced a proxy for id `0`.
+- `EntityCache` accepts string ids as well as integers.
+
+### Removed
+- **Breaking:** `EntityFactory`, `EntityReflection` and `Mapper` are replaced by the generated hydrators and extractors and by `RelationResolver`. Custom extension mappers implementing `MapperInterface` keep working.
 
 ## [1.4.0] - 2026-09-28
 
