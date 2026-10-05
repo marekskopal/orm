@@ -13,10 +13,8 @@ use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Database\MySqlDatabase;
 use MarekSkopal\ORM\Entity\EntityCache;
-use MarekSkopal\ORM\Entity\EntityFactory;
-use MarekSkopal\ORM\Entity\EntityReflection;
 use MarekSkopal\ORM\Mapper\Collection;
-use MarekSkopal\ORM\Mapper\Mapper;
+use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\ORM;
 use MarekSkopal\ORM\Query\Delete;
 use MarekSkopal\ORM\Query\Factory\DeleteFactory;
@@ -29,12 +27,17 @@ use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Update;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
+use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Repository\AbstractRepository;
 use MarekSkopal\ORM\Schema\Builder\ClassScanner\ClassScanner;
 use MarekSkopal\ORM\Schema\Builder\ColumnSchemaFactory;
 use MarekSkopal\ORM\Schema\Builder\EntitySchemaFactory;
 use MarekSkopal\ORM\Schema\Builder\SchemaBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
+use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
+use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\HydratorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\SchemaCompiler;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
@@ -53,9 +56,6 @@ use PHPUnit\Framework\Attributes\UsesClass;
 #[UsesClass(ManyToOne::class)]
 #[UsesClass(AbstractDatabase::class)]
 #[UsesClass(EntityCache::class)]
-#[UsesClass(EntityFactory::class)]
-#[UsesClass(EntityReflection::class)]
-#[UsesClass(Mapper::class)]
 #[UsesClass(ORM::class)]
 #[UsesClass(QueryProvider::class)]
 #[UsesClass(Select::class)]
@@ -84,6 +84,12 @@ use PHPUnit\Framework\Attributes\UsesClass;
 #[UsesClass(Collection::class)]
 #[UsesClass(Join::class)]
 #[RequiresPhpExtension('pdo_mysql')]
+#[UsesClass(RelationResolver::class)]
+#[UsesClass(SchemaCompiler::class)]
+#[UsesClass(HydratorGenerator::class)]
+#[UsesClass(ExtractorGenerator::class)]
+#[UsesClass(CodeExporter::class)]
+#[UsesClass(ExtensionMapperProvider::class)]
 final class MySqlIntegrationTest extends AbstractDriverIntegrationTestCase
 {
     protected function connect(): DatabaseInterface

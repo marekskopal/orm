@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Tests\Mapper;
 
 use MarekSkopal\ORM\Mapper\Collection;
+use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -116,5 +117,46 @@ final class CollectionTest extends TestCase
         $collection = new Collection([UserFixture::create()]);
         $collection->offsetUnset(0);
         self::assertFalse($collection->offsetExists(0));
+    }
+
+    public function testLazyCollectionLoadsOnceOnFirstAccess(): void
+    {
+        $user = UserFixture::create();
+        $resolver = $this->createMock(RelationResolver::class);
+        $resolver->expects($this->once())
+            ->method('loadCollection')
+            ->with('Owner::users', 7)
+            ->willReturn([$user]);
+
+        $collection = Collection::lazy($resolver, 'Owner::users', 7);
+        self::assertFalse($collection->isInitialized());
+
+        self::assertCount(1, $collection);
+        self::assertTrue($collection->isInitialized());
+        self::assertSame($user, $collection[0]);
+        self::assertSame([$user], $collection->toArray());
+        self::assertSame([$user], iterator_to_array($collection));
+    }
+
+    public function testLazyCollectionLoadsBeforeWriting(): void
+    {
+        $existing = UserFixture::create(firstName: 'Existing');
+        $added = UserFixture::create(firstName: 'Added');
+        $resolver = $this::createStub(RelationResolver::class);
+        $resolver->method('loadCollection')->willReturn([$existing]);
+
+        $collection = Collection::lazy($resolver, 'Owner::users', 1);
+        $collection[] = $added;
+
+        self::assertSame([$existing, $added], $collection->toArray());
+
+        $other = Collection::lazy($resolver, 'Owner::users', 1);
+        unset($other[0]);
+        self::assertSame([], $other->toArray());
+    }
+
+    public function testCollectionCreatedWithItemsIsInitialized(): void
+    {
+        self::assertTrue(new Collection([])->isInitialized());
     }
 }

@@ -1,0 +1,609 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MarekSkopal\ORM\Relation;
+
+use Closure;
+use MarekSkopal\ORM\Database\DatabaseInterface;
+use MarekSkopal\ORM\Entity\EntityCache;
+use MarekSkopal\ORM\Mapper\Collection;
+use MarekSkopal\ORM\Query\Expression\RawExpression;
+use MarekSkopal\ORM\Query\Select;
+use MarekSkopal\ORM\Schema\ColumnSchema;
+use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Schema\Enum\RelationEnum;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
+use MarekSkopal\ORM\Utils\QuoteUtils;
+use ReflectionClass;
+use ReflectionProperty;
+use WeakMap;
+
+/**
+ * Turns rows into entities and resolves their relations. Generated hydrators call back into it
+ * for every relation property.
+ *
+ * - ManyToOne and OneToOne relations get one lazy proxy per related id. The proxy is registered in
+ *   the identity map, so it is the canonical instance for that id and every parent shares it.
+ * - Proxies initialise in batches: the first one to initialise loads every pending id of its class
+ *   with one WHERE id IN (...) query; the others then initialise from the loaded rows.
+ * - Collections (OneToMany, ManyToMany) stay lazy per parent unless preloaded with Select::with().
+ * - with() loads every relation kind, including dotted paths, with one query per relation level.
+ */
+class RelationResolver
+{
+    private const int BatchSize = 1000;
+
+    private const string OwnerColumn = '__orm_owner';
+
+    private const string JoinAlias = '__orm_join';
+
+    /** @var array<class-string, array<int|string, true>> ids of uninitialised proxies whose row is not loaded yet */
+    private array $pendingIds = [];
+
+    /** @var array<class-string, array<int|string, array<string, mixed>>> loaded rows waiting for their proxy to initialise */
+    private array $proxyRows = [];
+
+    /** @var array<string, array<int|string, list<object>>> relation key => owner id => items loaded by with() */
+    private array $preloadedCollections = [];
+
+    /** @var array<string, array<int|string, object|null>> relation key => owner id => entity loaded by with() */
+    private array $preloadedInverse = [];
+
+    /** @var array<class-string, array<int|string, object>> the EntityCache identity map, bound by reference */
+    private array $identityMap;
+
+    /** @var array<class-string, Closure(object): object> */
+    private array $proxyFactories = [];
+
+    /** @var WeakMap<object, int|string> proxy => id */
+    private WeakMap $proxyIds;
+
+    /** @var array<class-string, ReflectionClass<object>> */
+    private array $reflectionClasses = [];
+
+    /** @var array<class-string, ReflectionProperty> */
+    private array $primaryProperties = [];
+
+    public function __construct(
+        private readonly DatabaseInterface $database,
+        private readonly SchemaProvider $schemaProvider,
+        EntityCache $entityCache,
+    ) {
+        $this->proxyIds = new WeakMap();
+        $this->identityMap = &$entityCache->getIdentityMap();
+        $entityCache->onClear($this->reset(...));
+    }
+
+    /**
+     * Returns the entity for a row: the identity-mapped instance if the id is known, otherwise a newly
+     * hydrated one, which is then registered in the identity map.
+     *
+     * @param array<string, mixed> $row
+     */
+    public function hydrate(EntitySchema $entitySchema, array $row): object
+    {
+        $entityClass = $entitySchema->entityClass;
+        $id = $this->getId($row, $entitySchema->getPrimaryColumn()->columnName);
+
+        $entity = $this->identityMap[$entityClass][$id] ?? null;
+        if ($entity !== null) {
+            if (isset($this->pendingIds[$entityClass][$id])) {
+                // The row is at hand, so the shared proxy for this id can initialise without a query.
+                unset($this->pendingIds[$entityClass][$id]);
+                $this->proxyRows[$entityClass][$id] = $row;
+            }
+
+            return $entity;
+        }
+
+        $entity = ($this->schemaProvider->getHydrator($entityClass))($row, $this);
+        $this->identityMap[$entityClass][$id] = $entity;
+
+        return $entity;
+    }
+
+    /**
+     * hydrate() for many rows of one entity class, with the per-class lookups done once.
+     *
+     * @param list<array<string, mixed>> $rows
+     * @return list<object>
+     */
+    public function hydrateAll(EntitySchema $entitySchema, array $rows): array
+    {
+        $entityClass = $entitySchema->entityClass;
+        $primaryColumnName = $entitySchema->getPrimaryColumn()->columnName;
+        $hydrator = $this->schemaProvider->getHydrator($entityClass);
+
+        // A reference to this class's slice of the identity map: one array lookup per row instead of two.
+        // Nested hydrations (self-referencing relations) write through the same map, so it stays consistent.
+        $this->identityMap[$entityClass] ??= [];
+        $identityMap = &$this->identityMap[$entityClass];
+
+        $entities = [];
+        foreach ($rows as $row) {
+            $id = $row[$primaryColumnName] ?? null;
+            if (!is_int($id) && !is_string($id)) {
+                $id = $this->getId($row, $primaryColumnName);
+            }
+
+            $entity = $identityMap[$id] ?? null;
+            if ($entity === null) {
+                $entity = $hydrator($row, $this);
+                $identityMap[$id] = $entity;
+            } elseif (isset($this->pendingIds[$entityClass][$id])) {
+                unset($this->pendingIds[$entityClass][$id]);
+                $this->proxyRows[$entityClass][$id] = $row;
+            }
+
+            $entities[] = $entity;
+        }
+
+        unset($identityMap);
+
+        return $entities;
+    }
+
+    /**
+     * Loads the given relation paths (e.g. "author", "posts.comments") for the parent rows before they
+     * are hydrated. Each relation level costs one query regardless of the number of rows.
+     *
+     * @param list<string> $paths
+     * @param list<array<string, mixed>> $rows
+     */
+    public function preload(EntitySchema $entitySchema, array $paths, array $rows): void
+    {
+        if ($rows === [] || $paths === []) {
+            return;
+        }
+
+        /** @var array<string, list<string>> $tree */
+        $tree = [];
+        foreach ($paths as $path) {
+            $parts = explode('.', $path, 2);
+            $tree[$parts[0]] ??= [];
+            if (isset($parts[1])) {
+                $tree[$parts[0]][] = $parts[1];
+            }
+        }
+
+        foreach ($tree as $propertyName => $nestedPaths) {
+            $columnSchema = $entitySchema->columns[$propertyName] ?? throw new \InvalidArgumentException(
+                sprintf('"%s" is not a property of entity "%s".', $propertyName, $entitySchema->entityClass),
+            );
+
+            match ($columnSchema->relationType) {
+                RelationEnum::ManyToOne, RelationEnum::OneToOne => $this->preloadOwning($columnSchema, $nestedPaths, $rows),
+                RelationEnum::OneToMany, RelationEnum::ManyToMany, RelationEnum::ManyToManyInverse => $this->preloadCollection(
+                    $entitySchema,
+                    $columnSchema,
+                    $nestedPaths,
+                    $rows,
+                ),
+                RelationEnum::OneToOneInverse => $this->preloadInverse($entitySchema, $columnSchema, $nestedPaths, $rows),
+                null => throw new \InvalidArgumentException(sprintf(
+                    'Property "%s" of entity "%s" is not a relation and cannot be loaded with with().',
+                    $propertyName,
+                    $entitySchema->entityClass,
+                )),
+            };
+        }
+    }
+
+    /**
+     * Resolves a ManyToOne or OneToOne relation to the identity-mapped entity, or to a shared lazy proxy.
+     *
+     * @template T of object
+     * @param class-string<T> $entityClass
+     * @return T
+     */
+    public function manyToOne(string $entityClass, int $id): object
+    {
+        /** @var T|null $entity */
+        $entity = $this->identityMap[$entityClass][$id] ?? null;
+
+        return $entity ?? $this->createProxy($entityClass, $id);
+    }
+
+    /**
+     * @template T of object
+     * @param class-string<T> $entityClass
+     * @return T
+     */
+    private function createProxy(string $entityClass, int $id): object
+    {
+        /** @var Closure(T): T $factory the hydrator returns an instance of the proxied class */
+        $factory = $this->proxyFactories[$entityClass] ??= fn(object $proxy): object => $this->initialiseProxy(
+            $entityClass,
+            $this->proxyIds[$proxy],
+        );
+        $proxy = $this->getReflectionClass($entityClass)->newLazyProxy($factory);
+
+        // Seed the primary key so reading it (e.g. for the owner's foreign key column) does not initialise the proxy.
+        $this->getPrimaryProperty($entityClass)->setRawValueWithoutLazyInitialization($proxy, $id);
+        $this->proxyIds[$proxy] = $id;
+        $this->pendingIds[$entityClass][$id] = true;
+        $this->identityMap[$entityClass][$id] = $proxy;
+
+        return $proxy;
+    }
+
+    /**
+     * Resolves a OneToMany, ManyToMany or inverse ManyToMany relation to its collection: the items
+     * preloaded by with(), or a lazy collection that loads on first access.
+     *
+     * @param string $relationKey "OwnerClass::property"
+     * @return Collection<object>
+     */
+    public function collection(string $relationKey, int|string $ownerId): Collection
+    {
+        if (isset($this->preloadedCollections[$relationKey][$ownerId])) {
+            $items = $this->preloadedCollections[$relationKey][$ownerId];
+            unset($this->preloadedCollections[$relationKey][$ownerId]);
+
+            return new Collection($items);
+        }
+
+        return Collection::lazy($this, $relationKey, $ownerId);
+    }
+
+    /**
+     * Loads the items of one lazy collection; called by the collection on first access.
+     *
+     * @internal used by Collection
+     * @param string $relationKey "OwnerClass::property"
+     * @return list<object>
+     */
+    public function loadCollection(string $relationKey, int|string $ownerId): array
+    {
+        if (isset($this->preloadedCollections[$relationKey][$ownerId])) {
+            $items = $this->preloadedCollections[$relationKey][$ownerId];
+            unset($this->preloadedCollections[$relationKey][$ownerId]);
+
+            return $items;
+        }
+
+        $columnSchema = $this->getRelationColumnSchema($relationKey);
+        $targetSchema = $this->schemaProvider->getEntitySchema($this->getRelationEntityClass($columnSchema));
+
+        return $this->hydrateAll($targetSchema, $this->fetchCollectionRows($columnSchema, [$ownerId]));
+    }
+
+    /**
+     * Resolves the inverse side of a OneToOne relation: the entity preloaded by with(), or a lazy
+     * proxy that loads it on first access.
+     *
+     * @param string $relationKey "OwnerClass::property"
+     */
+    public function oneToOneInverse(string $relationKey, int|string $ownerId, bool $nullable): ?object
+    {
+        $key = $relationKey;
+        $columnSchema = $this->getRelationColumnSchema($relationKey);
+        $targetClass = $this->getRelationEntityClass($columnSchema);
+
+        if (isset($this->preloadedInverse[$key]) && array_key_exists($ownerId, $this->preloadedInverse[$key])) {
+            $entity = $this->preloadedInverse[$key][$ownerId];
+            unset($this->preloadedInverse[$key][$ownerId]);
+            if ($entity === null && !$nullable) {
+                throw $this->inverseNotFound($targetClass, $ownerId);
+            }
+
+            return $entity;
+        }
+
+        $foreignKeyColumn = $this->getInverseForeignKeyColumn($columnSchema);
+
+        return $this->getReflectionClass($targetClass)->newLazyProxy(
+            function () use ($targetClass, $foreignKeyColumn, $ownerId): object {
+                $entity = $this->select($targetClass)->where([$foreignKeyColumn, '=', $ownerId])->fetchOne()
+                    ?? throw $this->inverseNotFound($targetClass, $ownerId);
+
+                return $this->unwrapProxy($entity);
+            },
+        );
+    }
+
+    /** @param class-string $entityClass */
+    public function mapExtension(string $entityClass, string $propertyName, string|int|float|bool $value): mixed
+    {
+        return $this->schemaProvider->getExtensionMapperProvider()->mapToProperty($entityClass, $propertyName, $value);
+    }
+
+    /** Drops state tied to identity-mapped entities; runs when the entity cache is cleared. */
+    private function reset(): void
+    {
+        $this->pendingIds = [];
+        $this->proxyRows = [];
+        $this->preloadedCollections = [];
+        $this->preloadedInverse = [];
+    }
+
+    /** @param class-string $entityClass */
+    private function initialiseProxy(string $entityClass, int|string $id): object
+    {
+        if (!isset($this->proxyRows[$entityClass][$id])) {
+            $this->loadPendingProxies($entityClass, $id);
+        }
+
+        $row = $this->proxyRows[$entityClass][$id] ?? throw new \RuntimeException(
+            sprintf('Entity "%s" with id "%s" not found', $entityClass, $id),
+        );
+        unset($this->proxyRows[$entityClass][$id]);
+
+        // The proxy stays the canonical instance in the identity map; this object only backs it.
+        return ($this->schemaProvider->getHydrator($entityClass))($row, $this);
+    }
+
+    /**
+     * Loads the rows of every pending proxy of a class with one query per batch.
+     *
+     * @param class-string $entityClass
+     */
+    private function loadPendingProxies(string $entityClass, int|string $id): void
+    {
+        $ids = $this->pendingIds[$entityClass] ?? [];
+        $ids[$id] = true;
+        unset($this->pendingIds[$entityClass]);
+
+        $primaryColumnName = $this->schemaProvider->getPrimaryColumnSchema($entityClass)->columnName;
+        foreach (array_chunk(array_keys($ids), self::BatchSize) as $chunk) {
+            foreach ($this->select($entityClass)->where([$primaryColumnName, 'IN', $chunk])->fetchAssocAll() as $row) {
+                $this->proxyRows[$entityClass][$this->getId($row, $primaryColumnName)] = $row;
+            }
+        }
+    }
+
+    /**
+     * @param list<string> $nestedPaths
+     * @param list<array<string, mixed>> $rows
+     */
+    private function preloadOwning(ColumnSchema $columnSchema, array $nestedPaths, array $rows): void
+    {
+        $ids = [];
+        foreach ($rows as $row) {
+            $value = $row[$columnSchema->columnName] ?? null;
+            if (is_int($value) || is_string($value)) {
+                $ids[(int) $value] = true;
+            }
+        }
+
+        if ($ids === []) {
+            return;
+        }
+
+        $targetSchema = $this->schemaProvider->getEntitySchema($this->getRelationEntityClass($columnSchema));
+        $primaryColumnName = $targetSchema->getPrimaryColumn()->columnName;
+
+        $relatedRows = [];
+        foreach (array_chunk(array_keys($ids), self::BatchSize) as $chunk) {
+            array_push(
+                $relatedRows,
+                ...$this->select($targetSchema->entityClass)->where([$primaryColumnName, 'IN', $chunk])->fetchAssocAll(),
+            );
+        }
+
+        $this->preload($targetSchema, $nestedPaths, $relatedRows);
+        foreach ($relatedRows as $relatedRow) {
+            $this->hydrate($targetSchema, $relatedRow);
+        }
+    }
+
+    /**
+     * @param list<string> $nestedPaths
+     * @param list<array<string, mixed>> $rows
+     */
+    private function preloadCollection(EntitySchema $entitySchema, ColumnSchema $columnSchema, array $nestedPaths, array $rows): void
+    {
+        $ownerIds = $this->getIds($rows, $entitySchema->getPrimaryColumn()->columnName);
+        $relatedRows = $this->fetchCollectionRows($columnSchema, $ownerIds);
+        $targetSchema = $this->schemaProvider->getEntitySchema($this->getRelationEntityClass($columnSchema));
+
+        $this->preload($targetSchema, $nestedPaths, $relatedRows);
+
+        /** @var array<int|string, list<object>> $grouped */
+        $grouped = array_fill_keys($ownerIds, []);
+        foreach ($relatedRows as $relatedRow) {
+            $grouped[$this->getId($relatedRow, self::OwnerColumn)][] = $this->hydrate($targetSchema, $relatedRow);
+        }
+
+        $key = $entitySchema->entityClass . '::' . $columnSchema->propertyName;
+        foreach ($grouped as $ownerId => $items) {
+            $this->preloadedCollections[$key][$ownerId] = $items;
+        }
+    }
+
+    /**
+     * @param list<string> $nestedPaths
+     * @param list<array<string, mixed>> $rows
+     */
+    private function preloadInverse(EntitySchema $entitySchema, ColumnSchema $columnSchema, array $nestedPaths, array $rows): void
+    {
+        $ownerIds = $this->getIds($rows, $entitySchema->getPrimaryColumn()->columnName);
+        $targetSchema = $this->schemaProvider->getEntitySchema($this->getRelationEntityClass($columnSchema));
+        $foreignKeyColumn = $this->getInverseForeignKeyColumn($columnSchema);
+
+        $relatedRows = [];
+        foreach (array_chunk($ownerIds, self::BatchSize) as $chunk) {
+            array_push(
+                $relatedRows,
+                ...$this->select($targetSchema->entityClass)->where([$foreignKeyColumn, 'IN', $chunk])->fetchAssocAll(),
+            );
+        }
+
+        $this->preload($targetSchema, $nestedPaths, $relatedRows);
+
+        $key = $entitySchema->entityClass . '::' . $columnSchema->propertyName;
+        foreach ($ownerIds as $ownerId) {
+            $this->preloadedInverse[$key][$ownerId] = null;
+        }
+        foreach ($relatedRows as $relatedRow) {
+            $this->preloadedInverse[$key][$this->getId($relatedRow, $foreignKeyColumn)] = $this->hydrate($targetSchema, $relatedRow);
+        }
+    }
+
+    /**
+     * Fetches the rows of a collection relation for several owners at once. Each row carries the
+     * owner id in an extra column, so the rows can be grouped; ManyToMany joins the join table.
+     *
+     * @param list<int|string> $ownerIds
+     * @return list<array<string, mixed>>
+     */
+    private function fetchCollectionRows(ColumnSchema $columnSchema, array $ownerIds): array
+    {
+        $targetSchema = $this->schemaProvider->getEntitySchema($this->getRelationEntityClass($columnSchema));
+        $quoteChar = $this->database->getIdentifierQuoteChar();
+        $targetPrimaryColumn = $targetSchema->getPrimaryColumn()->columnName;
+
+        [$joinTable, $joinOnColumn, $ownerColumn] = match ($columnSchema->relationType) {
+            RelationEnum::OneToMany => [
+                null,
+                null,
+                $columnSchema->relationColumnName ?? throw new \LogicException('OneToMany relation has no relation column.'),
+            ],
+            RelationEnum::ManyToMany => [
+                $columnSchema->joinTable ?? throw new \LogicException('ManyToMany relation has no join table.'),
+                $columnSchema->inverseJoinColumn ?? throw new \LogicException('ManyToMany relation has no inverse join column.'),
+                $columnSchema->joinColumn ?? throw new \LogicException('ManyToMany relation has no join column.'),
+            ],
+            RelationEnum::ManyToManyInverse => $this->getInverseJoin($targetSchema, $columnSchema),
+            default => throw new \LogicException(sprintf('Relation "%s" is not a collection.', $columnSchema->propertyName)),
+        };
+
+        $ownerExpression = QuoteUtils::quote($joinTable === null ? $targetSchema->tableAlias : self::JoinAlias, $quoteChar)
+            . '.' . QuoteUtils::quote($ownerColumn, $quoteChar);
+
+        $rows = [];
+        foreach (array_chunk($ownerIds, self::BatchSize) as $chunk) {
+            $select = $this->select($targetSchema->entityClass);
+            if ($joinTable !== null && $joinOnColumn !== null) {
+                $select->join($targetPrimaryColumn, $joinTable, self::JoinAlias, $joinOnColumn);
+            }
+
+            $select->columns([
+                ...array_keys($targetSchema->getSelectableColumns()),
+                new RawExpression($ownerExpression . ' AS ' . QuoteUtils::quote(self::OwnerColumn, $quoteChar)),
+            ])->where([new RawExpression($ownerExpression), 'IN', $chunk]);
+
+            array_push($rows, ...$select->fetchAssocAll());
+        }
+
+        return $rows;
+    }
+
+    /** @return array{0: string, 1: string, 2: string} join table, join column matching the target id, owner column */
+    private function getInverseJoin(EntitySchema $targetSchema, ColumnSchema $columnSchema): array
+    {
+        $owningColumnSchema = $targetSchema->getColumnByPropertyName(
+            $columnSchema->mappedBy ?? throw new \LogicException('Inverse ManyToMany relation has no mappedBy.'),
+        );
+
+        return [
+            $owningColumnSchema->joinTable ?? throw new \LogicException('Owning ManyToMany relation has no join table.'),
+            $owningColumnSchema->joinColumn ?? throw new \LogicException('Owning ManyToMany relation has no join column.'),
+            $owningColumnSchema->inverseJoinColumn ?? throw new \LogicException('Owning ManyToMany relation has no inverse join column.'),
+        ];
+    }
+
+    private function getInverseForeignKeyColumn(ColumnSchema $columnSchema): string
+    {
+        return $this->schemaProvider->getEntitySchema($this->getRelationEntityClass($columnSchema))->getColumnByPropertyName(
+            $columnSchema->mappedBy ?? throw new \LogicException('Inverse OneToOne relation has no mappedBy.'),
+        )->columnName;
+    }
+
+    /** @param string $relationKey "OwnerClass::property" */
+    private function getRelationColumnSchema(string $relationKey): ColumnSchema
+    {
+        [$ownerClass, $propertyName] = explode('::', $relationKey, 2) + [1 => ''];
+
+        return $this->schemaProvider->getEntitySchema($ownerClass)->getColumnByPropertyName($propertyName);
+    }
+
+    /** @return class-string */
+    private function getRelationEntityClass(ColumnSchema $columnSchema): string
+    {
+        return $columnSchema->relationEntityClass ?? throw new \LogicException(
+            sprintf('Relation "%s" has no entity class.', $columnSchema->propertyName),
+        );
+    }
+
+    /** @param class-string $targetClass */
+    private function inverseNotFound(string $targetClass, int|string $ownerId): \RuntimeException
+    {
+        return new \RuntimeException(sprintf('OneToOne inverse entity "%s" not found for FK value "%s"', $targetClass, $ownerId));
+    }
+
+    /** A proxy factory must return a real object, so an identity-mapped proxy is replaced by its backing instance. */
+    private function unwrapProxy(object $entity): object
+    {
+        $reflectionClass = $this->getReflectionClass($entity::class);
+        if (!$reflectionClass->isUninitializedLazyObject($entity) && !isset($this->proxyIds[$entity])) {
+            return $entity;
+        }
+
+        return $reflectionClass->initializeLazyObject($entity);
+    }
+
+    /**
+     * @template T of object
+     * @param class-string<T> $entityClass
+     * @return Select<T>
+     */
+    private function select(string $entityClass): Select
+    {
+        return new Select(
+            $this->database,
+            $entityClass,
+            $this->schemaProvider->getEntitySchema($entityClass),
+            $this,
+            $this->schemaProvider,
+        );
+    }
+
+    /** @param array<string, mixed> $row */
+    private function getId(array $row, string $columnName): int|string
+    {
+        $id = $row[$columnName] ?? null;
+        if (!is_int($id) && !is_string($id)) {
+            throw new \RuntimeException(sprintf('Column "%s" is missing from the row or is not an integer or string.', $columnName));
+        }
+
+        return $id;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     * @return list<int|string>
+     */
+    private function getIds(array $rows, string $columnName): array
+    {
+        $ids = [];
+        foreach ($rows as $row) {
+            $ids[$this->getId($row, $columnName)] = true;
+        }
+
+        return array_keys($ids);
+    }
+
+    /**
+     * @template T of object
+     * @param class-string<T> $class
+     * @return ReflectionClass<T>
+     */
+    private function getReflectionClass(string $class): ReflectionClass
+    {
+        /** @var ReflectionClass<T> $reflectionClass */
+        $reflectionClass = $this->reflectionClasses[$class] ??= new ReflectionClass($class);
+
+        return $reflectionClass;
+    }
+
+    /** @param class-string $entityClass */
+    private function getPrimaryProperty(string $entityClass): ReflectionProperty
+    {
+        return $this->primaryProperties[$entityClass] ??= new ReflectionProperty(
+            $entityClass,
+            $this->schemaProvider->getPrimaryColumnSchema($entityClass)->propertyName,
+        );
+    }
+}

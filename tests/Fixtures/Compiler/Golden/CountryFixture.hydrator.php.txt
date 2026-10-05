@@ -1,0 +1,6 @@
+\Closure::bind(static function (array $row, \MarekSkopal\ORM\Relation\RelationResolver $r): \MarekSkopal\ORM\Tests\Fixtures\Entity\CountryFixture {
+    $p_id = (int) ($row['id'] ?? throw new \RuntimeException('Column "id" is not nullable'));
+    $p_name = (string) ($row['name'] ?? throw new \RuntimeException('Column "name" is not nullable'));
+    $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\CountryFixture(id: $p_id, name: $p_name);
+    return $e;
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\CountryFixture::class)

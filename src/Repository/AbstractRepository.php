@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Repository;
 
+use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
@@ -168,6 +169,10 @@ abstract class AbstractRepository implements RepositoryInterface
 
     private function isUninitializedLazyObject(object $object): bool
     {
+        if ($object instanceof Collection) {
+            return !$object->isInitialized();
+        }
+
         return new ReflectionClass($object)->isUninitializedLazyObject($object);
     }
 

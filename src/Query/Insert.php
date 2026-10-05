@@ -6,9 +6,9 @@ namespace MarekSkopal\ORM\Query;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Exception\ExceptionFactory;
-use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use PDO;
 use PDOStatement;
 
@@ -19,7 +19,12 @@ class Insert extends AbstractQuery
     private array $entities = [];
 
     /** @param class-string<T> $entityClass */
-    public function __construct(DatabaseInterface $database, string $entityClass, EntitySchema $schema, private readonly Mapper $mapper)
+    public function __construct(
+        DatabaseInterface $database,
+        string $entityClass,
+        EntitySchema $schema,
+        private readonly SchemaProvider $schemaProvider,
+    )
     {
         parent::__construct($database, $entityClass, $schema);
     }
@@ -138,12 +143,6 @@ class Insert extends AbstractQuery
      */
     private function getEntityValues(object $entity): array
     {
-        $values = [];
-        foreach ($this->schema->getInsertableColumns() as $column) {
-            // @phpstan-ignore-next-line argument.type property.dynamicName
-            $values[] = $this->mapper->mapToColumn($column, $entity->{$column->propertyName});
-        }
-
-        return $values;
+        return array_values($this->schemaProvider->extract($entity));
     }
 }

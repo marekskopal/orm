@@ -1,0 +1,6 @@
+\Closure::bind(static function (array $row, \MarekSkopal\ORM\Relation\RelationResolver $r): \MarekSkopal\ORM\Tests\Fixtures\Entity\Code {
+    $p_id = (int) ($row['id'] ?? throw new \RuntimeException('Column "id" is not nullable'));
+    $p_code = \Ramsey\Uuid\Uuid::fromString((string) ($row['code'] ?? throw new \RuntimeException('Column "code" is not nullable')));
+    $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\Code(id: $p_id, code: $p_code);
+    return $e;
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\Code::class)
