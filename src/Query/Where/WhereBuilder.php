@@ -33,6 +33,24 @@ class WhereBuilder
     {
     }
 
+    /**
+     * Copies the conditions into a builder bound to another Select. Nested builders are
+     * copied too, so relation paths in them register joins on the new Select.
+     *
+     * @param Select<covariant object> $select
+     */
+    public function copyFor(Select $select): self
+    {
+        $copy = new self($select);
+        $copy->where = array_map(
+            static fn(array|WhereBuilder $where): array|WhereBuilder => $where instanceof WhereBuilder ? $where->copyFor($select) : $where,
+            $this->where,
+        );
+        $copy->orWhere = array_map(static fn(WhereBuilder $orWhere): WhereBuilder => $orWhere->copyFor($select), $this->orWhere);
+
+        return $copy;
+    }
+
     /** @param Where $params */
     public function where(array|callable $params): self
     {

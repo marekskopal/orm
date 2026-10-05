@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Query;
 
-use Iterator;
+use Generator;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Exception\ExceptionFactory;
@@ -64,6 +64,12 @@ class Select extends AbstractQuery
 
         $this->whereBuilder = new WhereBuilder($this);
         $this->usedAliases[$schema->tableAlias] = true;
+    }
+
+    /** A clone gets its own copy of the where conditions, so changing one builder never affects the other. */
+    public function __clone(): void
+    {
+        $this->whereBuilder = $this->whereBuilder->copyFor($this);
     }
 
     /**
@@ -183,8 +189,26 @@ class Select extends AbstractQuery
         return $result === false ? null : $this->entityFactory->create($this->entityClass, $result);
     }
 
-    /** @return Iterator<T> */
-    public function fetchAll(): Iterator
+    /**
+     * Fetches all matching entities. The result is a plain list, so it can be counted,
+     * indexed and iterated any number of times. Use iterate() for large result sets.
+     *
+     * @phpstan-impure
+     * @return list<T>
+     */
+    public function fetchAll(): array
+    {
+        return iterator_to_array($this->iterate(), false);
+    }
+
+    /**
+     * Streams matching entities one row at a time instead of building a list. The returned
+     * generator can be consumed only once. When relations are eager-loaded with with(), the
+     * raw rows are buffered first so the related entities can be loaded in one query.
+     *
+     * @return Generator<int, T, void, void>
+     */
+    public function iterate(): Generator
     {
         if ($this->with === []) {
             $query = $this->query();
@@ -212,8 +236,23 @@ class Select extends AbstractQuery
         return $result === false ? null : $result;
     }
 
-    /** @return Iterator<array<string, mixed>> */
-    public function fetchAssocAll(): Iterator
+    /**
+     * @phpstan-impure
+     * @return list<array<string, mixed>>
+     */
+    public function fetchAssocAll(): array
+    {
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $this->query()->fetchAll(PDO::FETCH_ASSOC);
+        return $rows;
+    }
+
+    /**
+     * Streams matching rows as associative arrays. The returned generator can be consumed only once.
+     *
+     * @return Generator<int, array<string, mixed>, void, void>
+     */
+    public function iterateAssoc(): Generator
     {
         $query = $this->query();
         while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
@@ -408,9 +447,9 @@ class Select extends AbstractQuery
             $relationSchema = $this->schemaProvider->getEntitySchema($relationEntityClass);
 
             $select = new Select($this->database, $relationEntityClass, $relationSchema, $this->entityFactory, $this->schemaProvider);
-            // Materialize the iterator to populate EntityCache; subsequent ManyToOne/OneToOne
+            // Hydrating the related rows populates EntityCache; subsequent ManyToOne/OneToOne
             // lookups during hydration will hit the cache and skip per-row queries.
-            iterator_to_array($select->where([$primaryColumnSchema->columnName, 'IN', array_keys($ids)])->fetchAll());
+            $select->where([$primaryColumnSchema->columnName, 'IN', array_keys($ids)])->fetchAll();
         }
     }
 

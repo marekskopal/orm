@@ -69,7 +69,7 @@ class Mapper implements MapperInterface
     public function mapToProperty(
         EntitySchema $entitySchema,
         ColumnSchema $columnSchema,
-        string|int|float|null $value,
+        string|int|float|bool|null $value,
     ): string|int|float|bool|object|null
     {
         if (
@@ -166,7 +166,7 @@ class Mapper implements MapperInterface
         $lazyCollection = $reflector->newLazyGhost(function (Collection $object) use ($entityClass, $columnName, $value): void {
             // @phpstan-ignore-next-line constructor.call
             $object->__construct(
-                iterator_to_array($this->getQueryProvider()->select($entityClass)->where([$columnName, '=', $value])->fetchAll()),
+                $this->getQueryProvider()->select($entityClass)->where([$columnName, '=', $value])->fetchAll(),
             );
         });
         return $lazyCollection;
@@ -268,9 +268,7 @@ class Mapper implements MapperInterface
                 $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
                 // @phpstan-ignore-next-line constructor.call
                 $object->__construct(
-                    iterator_to_array(
-                        $this->getQueryProvider()->select($entityClass)->where([$primaryColumnSchema->columnName, 'IN', $ids])->fetchAll(),
-                    ),
+                    $this->getQueryProvider()->select($entityClass)->where([$primaryColumnSchema->columnName, 'IN', $ids])->fetchAll(),
                 );
             },
         );
@@ -313,9 +311,7 @@ class Mapper implements MapperInterface
             $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
             // @phpstan-ignore-next-line constructor.call
             $object->__construct(
-                iterator_to_array(
-                    $this->getQueryProvider()->select($entityClass)->where([$primaryColumnSchema->columnName, 'IN', $ids])->fetchAll(),
-                ),
+                $this->getQueryProvider()->select($entityClass)->where([$primaryColumnSchema->columnName, 'IN', $ids])->fetchAll(),
             );
         });
 

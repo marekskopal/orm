@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Repository;
 
-use Iterator;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
@@ -38,9 +37,9 @@ abstract class AbstractRepository implements RepositoryInterface
 
     /**
      * @param Where $where
-     * @return Iterator<T>
+     * @return list<T>
      */
-    public function findAll(array|callable $where = []): Iterator
+    public function findAll(array|callable $where = []): array
     {
         return $this->select()->where($where)->fetchAll();
     }

@@ -8,7 +8,7 @@ codebase review of 2026-09-28; the numbers below are its baseline measurements.
 
 | # | Workstream | Status |
 |---|---|---|
-| 1 | Query and collection API cleanup | in progress (Collection done) |
+| 1 | Query and collection API cleanup | done |
 | 2 | Compiled schema and generated hydrators | not started |
 | 3 | Relation loading without per-row proxies | not started |
 | 4 | Unit of work and identity map | not started |
@@ -58,12 +58,13 @@ Landed on this branch:
 - `Collection` implements `IteratorAggregate` instead of `Iterator`. The cursor methods
   `current()`, `next()`, `key()`, `valid()`, `rewind()` are gone; `toArray()` is added. Relation
   properties must be typed `Collection` or `iterable`, not `\Iterator`. (PR #8)
+- `Select::fetchAll()` and `Select::fetchAssocAll()` return lists; streaming moves to
+  `Select::iterate()` and `Select::iterateAssoc()`. `findAll()` returns `list<T>`.
+- `MapperInterface::mapToProperty()` accepts `bool`; custom extension mappers must widen
+  their signature.
 
 Planned, by workstream:
 
-- (1) `Select::fetchAll()` returns `list<T>`; streaming moves to `Select::iterate()`.
-- (1) `MapperInterface::mapToProperty()` accepts `bool`; custom extension mappers must widen
-  their signature.
 - (2) `SchemaBuilder::build()` returns a compiled schema that can be dumped to a PHP file;
   `EntitySchema` and `ColumnSchema` gain hydrator and extractor closures. `EntityReflection`
   is removed.
@@ -83,18 +84,18 @@ Done on `main` (compatible) and already in this branch: path-based join aliases,
 resolution, `IS NULL`, bool binding, empty `IN`, non-mutating `count()` and `fetchOne()`,
 `Select::orWhere()`, nested closures without a return value.
 
-Done here: `Collection` as `IteratorAggregate`.
+Done here:
 
-Remaining:
+- `Collection` as `IteratorAggregate`.
+- `fetchAll()` and `fetchAssocAll()` return lists; `iterate()` and `iterateAssoc()` stream.
+  `RepositoryInterface::findAll()` returns `list<T>`. With `with()`, `iterate()` still buffers
+  the raw rows so the relation preload can run first.
+- `MapperInterface::mapToProperty()` accepts `string|int|float|bool|null`. The bool
+  normalisation in `EntityFactory` stays until workstream 2 replaces the factory.
+- No clone-on-write: the builder is documented as mutable. `clone $select` now copies the
+  where conditions, including nested groups rebound to the clone, so branching a query works.
 
-- `fetchAll()` returns `list<T>`. The generator is a one-shot iterator that callers routinely
-  try to reuse. Keep a streaming `iterate()` for large result sets. `RepositoryInterface::findAll()`
-  follows.
-- Widen `MapperInterface::mapToProperty()` to `string|int|float|bool|null` and drop the bool
-  normalisation in `EntityFactory` once workstream 2 replaces the factory.
-- Decide whether `where()`, `limit()`, `columns()` should clone on write. Recommendation: no.
-  The terminal methods no longer mutate, and clone-on-write would double allocations on the
-  hot path for little benefit. Document the builder as mutable.
+Carried into workstream 2: drop the bool normalisation in `EntityFactory::columnValue()`.
 
 Files: `src/Query/Select.php`, `src/Repository/RepositoryInterface.php`,
 `src/Repository/AbstractRepository.php`, `src/Mapper/MapperInterface.php`, `README.md`.

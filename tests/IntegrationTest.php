@@ -138,13 +138,13 @@ final class IntegrationTest extends TestCase
         // Property names resolve to their mapped columns, both bare and in ORDER BY.
         $userByPropertyName = $repository->findOne(['firstName' => 'Jane']);
         self::assertSame($userByFirstName, $userByPropertyName);
-        $usersByFirstName = iterator_to_array($repository->select()->orderBy('firstName')->fetchAll());
+        $usersByFirstName = $repository->select()->orderBy('firstName')->fetchAll();
         self::assertSame([2, 1], array_map(static fn(UserFixture $user): int => $user->id, $usersByFirstName));
 
         $userNotFound = $repository->findOne(['id' => 3]);
         self::assertNull($userNotFound);
 
-        $users = iterator_to_array($repository->findAll());
+        $users = $repository->findAll();
         self::assertCount(2, $users);
 
         $inactiveUser = $repository->findOne(['is_active' => false]);
@@ -163,30 +163,49 @@ final class IntegrationTest extends TestCase
         self::assertInstanceOf(UserFixture::class, $userWithMiddleName);
         self::assertSame(2, $userWithMiddleName->id);
 
-        self::assertCount(0, iterator_to_array($repository->findAll(['id', 'IN', []])));
-        self::assertCount(2, iterator_to_array($repository->findAll(['id', 'NOT IN', []])));
+        self::assertCount(0, $repository->findAll(['id', 'IN', []]));
+        self::assertCount(2, $repository->findAll(['id', 'NOT IN', []]));
 
-        $usersByOr = iterator_to_array($repository->select()->where(['id' => 1])->orWhere(['firstName' => 'Jane'])->fetchAll());
+        $usersByOr = $repository->select()->where(['id' => 1])->orWhere(['firstName' => 'Jane'])->fetchAll();
         self::assertCount(2, $usersByOr);
 
-        $usersByNested = iterator_to_array(
-            $repository->select()->where(['is_active' => true])->where(static function (WhereBuilder $where): void {
-                $where->where(['firstName' => 'John'])->orWhere(['firstName' => 'Jane']);
-            })->fetchAll(),
-        );
+        $usersByNested = $repository->select()->where(['is_active' => true])->where(static function (WhereBuilder $where): void {
+            $where->where(['firstName' => 'John'])->orWhere(['firstName' => 'Jane']);
+        })->fetchAll();
         self::assertCount(1, $usersByNested);
         self::assertSame(1, $usersByNested[0]->id);
 
         // count() and fetchOne() must not change the builder for later calls.
         $select = $repository->select()->orderBy('id');
         self::assertSame(2, $select->count());
-        self::assertCount(2, iterator_to_array($select->fetchAll()));
+        self::assertCount(2, $select->fetchAll());
         $firstUser = $select->fetchOne();
         self::assertInstanceOf(UserFixture::class, $firstUser);
         self::assertSame(1, $firstUser->id);
-        self::assertCount(2, iterator_to_array($select->fetchAll()));
+        self::assertCount(2, $select->fetchAll());
         self::assertNotNull($select->fetchAssocOne());
-        self::assertCount(2, iterator_to_array($select->fetchAssocAll()));
+        self::assertCount(2, $select->fetchAssocAll());
+
+        // fetchAll() returns a list that can be traversed more than once.
+        $fetchedUsers = $select->fetchAll();
+        $firstPass = [];
+        foreach ($fetchedUsers as $fetchedUser) {
+            $firstPass[] = $fetchedUser->id;
+        }
+        $secondPass = [];
+        foreach ($fetchedUsers as $fetchedUser) {
+            $secondPass[] = $fetchedUser->id;
+        }
+        self::assertSame([1, 2], $firstPass);
+        self::assertSame($firstPass, $secondPass);
+
+        // iterate() and iterateAssoc() stream the same rows as one-shot generators.
+        $streamedIds = [];
+        foreach ($select->iterate() as $streamedUser) {
+            $streamedIds[] = $streamedUser->id;
+        }
+        self::assertSame([1, 2], $streamedIds);
+        self::assertSame([1, 2], array_column(iterator_to_array($select->iterateAssoc(), false), 'id'));
 
         // count() ignores LIMIT / OFFSET, which would otherwise hide the single count row.
         self::assertSame(2, $repository->select()->limit(1)->offset(5)->count());
@@ -338,9 +357,7 @@ final class IntegrationTest extends TestCase
         $repository = $orm->getRepository(UserWithAddressFixture::class);
 
         $orm->getEntityCache()->clear();
-        $users = iterator_to_array(
-            $repository->select()->with('address')->fetchAll(),
-        );
+        $users = $repository->select()->with('address')->fetchAll();
         self::assertCount(2, $users);
 
         // Eager loading must populate EntityCache before per-entity hydration,
@@ -353,6 +370,16 @@ final class IntegrationTest extends TestCase
         self::assertSame($cachedAddress2, $users[1]->address);
         self::assertSame('Springfield', $users[0]->address->city);
         self::assertSame('Shelbyville', $users[1]->address->city);
+
+        // iterate() with eager loading buffers rows, preloads relations, then yields the same entities.
+        $orm->getEntityCache()->clear();
+        $streamedUsers = iterator_to_array($repository->select()->with('address')->iterate(), false);
+        self::assertCount(2, $streamedUsers);
+        self::assertInstanceOf(
+            AddressWithUsersFixture::class,
+            $orm->getEntityCache()->getEntity(AddressWithUsersFixture::class, 1),
+        );
+        self::assertSame('Springfield', $streamedUsers[0]->address->city);
     }
 
     public function testSelectEntityRelationOneToMany(): void
@@ -418,7 +445,7 @@ final class IntegrationTest extends TestCase
         self::assertSame(3, $user->id);
 
         $users = $repository->findAll();
-        self::assertCount(3, iterator_to_array($users));
+        self::assertCount(3, $users);
     }
 
     public function testDeleteEntity(): void
@@ -450,7 +477,7 @@ final class IntegrationTest extends TestCase
         self::assertInstanceOf(UserFixture::class, $user);
         $repository->delete($user);
 
-        $users = iterator_to_array($repository->findAll());
+        $users = $repository->findAll();
         self::assertCount(1, $users);
         self::assertSame(2, $users[0]->id);
     }
@@ -485,7 +512,7 @@ final class IntegrationTest extends TestCase
             $repository->persist(UserFixture::create(firstName: 'Bob'));
         });
 
-        $users = iterator_to_array($repository->findAll());
+        $users = $repository->findAll();
         self::assertCount(4, $users);
     }
 
@@ -524,7 +551,7 @@ final class IntegrationTest extends TestCase
             // Expected exception, transaction should have been rolled back
         }
 
-        $users = iterator_to_array($repository->findAll());
+        $users = $repository->findAll();
         self::assertCount(2, $users);
     }
 
@@ -774,7 +801,7 @@ final class IntegrationTest extends TestCase
         self::assertSame(1, $post1->id);
         self::assertSame(2, $post2->id);
 
-        $posts = iterator_to_array($postRepository->findAll());
+        $posts = $postRepository->findAll();
         self::assertCount(2, $posts);
     }
 
@@ -813,7 +840,7 @@ final class IntegrationTest extends TestCase
         $repository->persist($article);
 
         $orm->getEntityCache()->clear();
-        $articles = iterator_to_array($repository->findAll());
+        $articles = $repository->findAll();
         self::assertCount(1, $articles);
         self::assertSame('Updated Article', $articles[0]->title);
     }
@@ -839,8 +866,8 @@ final class IntegrationTest extends TestCase
 
         $authorRepository->delete($author);
 
-        self::assertCount(0, iterator_to_array($authorRepository->findAll()));
-        self::assertCount(0, iterator_to_array($postRepository->findAll()));
+        self::assertCount(0, $authorRepository->findAll());
+        self::assertCount(0, $postRepository->findAll());
     }
 
     public function testPersistSkipsUninitializedOneToManyCollection(): void
@@ -1066,11 +1093,11 @@ final class IntegrationTest extends TestCase
         $noUser = $repository->findOne(['address.city' => 'Shelbyville', 'secondAddress.city' => 'Springfield']);
         self::assertNull($noUser);
 
-        $users = iterator_to_array($repository->findAll(['address.country' => 'USA']));
+        $users = $repository->findAll(['address.country' => 'USA']);
         self::assertCount(2, $users);
 
         // A ManyToOne property name resolves to its foreign key column.
-        $usersByAddress = iterator_to_array($repository->findAll(['address' => 1]));
+        $usersByAddress = $repository->findAll(['address' => 1]);
         self::assertCount(1, $usersByAddress);
         self::assertSame(1, $usersByAddress[0]->id);
     }
@@ -1100,7 +1127,7 @@ final class IntegrationTest extends TestCase
 
         $repository = $orm->getRepository(CategoryFixture::class);
 
-        $children = iterator_to_array($repository->findAll(['parent.name' => 'Root']));
+        $children = $repository->findAll(['parent.name' => 'Root']);
         self::assertCount(2, $children);
         self::assertSame(['Books', 'Music'], array_map(static fn(CategoryFixture $c): string => $c->name, $children));
 

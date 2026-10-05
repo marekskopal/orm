@@ -202,6 +202,41 @@ final class SelectTest extends TestCase
         self::assertSame([1, 'John', 'Doe'], $select->getWhereBuilder()->getParams());
     }
 
+    public function testCloneHasIndependentWhereConditions(): void
+    {
+        $select = $this->select->where(['id' => 1])->orWhere(['first_name' => 'John']);
+
+        $clone = clone $select;
+        $clone->where(['last_name' => 'Doe']);
+
+        self::assertSame(self::BaseSql . ' WHERE `u`.`id`=? OR `u`.`first_name`=?', $select->getSql());
+        self::assertSame([1, 'John'], $select->getWhereBuilder()->getParams());
+        self::assertSame(
+            self::BaseSql . ' WHERE `u`.`id`=? AND `u`.`last_name`=? OR `u`.`first_name`=?',
+            $clone->getSql(),
+        );
+    }
+
+    public function testCloneRebindsNestedConditionsToTheClone(): void
+    {
+        $select = $this->select->where(static function (WhereBuilder $where): void {
+            $where->where(['address.city' => 'Brno'])->orWhere(['address.city' => 'Praha']);
+        });
+
+        $clone = clone $select;
+        $clone->where(['id' => 1]);
+
+        // Relation paths in nested conditions register joins on the builder being rendered.
+        self::assertSame(
+            self::BaseSql . ' LEFT JOIN `addresses` `a` ON `a`.`id`=`u`.`address_id` WHERE (`a`.`city`=? OR `a`.`city`=?) AND `u`.`id`=?',
+            $clone->getSql(),
+        );
+        self::assertSame(
+            self::BaseSql . ' LEFT JOIN `addresses` `a` ON `a`.`id`=`u`.`address_id` WHERE (`a`.`city`=? OR `a`.`city`=?)',
+            $select->getSql(),
+        );
+    }
+
     public function testGetCountSqlIgnoresColumnsOrderLimitOffsetAndKeepsBuilderIntact(): void
     {
         $select = $this->select;

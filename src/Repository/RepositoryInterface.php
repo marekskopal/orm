@@ -18,9 +18,9 @@ interface RepositoryInterface
 
     /**
      * @param Where $where
-     * @return iterable<T>
+     * @return list<T>
      */
-    public function findAll(array|callable $where = []): iterable;
+    public function findAll(array|callable $where = []): array;
 
     /**
      * @param Where $where
