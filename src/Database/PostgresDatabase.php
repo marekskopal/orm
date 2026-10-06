@@ -7,16 +7,17 @@ namespace MarekSkopal\ORM\Database;
 use MarekSkopal\ORM\Utils\QuoteUtils;
 use PDO;
 
-readonly class PostgresDatabase extends AbstractDatabase
+class PostgresDatabase extends AbstractDatabase
 {
     public function __construct(
-        private string $host,
+        private readonly string $host,
         string $username,
         string $password,
-        private string $database,
-        private int $port = 5432,
+        private readonly string $database,
+        private readonly int $port = 5432,
+        int $statementCacheSize = self::DefaultStatementCacheSize,
     ) {
-        parent::__construct($username, $password);
+        parent::__construct($username, $password, $statementCacheSize);
     }
 
     protected function getDsn(): string

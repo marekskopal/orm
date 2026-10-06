@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Query;
 
+use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\DatabaseInterface;
+use MarekSkopal\ORM\Database\SqliteDatabase;
 use MarekSkopal\ORM\Query\Update;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
@@ -26,6 +28,8 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(ColumnSchema::class)]
 #[UsesClass(EntitySchema::class)]
 #[UsesClass(NameUtils::class)]
+#[UsesClass(AbstractDatabase::class)]
+#[UsesClass(SqliteDatabase::class)]
 #[UsesClass(SchemaProvider::class)]
 #[UsesClass(Schema::class)]
 #[UsesClass(SchemaCompiler::class)]
@@ -56,16 +60,14 @@ final class UpdateTest extends TestCase
 
     public function testExecuteBindsExtractedValuesAndPrimaryKey(): void
     {
-        $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        $database = new SqliteDatabase(':memory:');
+        $pdo = $database->getPdo();
         $pdo->exec(
             'CREATE TABLE users (id INTEGER PRIMARY KEY, created_at TEXT, first_name TEXT, middle_name TEXT, last_name TEXT,'
             . ' email TEXT, is_active INTEGER, type TEXT)',
         );
         $pdo->exec("INSERT INTO users VALUES (5, '2020-01-01 00:00:00', 'Old', NULL, 'Old', 'old@example.com', 0, 'user')");
 
-        $database = $this::createStub(DatabaseInterface::class);
-        $database->method('getPdo')->willReturn($pdo);
-        $database->method('getIdentifierQuoteChar')->willReturn('"');
         $entitySchema = EntitySchemaFixture::create();
 
         $user = UserFixture::create(firstName: 'Jane', middleName: 'J', isActive: true, type: UserTypeEnum::Admin);
@@ -102,10 +104,8 @@ final class UpdateTest extends TestCase
 
     public function testEmptyValuesExecuteNothing(): void
     {
-        $pdo = $this->createMock(PDO::class);
-        $pdo->expects($this->never())->method('prepare');
-        $database = $this::createStub(DatabaseInterface::class);
-        $database->method('getPdo')->willReturn($pdo);
+        $database = $this->createMock(DatabaseInterface::class);
+        $database->expects($this->never())->method('execute');
         $entitySchema = EntitySchemaFixture::create();
 
         new Update($database, UserFixture::class, $entitySchema, new SchemaProvider(new Schema([UserFixture::class => $entitySchema])))

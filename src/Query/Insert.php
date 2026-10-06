@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Query;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
@@ -76,14 +75,7 @@ class Insert extends AbstractQuery
 
     private function query(): PDOStatement
     {
-        try {
-            $sql = $this->getSql();
-            $pdoStatement = $this->pdo->prepare($sql);
-            $pdoStatement->execute($this->getValues());
-            return $pdoStatement;
-        } catch (\PDOException $e) {
-            throw ExceptionFactory::create($e, $sql);
-        }
+        return $this->database->execute($this->getSql(), $this->getValues());
     }
 
     private function updateId(PDOStatement $statement): void
@@ -115,7 +107,7 @@ class Insert extends AbstractQuery
         // and allocation within one statement is consecutive with
         // innodb_autoinc_lock_mode 0 or 1. With lock mode 2 (the MySQL 8 default)
         // consecutiveness is not guaranteed under concurrent insert load — see README.
-        $firstInsertId = (int) $this->pdo->lastInsertId();
+        $firstInsertId = (int) $this->database->getPdo()->lastInsertId();
         foreach ($this->entities as $i => $entity) {
             $this->schemaProvider->setPrimaryKey($entity, $firstInsertId + $i);
         }

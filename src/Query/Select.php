@@ -6,7 +6,6 @@ namespace MarekSkopal\ORM\Query;
 
 use Generator;
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
 use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Model\Join;
@@ -228,7 +227,7 @@ class Select extends AbstractQuery
     public function iterate(): Generator
     {
         if ($this->with === []) {
-            $query = $this->query();
+            $query = $this->query(cached: false);
             while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
                 /** @var array<string, mixed> $row */
                 yield $this->hydrate($row);
@@ -282,7 +281,7 @@ class Select extends AbstractQuery
      */
     public function iterateAssoc(): Generator
     {
-        $query = $this->query();
+        $query = $this->query(cached: false);
         while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
             /** @var array<string, mixed> $row */
             yield $row;
@@ -432,17 +431,10 @@ class Select extends AbstractQuery
         return $alias;
     }
 
-    private function query(?string $sql = null): PDOStatement
+    /** @param bool $cached false for a result read row by row, which must not share a cached statement */
+    private function query(?string $sql = null, bool $cached = true): PDOStatement
     {
-        $sql ??= $this->getSql();
-
-        try {
-            $pdoStatement = $this->pdo->prepare($sql);
-            $pdoStatement->execute($this->whereBuilder->getParams());
-            return $pdoStatement;
-        } catch (\PDOException $e) {
-            throw ExceptionFactory::create($e, $sql);
-        }
+        return $this->database->execute($sql ?? $this->getSql(), $this->whereBuilder->getParams(), $cached);
     }
 
     /** @return array<string> */

@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Change detection: an update writes only the columns that changed since the entity was read or last written, and an unchanged entity costs no query. It relies on a snapshot recorded at hydration, which adds about 3 ms and 45 bytes per mapped column per 20,000 hydrated entities.
 - Entities with UUID or other non-integer primary keys, including UUID foreign keys, can be read, related and written.
 - `Update::values()` restricts an update to the given columns.
+- Database connections open lazily, on the first query or on `connect()`; constructing a database object or an ORM no longer connects. `isConnected()` reports the state.
+- Prepared statements are cached per SQL string in a least-recently-used map (256 by default, configurable through a new last constructor argument of each database class, `0` disables it). Repeated query shapes skip the prepare round trip: 2,000 lookups by id take about half the time on MySQL and a third on PostgreSQL, and 200 lazy collection loads prepare once. `clearStatementCache()` drops the cache after schema changes.
+- `DatabaseInterface::execute()` runs SQL through the cache and throws `QueryException` or `ConstrainException` with the SQL; every query of the ORM, including join-table writes, goes through it.
 
 ### Changed
 - **Breaking:** `Select::fetchAll()` and `Select::fetchAssocAll()` return a `list` instead of a one-shot `Iterator`, so the result can be counted, indexed and iterated more than once. Code that streamed large results should switch to `iterate()` or `iterateAssoc()`. Wrapping calls in `iterator_to_array()` no longer works and should be removed.
@@ -36,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Update` binds positional parameters instead of named ones.
 - A lazy `ManyToMany` collection loads with one query joining the join table instead of two queries.
 - A `NULL` foreign key on a nullable `OneToOne` owning side hydrates as `null`. Previously it produced a proxy for id `0`.
+- **Breaking:** `DatabaseInterface` gains `connect()`, `isConnected()`, `execute()`, `prepareCached()` and `clearStatementCache()`. `AbstractDatabase` and the database classes are no longer `readonly`, and their constructors do not connect, so connection errors surface on the first query instead.
 - **Breaking:** `EntityCache` is renamed `IdentityMap`, and `ORM::getEntityCache()` is now `ORM::getIdentityMap()`. Its methods are `get()`, `add()`, `contains()`, `remove()` and `clear()`, and keys are normalised so integer, string and UUID keys work. Long-running applications call `$orm->getIdentityMap()->clear()` after each request.
 - **Breaking:** repository `persist()` and `delete()` go through the unit of work: they flush it, including anything scheduled on it directly, and run in a transaction when they write more than one statement. `AbstractRepository` takes a `UnitOfWork` as a fourth constructor argument, and `Delete` takes a `SchemaProvider` as a fifth.
 - **Breaking:** an unmanaged entity with a primary key that is not auto-increment is inserted with that key; previously it was sent as an `UPDATE`, which wrote nothing. A primary key that is not auto-increment is included in inserts and never overwritten from `lastInsertId()`.

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Query;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use PDOStatement;
@@ -80,14 +79,10 @@ class Update extends AbstractQuery
 
     private function query(): PDOStatement
     {
-        try {
-            $sql = $this->getSql();
-            $pdoStatement = $this->pdo->prepare($sql);
-            $pdoStatement->execute([...array_values($this->getColumnValues()), $this->schemaProvider->getPrimaryKeyValue($this->entity)]);
-            return $pdoStatement;
-        } catch (\PDOException $e) {
-            throw ExceptionFactory::create($e, $sql);
-        }
+        return $this->database->execute(
+            $this->getSql(),
+            [...array_values($this->getColumnValues()), $this->schemaProvider->getPrimaryKeyValue($this->entity)],
+        );
     }
 
     /** @return array<string, string|int|float|null> */

@@ -12,7 +12,7 @@ codebase review of 2026-09-28; the numbers below are its baseline measurements.
 | 2 | Compiled schema and generated hydrators | done |
 | 3 | Relation loading without per-row proxies | done |
 | 4 | Unit of work and identity map | done |
-| 5 | Connection layer with statement cache | not started |
+| 5 | Connection layer with statement cache | done |
 | 6 | CI coverage for MySQL and PostgreSQL | done |
 
 Suggested order: 1, then 2 and 3 together (the hydrator is where relation resolution lives),
@@ -77,10 +77,9 @@ Landed on this branch:
   `persist()` of an unmanaged entity with a non-auto-increment primary key inserts it with that
   key. `AbstractRepository` and `Delete` take extra constructor arguments.
 
-Planned, by workstream:
-
-- (5) `DatabaseInterface` gains `connect()`, `execute()` and `prepareCached()`; `getPdo()`
-  connects lazily.
+- (5) `DatabaseInterface` gains `connect()`, `isConnected()`, `execute()`, `prepareCached()` and
+  `clearStatementCache()`; `getPdo()` connects lazily. The database classes are no longer
+  `readonly`.
 
 ## Workstream 1: query and collection API cleanup
 
@@ -373,6 +372,38 @@ prepare once; the cache evicts at its bound.
 
 Acceptance: 200 lazy loads of the same SQL shape prepare at most once.
 
+Done. 200 lazy collection loads issue 200 executions and 1 prepare
+(`tests/Database/StatementCacheIntegrationTest.php`). Measured against Docker containers on the
+same machine, so real network latency would widen the gap:
+
+| Scenario | Driver | Before | After |
+|---|---|---|---|
+| 2000 `findOne()` by id | MySQL 8 | 1,237 ms | 603 ms |
+| | PostgreSQL 16 | 1,987 ms | 654 ms |
+| | SQLite | 12.8 ms | 9.2 ms |
+| 200 lazy collection loads | MySQL 8 | 176 ms | 84 ms |
+| | PostgreSQL 16 | 190 ms | 62 ms |
+| 2000 single `persist()` | MySQL 8 | 2,348 ms | 1,683 ms |
+| | PostgreSQL 16 | 2,396 ms | 1,104 ms |
+
+How it differs from the design above:
+
+- A cached statement is shared by every caller with the same SQL, and re-executing it resets its
+  cursor. Every path reads its result fully before returning except `Select::iterate()` and
+  `iterateAssoc()`, which stream; they bypass the cache (`execute(..., cached: false)`), so a
+  nested query with the same SQL cannot reset an outer loop. `execute()` closes a reused
+  statement's cursor first, so rows a caller left unread (`fetchOne()`) do not leak into the
+  next execution.
+- `execute()` also turns driver errors into `QueryException` / `ConstrainException` with the SQL,
+  so the query classes lost their own try/catch blocks, and the join-table statements of the
+  unit of work (previously raw `PDO::prepare()`) now report errors the same way.
+- `isConnected()` and `clearStatementCache()` were added: the first for tests and health checks,
+  the second because cached statements can go stale after DDL on an open connection.
+- `AbstractQuery` no longer fetches the PDO in its constructor, which would have connected as
+  soon as a query object was built.
+- `Mapper` no longer exists (workstream 2), and `AbstractRepository` no longer prepares
+  statements (workstream 4); their statements moved to `UnitOfWork`, which uses `execute()`.
+
 ## Workstream 6: CI coverage for MySQL and PostgreSQL
 
 The PostgreSQL integration tests exist and read `POSTGRES_*` environment variables but skip in
@@ -401,4 +432,5 @@ To be written before tagging, covering: the `Collection` interface change, `fetc
 type, extension mapper signature, schema dumping, shared relation proxies and identity,
 `Collection::isInitialized()`, the removed `EntityFactory` / `EntityReflection` / `Mapper` and
 the changed query constructors, `IdentityMap` replacing `EntityCache`, repository writes going
-through the unit of work, inserts of non-auto-increment keys, and the lazy connection.
+through the unit of work, inserts of non-auto-increment keys, the lazy connection (connection errors
+surface on the first query), and the new `DatabaseInterface` methods.
