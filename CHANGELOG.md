@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Version 2.0 contains breaking changes; [UPGRADE-2.0.md](UPGRADE-2.0.md) explains how to upgrade from 1.x.
+
 ### Added
 - `Select::iterate()` and `Select::iterateAssoc()` stream results one row at a time as generators, for result sets too large to hold in memory.
 - Cloning a `Select` copies its where conditions, including nested condition groups, so the clone can be changed without affecting the original.

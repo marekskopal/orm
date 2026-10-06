@@ -19,6 +19,8 @@ A lightweight Object-Relational Mapping (ORM) library for PHP.
 
 ## Installation
 
+Upgrading from 1.x? See [UPGRADE-2.0.md](UPGRADE-2.0.md).
+
 Install via Composer:
 
 ```bash
