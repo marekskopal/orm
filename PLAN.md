@@ -428,9 +428,7 @@ all three drivers.
 
 ## Migration notes for the release
 
-To be written before tagging, covering: the `Collection` interface change, `fetchAll()` return
-type, extension mapper signature, schema dumping, shared relation proxies and identity,
-`Collection::isInitialized()`, the removed `EntityFactory` / `EntityReflection` / `Mapper` and
-the changed query constructors, `IdentityMap` replacing `EntityCache`, repository writes going
-through the unit of work, inserts of non-auto-increment keys, the lazy connection (connection errors
-surface on the first query), and the new `DatabaseInterface` methods.
+Written: [UPGRADE-2.0.md](UPGRADE-2.0.md). It opens with an upgrade checklist, then covers every
+breaking change in the Unreleased section of CHANGELOG.md with code before and after, plus the
+behaviour changes that need no code change. The 1.x behaviour it describes was checked against
+the `v1.4.0` tag.
