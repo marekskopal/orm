@@ -57,6 +57,10 @@ abstract class AbstractDatabase implements DatabaseInterface
         try {
             $statement = $cached ? $this->prepareCached($sql) : $this->getPdo()->prepare($sql);
             $statement->execute($params);
+            if ($statement->columnCount() === 0) {
+                // No result set to read: release the statement now, or SQLite keeps the database locked.
+                $statement->closeCursor();
+            }
 
             return $statement;
         } catch (PDOException $e) {
