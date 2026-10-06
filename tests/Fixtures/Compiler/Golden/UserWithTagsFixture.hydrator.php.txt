@@ -1,0 +1,10 @@
+\Closure::bind(static function (array $row, \MarekSkopal\ORM\Relation\RelationResolver $r): \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithTagsFixture {
+    $id = $row['id'];
+    $p_id = (int) ($row['id'] ?? throw new \RuntimeException('Column "id" is not nullable'));
+    $p_name = (string) ($row['name'] ?? throw new \RuntimeException('Column "name" is not nullable'));
+    $p_tags = $r->collection('MarekSkopal\\ORM\\Tests\\Fixtures\\Entity\\UserWithTagsFixture::tags', $id);
+    $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithTagsFixture(name: $p_name, tags: $p_tags);
+    $e->id = $p_id;
+    $r->snapshots[\spl_object_id($e)] = [$row['name'] ?? null];
+    return $e;
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithTagsFixture::class)

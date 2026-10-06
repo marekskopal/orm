@@ -7,12 +7,9 @@ namespace MarekSkopal\ORM\Query;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Utils\QuoteUtils;
-use PDO;
 
 abstract class AbstractQuery implements QueryInterface
 {
-    protected readonly PDO $pdo;
-
     protected readonly string $identifierQuoteChar;
 
     protected readonly DatabaseInterface $database;
@@ -23,7 +20,6 @@ abstract class AbstractQuery implements QueryInterface
         protected readonly EntitySchema $schema,
     ) {
         $this->database = $database;
-        $this->pdo = $database->getPdo();
         $this->identifierQuoteChar = $database->getIdentifierQuoteChar();
     }
 

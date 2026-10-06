@@ -6,17 +6,21 @@ namespace MarekSkopal\ORM\Tests;
 
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\SqliteDatabase;
-use MarekSkopal\ORM\Entity\EntityFactory;
-use MarekSkopal\ORM\Mapper\Mapper;
+use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\ORM;
 use MarekSkopal\ORM\Query\Factory\DeleteFactory;
 use MarekSkopal\ORM\Query\Factory\InsertFactory;
 use MarekSkopal\ORM\Query\Factory\SelectFactory;
 use MarekSkopal\ORM\Query\Factory\UpdateFactory;
 use MarekSkopal\ORM\Query\QueryProvider;
+use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Repository\AbstractRepository;
 use MarekSkopal\ORM\Repository\RepositoryInterface;
 use MarekSkopal\ORM\Schema\ColumnSchema;
+use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
+use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\HydratorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\SchemaCompiler;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
@@ -29,8 +33,6 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(ORM::class)]
 #[UsesClass(AbstractDatabase::class)]
 #[UsesClass(SqliteDatabase::class)]
-#[UsesClass(EntityFactory::class)]
-#[UsesClass(Mapper::class)]
 #[UsesClass(QueryProvider::class)]
 #[UsesClass(SelectFactory::class)]
 #[UsesClass(InsertFactory::class)]
@@ -41,6 +43,12 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(EntitySchema::class)]
 #[UsesClass(Schema::class)]
 #[UsesClass(SchemaProvider::class)]
+#[UsesClass(RelationResolver::class)]
+#[UsesClass(SchemaCompiler::class)]
+#[UsesClass(HydratorGenerator::class)]
+#[UsesClass(ExtractorGenerator::class)]
+#[UsesClass(CodeExporter::class)]
+#[UsesClass(ExtensionMapperProvider::class)]
 final class ORMTest extends TestCase
 {
     public function testGetRepository(): void

@@ -1,0 +1,7 @@
+\Closure::bind(static function (\MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture $e, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'street' => ($e->street ?? throw new \RuntimeException('Column "street" is not nullable')),
+        'city' => ($e->city ?? throw new \RuntimeException('Column "city" is not nullable')),
+        'country' => ($e->country ?? throw new \RuntimeException('Column "country" is not nullable')),
+    ];
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture::class)

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Query;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use PDOStatement;
 
 /** @template T of object */
@@ -22,6 +22,7 @@ class Delete extends AbstractQuery
         string $entityClass,
         EntitySchema $schema,
         private readonly ColumnSchema $primaryColumnSchema,
+        private readonly SchemaProvider $schemaProvider,
     )
     {
         parent::__construct($database, $entityClass, $schema);
@@ -58,14 +59,7 @@ class Delete extends AbstractQuery
 
     private function query(): PDOStatement
     {
-        try {
-            $sql = $this->getSql();
-            $pdoStatement = $this->pdo->prepare($sql);
-            $pdoStatement->execute($this->getIds());
-            return $pdoStatement;
-        } catch (\PDOException $e) {
-            throw ExceptionFactory::create($e, $sql);
-        }
+        return $this->database->execute($this->getSql(), $this->getIds());
     }
 
     private function getWhereQuery(): string
@@ -76,13 +70,9 @@ class Delete extends AbstractQuery
         ) . ')';
     }
 
-    /** @return list<int> */
+    /** @return list<int|string> */
     private function getIds(): array
     {
-        return array_map(
-            // @phpstan-ignore-next-line return.type property.dynamicName
-            fn($entity): int => $entity->{$this->primaryColumnSchema->propertyName},
-            $this->entities,
-        );
+        return array_map(fn(object $entity): int|string => $this->schemaProvider->getPrimaryKeyValue($entity), $this->entities);
     }
 }

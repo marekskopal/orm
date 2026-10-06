@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Query\Factory;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Select;
+use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 
 readonly class SelectFactory
 {
     public function __construct(
         private DatabaseInterface $database,
-        private EntityFactory $entityFactory,
+        private RelationResolver $relationResolver,
         private SchemaProvider $schemaProvider,
     )
     {
@@ -30,7 +30,7 @@ readonly class SelectFactory
             $this->database,
             $entityClass,
             $this->schemaProvider->getEntitySchema($entityClass),
-            $this->entityFactory,
+            $this->relationResolver,
             $this->schemaProvider,
         );
     }

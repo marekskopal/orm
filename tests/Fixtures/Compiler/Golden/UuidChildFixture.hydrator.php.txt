@@ -1,0 +1,8 @@
+\Closure::bind(static function (array $row, \MarekSkopal\ORM\Relation\RelationResolver $r): \MarekSkopal\ORM\Tests\Fixtures\Entity\UuidChildFixture {
+    $p_id = \Ramsey\Uuid\Uuid::fromString((string) ($row['id'] ?? throw new \RuntimeException('Column "id" is not nullable')));
+    $p_name = (string) ($row['name'] ?? throw new \RuntimeException('Column "name" is not nullable'));
+    $p_item = $r->manyToOne(\MarekSkopal\ORM\Tests\Fixtures\Entity\UuidItemFixture::class, \Ramsey\Uuid\Uuid::fromString((string) ($row['item_id'] ?? throw new \RuntimeException('Column "item_id" is not nullable'))));
+    $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\UuidChildFixture(id: $p_id, name: $p_name, item: $p_item);
+    $r->snapshots[\spl_object_id($e)] = [$row['name'] ?? null, $row['item_id'] ?? null];
+    return $e;
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\UuidChildFixture::class)

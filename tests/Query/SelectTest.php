@@ -6,12 +6,12 @@ namespace MarekSkopal\ORM\Tests\Query;
 
 use InvalidArgumentException;
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Entity\EntityFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
 use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
+use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
@@ -51,7 +51,7 @@ final class SelectTest extends TestCase
         $database = $this::createStub(DatabaseInterface::class);
         $database->method('getPdo')->willReturn($this::createStub(PDO::class));
         $database->method('getIdentifierQuoteChar')->willReturn('`');
-        $entityFactory = $this::createStub(EntityFactory::class);
+        $relationResolver = $this::createStub(RelationResolver::class);
         $schemaProvider = $this::createStub(SchemaProvider::class);
         $schemaProvider->method('getEntitySchema')
             ->willReturnMap([
@@ -64,7 +64,7 @@ final class SelectTest extends TestCase
             $database,
             UserWithAddressFixture::class,
             UserEntityWithAddressSchemaFixture::create(),
-            $entityFactory,
+            $relationResolver,
             $schemaProvider,
         );
     }
@@ -202,6 +202,41 @@ final class SelectTest extends TestCase
         self::assertSame([1, 'John', 'Doe'], $select->getWhereBuilder()->getParams());
     }
 
+    public function testCloneHasIndependentWhereConditions(): void
+    {
+        $select = $this->select->where(['id' => 1])->orWhere(['first_name' => 'John']);
+
+        $clone = clone $select;
+        $clone->where(['last_name' => 'Doe']);
+
+        self::assertSame(self::BaseSql . ' WHERE `u`.`id`=? OR `u`.`first_name`=?', $select->getSql());
+        self::assertSame([1, 'John'], $select->getWhereBuilder()->getParams());
+        self::assertSame(
+            self::BaseSql . ' WHERE `u`.`id`=? AND `u`.`last_name`=? OR `u`.`first_name`=?',
+            $clone->getSql(),
+        );
+    }
+
+    public function testCloneRebindsNestedConditionsToTheClone(): void
+    {
+        $select = $this->select->where(static function (WhereBuilder $where): void {
+            $where->where(['address.city' => 'Brno'])->orWhere(['address.city' => 'Praha']);
+        });
+
+        $clone = clone $select;
+        $clone->where(['id' => 1]);
+
+        // Relation paths in nested conditions register joins on the builder being rendered.
+        self::assertSame(
+            self::BaseSql . ' LEFT JOIN `addresses` `a` ON `a`.`id`=`u`.`address_id` WHERE (`a`.`city`=? OR `a`.`city`=?) AND `u`.`id`=?',
+            $clone->getSql(),
+        );
+        self::assertSame(
+            self::BaseSql . ' LEFT JOIN `addresses` `a` ON `a`.`id`=`u`.`address_id` WHERE (`a`.`city`=? OR `a`.`city`=?)',
+            $select->getSql(),
+        );
+    }
+
     public function testGetCountSqlIgnoresColumnsOrderLimitOffsetAndKeepsBuilderIntact(): void
     {
         $select = $this->select;
@@ -279,7 +314,7 @@ final class SelectTest extends TestCase
             $database,
             CategoryFixture::class,
             CategoryEntitySchemaFixture::create(),
-            $this::createStub(EntityFactory::class),
+            $this::createStub(RelationResolver::class),
             $schemaProvider,
         );
 

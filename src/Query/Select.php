@@ -4,17 +4,15 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Query;
 
-use Iterator;
+use Generator;
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Entity\EntityFactory;
-use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Query\Enum\DirectionEnum;
 use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
+use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
-use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use PDO;
 use PDOStatement;
@@ -57,13 +55,19 @@ class Select extends AbstractQuery
         DatabaseInterface $database,
         string $entityClass,
         EntitySchema $schema,
-        private readonly EntityFactory $entityFactory,
+        private readonly RelationResolver $relationResolver,
         private readonly SchemaProvider $schemaProvider,
     ) {
         parent::__construct($database, $entityClass, $schema);
 
         $this->whereBuilder = new WhereBuilder($this);
         $this->usedAliases[$schema->tableAlias] = true;
+    }
+
+    /** A clone gets its own copy of the where conditions, so changing one builder never affects the other. */
+    public function __clone(): void
+    {
+        $this->whereBuilder = $this->whereBuilder->copyFor($this);
     }
 
     /**
@@ -162,7 +166,9 @@ class Select extends AbstractQuery
     }
 
     /**
-     * Eager-load ManyToOne / OneToOne relations to avoid N+1 queries.
+     * Eager-loads relations before the entities are hydrated, with one query per relation level
+     * regardless of the number of rows. Accepts any relation kind and dotted paths such as
+     * "author.company" or "posts.comments".
      *
      * @return Select<T>
      */
@@ -175,33 +181,78 @@ class Select extends AbstractQuery
         return $this;
     }
 
-    /** @return T|null */
+    /**
+     * @phpstan-impure
+     * @return T|null
+     */
     public function fetchOne(): ?object
     {
+        /** @var array<string, mixed>|false $result */
         $result = $this->query($this->buildSql(limit: 1, offset: $this->offset))->fetch(mode: PDO::FETCH_ASSOC);
-        // @phpstan-ignore-next-line argument.type
-        return $result === false ? null : $this->entityFactory->create($this->entityClass, $result);
+        if ($result === false) {
+            return null;
+        }
+
+        $this->relationResolver->preload($this->schema, $this->with, [$result]);
+
+        return $this->hydrate($result);
     }
 
-    /** @return Iterator<T> */
-    public function fetchAll(): Iterator
+    /**
+     * Fetches all matching entities. The result is a plain list, so it can be counted,
+     * indexed and iterated any number of times. Use iterate() for large result sets.
+     *
+     * @phpstan-impure
+     * @return list<T>
+     */
+    public function fetchAll(): array
+    {
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $this->query()->fetchAll(PDO::FETCH_ASSOC);
+        $this->relationResolver->preload($this->schema, $this->with, $rows);
+
+        /** @var list<T> $entities the schema is the schema of T, so its hydrator returns T */
+        $entities = $this->relationResolver->hydrateAll($this->schema, $rows);
+
+        return $entities;
+    }
+
+    /**
+     * Streams matching entities one row at a time instead of building a list. The returned
+     * generator can be consumed only once. When relations are eager-loaded with with(), the
+     * raw rows are buffered first so the related entities can be loaded in one query.
+     *
+     * @return Generator<int, T, void, void>
+     */
+    public function iterate(): Generator
     {
         if ($this->with === []) {
-            $query = $this->query();
+            $query = $this->query(cached: false);
             while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
-                // @phpstan-ignore-next-line argument.type
-                yield $this->entityFactory->create($this->entityClass, $row);
+                /** @var array<string, mixed> $row */
+                yield $this->hydrate($row);
             }
             return;
         }
 
-        /** @var list<array<string, float|int|string|bool|null>> $rows */
+        /** @var list<array<string, mixed>> $rows */
         $rows = $this->query()->fetchAll(PDO::FETCH_ASSOC);
-        $this->preloadWith($rows);
+        $this->relationResolver->preload($this->schema, $this->with, $rows);
         foreach ($rows as $row) {
-            // @phpstan-ignore-next-line argument.type
-            yield $this->entityFactory->create($this->entityClass, $row);
+            yield $this->hydrate($row);
         }
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return T
+     */
+    private function hydrate(array $row): object
+    {
+        /** @var T $entity the schema is the schema of T, so its hydrator returns T */
+        $entity = $this->relationResolver->hydrate($this->schema, $row);
+
+        return $entity;
     }
 
     /** @return array<string, mixed>|null */
@@ -212,10 +263,25 @@ class Select extends AbstractQuery
         return $result === false ? null : $result;
     }
 
-    /** @return Iterator<array<string, mixed>> */
-    public function fetchAssocAll(): Iterator
+    /**
+     * @phpstan-impure
+     * @return list<array<string, mixed>>
+     */
+    public function fetchAssocAll(): array
     {
-        $query = $this->query();
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $this->query()->fetchAll(PDO::FETCH_ASSOC);
+        return $rows;
+    }
+
+    /**
+     * Streams matching rows as associative arrays. The returned generator can be consumed only once.
+     *
+     * @return Generator<int, array<string, mixed>, void, void>
+     */
+    public function iterateAssoc(): Generator
+    {
+        $query = $this->query(cached: false);
         while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
             /** @var array<string, mixed> $row */
             yield $row;
@@ -365,66 +431,10 @@ class Select extends AbstractQuery
         return $alias;
     }
 
-    /** @param list<array<string, float|int|string|bool|null>> $rows */
-    private function preloadWith(array $rows): void
+    /** @param bool $cached false for a result read row by row, which must not share a cached statement */
+    private function query(?string $sql = null, bool $cached = true): PDOStatement
     {
-        if ($rows === []) {
-            return;
-        }
-
-        foreach ($this->with as $propertyName) {
-            $columnSchema = $this->schema->getColumnByPropertyName($propertyName);
-
-            if (
-                $columnSchema->relationType !== RelationEnum::ManyToOne
-                && $columnSchema->relationType !== RelationEnum::OneToOne
-            ) {
-                throw new \InvalidArgumentException(
-                    sprintf(
-                        'Eager loading via with() is currently supported only for ManyToOne and OneToOne relations; property "%s" is not eligible.',
-                        $propertyName,
-                    ),
-                );
-            }
-
-            $relationEntityClass = $columnSchema->relationEntityClass
-                ?? throw new \RuntimeException('Relation entity class not found');
-
-            $columnName = $columnSchema->columnName;
-            $ids = [];
-            foreach ($rows as $row) {
-                $value = $row[$columnName] ?? null;
-                if ($value === null) {
-                    continue;
-                }
-                $ids[(int) $value] = true;
-            }
-
-            if ($ids === []) {
-                continue;
-            }
-
-            $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($relationEntityClass);
-            $relationSchema = $this->schemaProvider->getEntitySchema($relationEntityClass);
-
-            $select = new Select($this->database, $relationEntityClass, $relationSchema, $this->entityFactory, $this->schemaProvider);
-            // Materialize the iterator to populate EntityCache; subsequent ManyToOne/OneToOne
-            // lookups during hydration will hit the cache and skip per-row queries.
-            iterator_to_array($select->where([$primaryColumnSchema->columnName, 'IN', array_keys($ids)])->fetchAll());
-        }
-    }
-
-    private function query(?string $sql = null): PDOStatement
-    {
-        $sql ??= $this->getSql();
-
-        try {
-            $pdoStatement = $this->pdo->prepare($sql);
-            $pdoStatement->execute($this->whereBuilder->getParams());
-            return $pdoStatement;
-        } catch (\PDOException $e) {
-            throw ExceptionFactory::create($e, $sql);
-        }
+        return $this->database->execute($sql ?? $this->getSql(), $this->whereBuilder->getParams(), $cached);
     }
 
     /** @return array<string> */

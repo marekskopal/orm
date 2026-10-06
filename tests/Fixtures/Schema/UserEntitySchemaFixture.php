@@ -28,6 +28,7 @@ class UserEntitySchemaFixture
                     columnName: 'id',
                     columnType: Type::Int,
                     isPrimary: true,
+                    isAutoIncrement: true,
                 ),
                 'createdAt' => new ColumnSchema(
                     propertyName: 'createdAt',

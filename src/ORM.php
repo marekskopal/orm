@@ -4,17 +4,15 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM;
 
-use Closure;
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Entity\EntityCache;
-use MarekSkopal\ORM\Entity\EntityFactory;
-use MarekSkopal\ORM\Entity\EntityReflection;
-use MarekSkopal\ORM\Mapper\Mapper;
+use MarekSkopal\ORM\Entity\IdentityMap;
 use MarekSkopal\ORM\Query\QueryProvider;
+use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Repository\RepositoryInterface;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Transaction\TransactionProvider;
+use MarekSkopal\ORM\UnitOfWork\UnitOfWork;
 
 readonly class ORM
 {
@@ -22,36 +20,28 @@ readonly class ORM
 
     private QueryProvider $queryProvider;
 
-    private EntityCache $entityCache;
+    private IdentityMap $identityMap;
 
-    private EntityReflection $entityReflection;
-
-    private EntityFactory $entityFactory;
-
-    private Mapper $mapper;
+    private RelationResolver $relationResolver;
 
     private TransactionProvider $transactionProvider;
+
+    private UnitOfWork $unitOfWork;
 
     public function __construct(private DatabaseInterface $database, private Schema $schema)
     {
         $this->schemaProvider = new SchemaProvider($this->schema);
-        $this->entityCache = new EntityCache();
-        $this->entityReflection = new EntityReflection();
-
-        $queryProviderContainer = new class {
-            public ?QueryProvider $queryProvider = null;
-        };
-
-        /** @var Closure(): QueryProvider $queryProviderFactory */
-        $queryProviderFactory = static function () use ($queryProviderContainer): QueryProvider {
-            return $queryProviderContainer->queryProvider ?? throw new \LogicException('QueryProvider not yet initialized');
-        };
-
-        $this->mapper = new Mapper($this->schemaProvider, $this->entityCache, $queryProviderFactory, $this->database);
-        $this->entityFactory = new EntityFactory($this->schemaProvider, $this->entityCache, $this->entityReflection, $this->mapper);
-        $this->queryProvider = new QueryProvider($this->database, $this->entityFactory, $this->schemaProvider, $this->mapper);
-        $queryProviderContainer->queryProvider = $this->queryProvider;
+        $this->identityMap = new IdentityMap();
+        $this->relationResolver = new RelationResolver($this->database, $this->schemaProvider, $this->identityMap);
+        $this->queryProvider = new QueryProvider($this->database, $this->relationResolver, $this->schemaProvider);
         $this->transactionProvider = new TransactionProvider($this->database);
+        $this->unitOfWork = new UnitOfWork(
+            $this->database,
+            $this->schemaProvider,
+            $this->identityMap,
+            $this->queryProvider,
+            $this->relationResolver,
+        );
     }
 
     /**
@@ -64,7 +54,7 @@ readonly class ORM
         $repositoryClass = $this->schema->entities[$entityClass]->repositoryClass;
 
         //@phpstan-ignore-next-line return.type
-        return new $repositoryClass($entityClass, $this->queryProvider, $this->schemaProvider);
+        return new $repositoryClass($entityClass, $this->queryProvider, $this->schemaProvider, $this->unitOfWork);
     }
 
     public function getQueryProvider(): QueryProvider
@@ -72,9 +62,15 @@ readonly class ORM
         return $this->queryProvider;
     }
 
-    public function getEntityCache(): EntityCache
+    public function getIdentityMap(): IdentityMap
     {
-        return $this->entityCache;
+        return $this->identityMap;
+    }
+
+    /** The unit of work for deferred writes: persist() and remove() schedule, flush() writes. */
+    public function getUnitOfWork(): UnitOfWork
+    {
+        return $this->unitOfWork;
     }
 
     public function getTransactionProvider(): TransactionProvider

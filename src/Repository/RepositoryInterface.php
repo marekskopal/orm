@@ -17,12 +17,14 @@ interface RepositoryInterface
     public function select(): Select;
 
     /**
+     * @phpstan-impure
      * @param Where $where
-     * @return iterable<T>
+     * @return list<T>
      */
-    public function findAll(array|callable $where = []): iterable;
+    public function findAll(array|callable $where = []): array;
 
     /**
+     * @phpstan-impure
      * @param Where $where
      * @return T|null
      */

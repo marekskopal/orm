@@ -19,6 +19,8 @@ A lightweight Object-Relational Mapping (ORM) library for PHP.
 
 ## Installation
 
+Upgrading from 1.x? See [UPGRADE-2.0.md](UPGRADE-2.0.md).
+
 Install via Composer:
 
 ```bash
@@ -27,8 +29,8 @@ composer require marekskopal/orm
 
 ## Basic Usage
 ```php
-//Create DB connection - MySQL
-$database = new MysqlDatabase('localhost', 'root', 'password', 'database');
+//Create DB connection - MySQL (the connection opens on the first query)
+$database = new MySqlDatabase('localhost', 'root', 'password', 'database');
 
 //Create DB connection - PostgreSQL
 $database = new PostgresDatabase('localhost', 'postgres', 'password', 'database');
@@ -96,6 +98,8 @@ final class User
 
 Table and column names are derived from class name and parameters, but can be customized by providing additional parameters to attributes.
 
+Entities are hydrated by calling the constructor with the mapped values, then setting the remaining mapped properties. Constructor parameters must have the same names as their properties. Properties may be `private`, `protected` or `readonly`: the generated hydrator runs in the entity's own scope.
+
 ```php
 #[Entity(table: 'users')]
 final class User
@@ -117,7 +121,7 @@ final class User
     public Address $address;
 
     #[OneToMany(entityClass: User::class)]
-    public \Iterator $children;
+    public Collection $children;
 }
 ```
 
@@ -207,7 +211,7 @@ $author = $orm->getRepository(Author::class)->findOne(['id' => 1]);
 $orm->getRepository(Author::class)->delete($author);
 ```
 
-Cascade is supported on `OneToMany`, `ManyToOne`, `OneToOne`, and `ManyToMany` relations. For `ManyToMany`, cascade remove deletes the join table rows; cascade persist syncs the join table after persisting.
+Cascade is supported on `OneToMany`, `ManyToOne`, `OneToOne`, and `ManyToMany` relations, and it is followed recursively: a persisted post's author is persisted, and so is that author's profile if its relation cascades too. Relations that were never loaded are skipped, since they cannot hold changes. For `ManyToMany`, cascade persist brings the join table in line with the collection; removing an entity always deletes its join table rows, but never the entities on the other side.
 
 ### Dates
 
@@ -262,6 +266,41 @@ final class User
 }
 ```
 
+## Persisting and deleting
+
+`persist()` and `delete()` on a repository write right away. An entity read from the database (or written earlier) is updated, and only the columns that changed since then are written; an unchanged entity costs no query. A new entity is inserted and becomes the instance `findOne()` returns for its id. A deleted entity is forgotten, so a later `findOne()` for its id does not return it.
+
+Primary keys:
+
+- An auto-increment key is assigned by the database on insert. An entity built by hand with its id already set is treated as an existing row and updated in full.
+- A key that is not auto-increment, such as a UUID, is yours to set before persisting. For an entity with such a key that is not managed (not read from the database, or detached by clearing the identity map), the flush checks whether its row exists, with one query per class, and updates it or inserts it.
+
+### Unit of work
+
+To write many entities at once, schedule them on the unit of work and flush:
+
+```php
+$unitOfWork = $orm->getUnitOfWork();
+
+foreach ($rows as $row) {
+    $unitOfWork->persist(new User($row['name'], $row['email']));
+}
+$unitOfWork->remove($obsoleteUser);
+
+$unitOfWork->flush();
+```
+
+`flush()` writes, in this order:
+
+1. inserts, parents before the children that reference them, with one multi-row `INSERT` per class and level;
+2. updates of the changed columns only;
+3. join table changes of loaded `ManyToMany` collections, as the difference between the stored rows and the collection;
+4. deletes, children before parents, with one `DELETE ... IN` per class and level.
+
+Only the scheduled entities and the entities their cascade relations reach are written. The work runs in a transaction unless it is a single statement or a transaction is already open; if a statement fails, the transaction is rolled back, its in-memory effects (assigned ids, identity map entries, snapshots) are undone, and the work stays scheduled, so `flush()` can be retried. Repository `persist()` and `delete()` flush the unit of work, including anything scheduled on it directly.
+
+`refresh($entity)` reloads an entity's properties from the database and discards unflushed changes; readonly properties keep their value.
+
 ## Queries
 
 You can use `QueryProvider` to create queries.
@@ -279,6 +318,38 @@ $user = $queryProvider->select(User::class)
     ->where(['id' => 1])
     ->fetchOne();
 ```
+
+#### Fetching results
+
+`fetchAll()` returns a plain list of entities, so the result can be counted, indexed and iterated more than once. `fetchAssocAll()` does the same with raw rows as associative arrays. Repository `findAll()` returns the same list.
+
+```php
+$users = $queryProvider->select(User::class)
+    ->where(['isActive' => true])
+    ->fetchAll();
+
+count($users);
+$firstUser = $users[0] ?? null;
+```
+
+For large result sets, `iterate()` and `iterateAssoc()` stream rows one at a time instead of building the whole list in memory. They return generators, which can be consumed only once. When relations are eager-loaded with `with()`, `iterate()` buffers the raw rows first so the related entities can be loaded in a single query.
+
+```php
+foreach ($queryProvider->select(User::class)->iterate() as $user) {
+    // process $user
+}
+```
+
+#### Builder state
+
+`Select` is a mutable builder: `where()`, `orWhere()`, `orderBy()`, `limit()`, `columns()` and the other configuration methods change the builder and return the same instance. Clone it before branching into two different queries.
+
+```php
+$active = $queryProvider->select(User::class)->where(['isActive' => true]);
+$activeAdmins = (clone $active)->where(['type' => UserTypeEnum::Admin]);
+```
+
+The terminal methods `fetchOne()`, `fetchAll()`, `iterate()`, `count()` and their `Assoc` variants do not modify the builder, so the same builder can be executed repeatedly.
 
 #### Where
 
@@ -352,28 +423,39 @@ $user = $queryProvider->select(User::class)
     ->fetchOne();
 ```
 
+#### Loading relations
+
+Relations are loaded lazily, but never one query per row:
+
+- A `ManyToOne` or `OneToOne` property holds a lazy proxy until it is first read. All entities that reference the same id share one proxy, and that proxy is the instance the identity map returns for the id, so `$a->author === $b->author` holds. Reading the related entity's primary key does not load it.
+- When one proxy loads, every pending proxy of the same class loads with it in a single `WHERE id IN (...)` query. Iterating 200 posts and reading `$post->author->name` costs one query for the posts and one for all their authors.
+- A `OneToMany` or `ManyToMany` collection loads on first access with one query; `ManyToMany` joins the join table. `Collection::isInitialized()` tells whether it has been loaded.
+
 #### Eager loading relations (`with`)
 
-By default, `ManyToOne` and `OneToOne` relations are loaded lazily — accessing the relation property triggers a query the first time. When iterating result sets that traverse such relations, this leads to N+1 queries (one extra query per row).
-
-Use `with()` to eager-load related entities in a single batched `WHERE id IN (...)` query, regardless of how many parent rows you have.
+Use `with()` to load relations together with the result, one query per relation level regardless of the number of rows. It accepts every relation kind and dotted paths.
 
 ```php
-// Without with(): 1 query for users + N queries (one per user) when accessing $user->address
-$users = $queryProvider->select(User::class)->fetchAll();
-
-// With with(): 1 query for users + 1 batched query for all distinct addresses
+// 1 query for users + 1 for all their addresses
 $users = $queryProvider->select(User::class)
     ->with('address')
     ->fetchAll();
 
-// Multiple relations can be eager-loaded at once
+// Collections: 1 query for authors + 1 for all their posts
+$authors = $queryProvider->select(Author::class)
+    ->with('posts')
+    ->fetchAll();
+
+// Several relations at once
 $users = $queryProvider->select(User::class)
-    ->with('address', 'profile')
+    ->with('address', 'profile', 'tags')
+    ->fetchAll();
+
+// Nested paths: tags, their users, and those users' addresses
+$tags = $queryProvider->select(Tag::class)
+    ->with('users.address')
     ->fetchAll();
 ```
-
-Eager loading is currently supported for `ManyToOne` and `OneToOne` relations.
 
 ### Insert
 
@@ -431,6 +513,8 @@ $queryProvider->update(User::class)
     ->entity($user)
     ->execute();
 ```
+
+The builder writes every updatable column. Pass `values(['email' => 'jane@example.com'])` to write only the given columns.
 
 ### Delete
 
@@ -495,12 +579,40 @@ try {
 
 Nesting transactions is not supported — calling `transaction()` inside an active transaction throws a `TransactionException`.
 
-## Long-running applications
+## Schema caching
 
-If you are using ORM in long-running PHP applications like FrankenPHP, Roadrunner or Swoole, you should call `clear` method on ORM cache after each request to free memory.
+Building the schema scans the entity classes and reads their attributes, and the hydrator and extractor of each entity are generated on first use. In production, do both once in a build or deploy step and load the result:
 
 ```php
-$orm->getEntityCache()->clear();
+// Build or deploy step
+new SchemaBuilder()
+    ->addEntityPath(__DIR__ . '/Entity')
+    ->dump(__DIR__ . '/var/schema.php');
+
+// Every request
+$orm = new ORM($database, Schema::fromFile(__DIR__ . '/var/schema.php'));
+```
+
+The file contains the schema and the generated code. With opcache enabled it is served from shared memory, and each entity's schema is only built when a request first uses it. Opcache skips files modified in the last two seconds (`opcache.file_update_protection`), so a schema dumped right before a request is cached from the following ones on. Dump the schema again whenever an entity changes.
+
+## Connections and prepared statements
+
+Creating a database object does not connect: the connection opens on the first query, so a request that never queries never connects. Call `connect()` to open it early, for example to surface connection errors at startup.
+
+Each distinct SQL string is prepared once and its statement reused, which saves a round trip per query on MySQL and PostgreSQL. The cache keeps the 256 most recently used statements; set another size, or `0` to disable it, with the last constructor argument:
+
+```php
+$database = new MySqlDatabase('localhost', 'root', 'password', 'database', statementCacheSize: 512);
+```
+
+After changing the schema on an open connection (for example in a migration), call `$database->clearStatementCache()`, since cached statements may refer to the old table definitions. Queries you run yourself can use the cache too with `$database->execute($sql, $params)`.
+
+## Long-running applications
+
+If you are using ORM in long-running PHP applications like FrankenPHP, Roadrunner or Swoole, clear the identity map after each request. It holds every entity read or written, together with the snapshot used to detect changes, until it is cleared.
+
+```php
+$orm->getIdentityMap()->clear();
 ```
 
 ## Security considerations
@@ -530,3 +642,26 @@ Never build a `RawExpression` from user input — it bypasses all escaping and v
 
 Values bound to `LIKE` conditions are safely parameterized, but `%` and `_` inside the value still act as wildcards. If user input must be matched literally, escape those characters yourself (e.g. `addcslashes($value, '%_\\')` on MySQL/PostgreSQL).
 
+## Running tests
+
+```bash
+vendor/bin/phpunit
+```
+
+The SQLite tests always run. The MySQL and PostgreSQL integration tests connect to real servers and are skipped when the server is unreachable. They read their connection settings from these environment variables:
+
+| Driver | Variables | Defaults |
+|---|---|---|
+| MySQL | `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DB` | `127.0.0.1`, `3306`, `root`, empty, `orm_test` |
+| PostgreSQL | `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `localhost`, `5432`, `postgres`, empty, `orm_test` |
+
+To run them against throwaway containers:
+
+```bash
+docker run -d --rm --name orm-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=orm_test -p 5432:5432 postgres:16
+docker run -d --rm --name orm-mysql -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=orm_test -p 3306:3306 mysql:8
+
+POSTGRES_PASSWORD=postgres MYSQL_PASSWORD=root ORM_TEST_REQUIRE_DATABASES=1 vendor/bin/phpunit
+```
+
+`ORM_TEST_REQUIRE_DATABASES=1` turns a skipped driver test into a failure, which is how CI runs them.

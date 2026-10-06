@@ -1,0 +1,13 @@
+static function (array $s, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'created_at' => $s[0] === null ? null : ((\is_int(($v = $s[0])) ? new \DateTimeImmutable('@' . $v) : new \DateTimeImmutable($v)))->format('Y-m-d H:i:s'),
+        'first_name' => $s[1] === null ? null : ((string) $s[1]),
+        'middle_name' => $s[2] === null ? null : ((string) $s[2]),
+        'last_name' => $s[3] === null ? null : ((string) $s[3]),
+        'email' => $s[4] === null ? null : ((string) $s[4]),
+        'is_active' => $s[5] === null ? null : (((bool) $s[5]) ? 1 : 0),
+        'type' => $s[6] === null ? null : (\MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum::from((string) $s[6]))->value,
+        'address_id' => $s[7] === null ? null : ((int) $s[7]),
+        'second_address_id' => $s[8] === null ? null : ((int) $s[8]),
+    ];
+}

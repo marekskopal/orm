@@ -1,0 +1,6 @@
+\Closure::bind(static function (\MarekSkopal\ORM\Tests\Fixtures\Entity\PostFixture $e, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'title' => ($e->title ?? throw new \RuntimeException('Column "title" is not nullable')),
+        'author_id' => ($e->author ?? throw new \RuntimeException('Column "author_id" is not nullable'))->id,
+    ];
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\PostFixture::class)

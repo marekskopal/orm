@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Query;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Exception\ExceptionFactory;
-use MarekSkopal\ORM\Mapper\Mapper;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use PDO;
 use PDOStatement;
 
@@ -18,8 +17,16 @@ class Insert extends AbstractQuery
     /** @var list<T> */
     private array $entities = [];
 
+    /** @var list<array<string, string|int|float|null>> */
+    private array $extractedValues = [];
+
     /** @param class-string<T> $entityClass */
-    public function __construct(DatabaseInterface $database, string $entityClass, EntitySchema $schema, private readonly Mapper $mapper)
+    public function __construct(
+        DatabaseInterface $database,
+        string $entityClass,
+        EntitySchema $schema,
+        private readonly SchemaProvider $schemaProvider,
+    )
     {
         parent::__construct($database, $entityClass, $schema);
     }
@@ -58,9 +65,12 @@ class Insert extends AbstractQuery
             $this->getValuesQuery(),
         ];
 
-        $returningClause = $this->database->getInsertReturningClause($this->schema->getPrimaryColumn()->columnName);
-        if ($returningClause !== '') {
-            $parts[] = $returningClause;
+        $primaryColumnSchema = $this->schema->getPrimaryColumn();
+        if ($primaryColumnSchema->isAutoIncrement) {
+            $returningClause = $this->database->getInsertReturningClause($primaryColumnSchema->columnName);
+            if ($returningClause !== '') {
+                $parts[] = $returningClause;
+            }
         }
 
         return implode(' ', $parts);
@@ -68,26 +78,28 @@ class Insert extends AbstractQuery
 
     private function query(): PDOStatement
     {
-        try {
-            $sql = $this->getSql();
-            $pdoStatement = $this->pdo->prepare($sql);
-            $pdoStatement->execute($this->getValues());
-            return $pdoStatement;
-        } catch (\PDOException $e) {
-            throw ExceptionFactory::create($e, $sql);
-        }
+        return $this->database->execute($this->getSql(), $this->getValues());
     }
 
     private function updateId(PDOStatement $statement): void
     {
         $primaryColumnSchema = $this->schema->getPrimaryColumn();
 
+        // A primary key that is not auto-increment was sent with the row and is never overwritten.
+        if (!$primaryColumnSchema->isAutoIncrement) {
+            return;
+        }
+
         if ($this->database->getInsertReturningClause($primaryColumnSchema->columnName) !== '') {
             /** @var list<array<string, mixed>> $rows */
             $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
             foreach ($this->entities as $i => $entity) {
-                // @phpstan-ignore-next-line property.dynamicName
-                $entity->{$primaryColumnSchema->propertyName} = (int) $rows[$i][$primaryColumnSchema->columnName];
+                $id = $rows[$i][$primaryColumnSchema->columnName] ?? null;
+                if (!is_int($id) && !is_string($id)) {
+                    throw new \RuntimeException(sprintf('Insert did not return a value for "%s".', $primaryColumnSchema->columnName));
+                }
+
+                $this->schemaProvider->setPrimaryKey($entity, (int) $id);
             }
 
             return;
@@ -98,10 +110,9 @@ class Insert extends AbstractQuery
         // and allocation within one statement is consecutive with
         // innodb_autoinc_lock_mode 0 or 1. With lock mode 2 (the MySQL 8 default)
         // consecutiveness is not guaranteed under concurrent insert load — see README.
-        $firstInsertId = (int) $this->pdo->lastInsertId();
+        $firstInsertId = (int) $this->database->getPdo()->lastInsertId();
         foreach ($this->entities as $i => $entity) {
-            // @phpstan-ignore-next-line property.dynamicName
-            $entity->{$primaryColumnSchema->propertyName} = $firstInsertId + $i;
+            $this->schemaProvider->setPrimaryKey($entity, $firstInsertId + $i);
         }
     }
 
@@ -121,27 +132,26 @@ class Insert extends AbstractQuery
         return 'VALUES ' . implode(',', array_fill(0, count($this->entities), $placeholder));
     }
 
+    /**
+     * The values written for each entity, keyed by column name, in entity order; available after
+     * execute(), so callers need not extract the entities again.
+     *
+     * @return list<array<string, string|int|float|null>>
+     */
+    public function getExtractedValues(): array
+    {
+        return $this->extractedValues;
+    }
+
     /** @return list<string|int|float|null> */
     private function getValues(): array
     {
+        $this->extractedValues = [];
         $values = [];
         foreach ($this->entities as $entity) {
-            array_push($values, ...$this->getEntityValues($entity));
-        }
-
-        return $values;
-    }
-
-    /**
-     * @param T $entity
-     * @return list<string|int|float|null>
-     */
-    private function getEntityValues(object $entity): array
-    {
-        $values = [];
-        foreach ($this->schema->getInsertableColumns() as $column) {
-            // @phpstan-ignore-next-line argument.type property.dynamicName
-            $values[] = $this->mapper->mapToColumn($column, $entity->{$column->propertyName});
+            $extracted = $this->schemaProvider->extract($entity);
+            $this->extractedValues[] = $extracted;
+            array_push($values, ...array_values($extracted));
         }
 
         return $values;

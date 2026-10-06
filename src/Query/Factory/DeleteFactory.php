@@ -26,6 +26,7 @@ readonly class DeleteFactory
             $entityClass,
             $this->schemaProvider->getEntitySchema($entityClass),
             $this->schemaProvider->getPrimaryColumnSchema($entityClass),
+            $this->schemaProvider,
         );
     }
 }

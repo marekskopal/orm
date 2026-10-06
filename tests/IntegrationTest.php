@@ -13,12 +13,10 @@ use MarekSkopal\ORM\Attribute\OneToMany;
 use MarekSkopal\ORM\Attribute\OneToOne;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\SqliteDatabase;
-use MarekSkopal\ORM\Entity\EntityCache;
-use MarekSkopal\ORM\Entity\EntityFactory;
-use MarekSkopal\ORM\Entity\EntityReflection;
+use MarekSkopal\ORM\Entity\IdentityMap;
 use MarekSkopal\ORM\Exception\TransactionException;
 use MarekSkopal\ORM\Mapper\Collection;
-use MarekSkopal\ORM\Mapper\Mapper;
+use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\ORM;
 use MarekSkopal\ORM\Query\Delete;
 use MarekSkopal\ORM\Query\Factory\DeleteFactory;
@@ -30,12 +28,17 @@ use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Update;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
+use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Repository\AbstractRepository;
 use MarekSkopal\ORM\Schema\Builder\ClassScanner\ClassScanner;
 use MarekSkopal\ORM\Schema\Builder\ColumnSchemaFactory;
 use MarekSkopal\ORM\Schema\Builder\EntitySchemaFactory;
 use MarekSkopal\ORM\Schema\Builder\SchemaBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
+use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
+use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\HydratorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\SchemaCompiler;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
@@ -71,10 +74,7 @@ use ReflectionClass;
 #[UsesClass(OneToOne::class)]
 #[UsesClass(AbstractDatabase::class)]
 #[UsesClass(SqliteDatabase::class)]
-#[UsesClass(EntityCache::class)]
-#[UsesClass(EntityFactory::class)]
-#[UsesClass(EntityReflection::class)]
-#[UsesClass(Mapper::class)]
+#[UsesClass(IdentityMap::class)]
 #[UsesClass(QueryProvider::class)]
 #[UsesClass(Select::class)]
 #[UsesClass(SelectFactory::class)]
@@ -100,6 +100,12 @@ use ReflectionClass;
 #[UsesClass(OneToMany::class)]
 #[UsesClass(WhereBuilder::class)]
 #[UsesClass(Collection::class)]
+#[UsesClass(RelationResolver::class)]
+#[UsesClass(SchemaCompiler::class)]
+#[UsesClass(HydratorGenerator::class)]
+#[UsesClass(ExtractorGenerator::class)]
+#[UsesClass(CodeExporter::class)]
+#[UsesClass(ExtensionMapperProvider::class)]
 final class IntegrationTest extends TestCase
 {
     public function testSelectEntity(): void
@@ -138,13 +144,13 @@ final class IntegrationTest extends TestCase
         // Property names resolve to their mapped columns, both bare and in ORDER BY.
         $userByPropertyName = $repository->findOne(['firstName' => 'Jane']);
         self::assertSame($userByFirstName, $userByPropertyName);
-        $usersByFirstName = iterator_to_array($repository->select()->orderBy('firstName')->fetchAll());
+        $usersByFirstName = $repository->select()->orderBy('firstName')->fetchAll();
         self::assertSame([2, 1], array_map(static fn(UserFixture $user): int => $user->id, $usersByFirstName));
 
         $userNotFound = $repository->findOne(['id' => 3]);
         self::assertNull($userNotFound);
 
-        $users = iterator_to_array($repository->findAll());
+        $users = $repository->findAll();
         self::assertCount(2, $users);
 
         $inactiveUser = $repository->findOne(['is_active' => false]);
@@ -163,30 +169,49 @@ final class IntegrationTest extends TestCase
         self::assertInstanceOf(UserFixture::class, $userWithMiddleName);
         self::assertSame(2, $userWithMiddleName->id);
 
-        self::assertCount(0, iterator_to_array($repository->findAll(['id', 'IN', []])));
-        self::assertCount(2, iterator_to_array($repository->findAll(['id', 'NOT IN', []])));
+        self::assertCount(0, $repository->findAll(['id', 'IN', []]));
+        self::assertCount(2, $repository->findAll(['id', 'NOT IN', []]));
 
-        $usersByOr = iterator_to_array($repository->select()->where(['id' => 1])->orWhere(['firstName' => 'Jane'])->fetchAll());
+        $usersByOr = $repository->select()->where(['id' => 1])->orWhere(['firstName' => 'Jane'])->fetchAll();
         self::assertCount(2, $usersByOr);
 
-        $usersByNested = iterator_to_array(
-            $repository->select()->where(['is_active' => true])->where(static function (WhereBuilder $where): void {
-                $where->where(['firstName' => 'John'])->orWhere(['firstName' => 'Jane']);
-            })->fetchAll(),
-        );
+        $usersByNested = $repository->select()->where(['is_active' => true])->where(static function (WhereBuilder $where): void {
+            $where->where(['firstName' => 'John'])->orWhere(['firstName' => 'Jane']);
+        })->fetchAll();
         self::assertCount(1, $usersByNested);
         self::assertSame(1, $usersByNested[0]->id);
 
         // count() and fetchOne() must not change the builder for later calls.
         $select = $repository->select()->orderBy('id');
         self::assertSame(2, $select->count());
-        self::assertCount(2, iterator_to_array($select->fetchAll()));
+        self::assertCount(2, $select->fetchAll());
         $firstUser = $select->fetchOne();
         self::assertInstanceOf(UserFixture::class, $firstUser);
         self::assertSame(1, $firstUser->id);
-        self::assertCount(2, iterator_to_array($select->fetchAll()));
+        self::assertCount(2, $select->fetchAll());
         self::assertNotNull($select->fetchAssocOne());
-        self::assertCount(2, iterator_to_array($select->fetchAssocAll()));
+        self::assertCount(2, $select->fetchAssocAll());
+
+        // fetchAll() returns a list that can be traversed more than once.
+        $fetchedUsers = $select->fetchAll();
+        $firstPass = [];
+        foreach ($fetchedUsers as $fetchedUser) {
+            $firstPass[] = $fetchedUser->id;
+        }
+        $secondPass = [];
+        foreach ($fetchedUsers as $fetchedUser) {
+            $secondPass[] = $fetchedUser->id;
+        }
+        self::assertSame([1, 2], $firstPass);
+        self::assertSame($firstPass, $secondPass);
+
+        // iterate() and iterateAssoc() stream the same rows as one-shot generators.
+        $streamedIds = [];
+        foreach ($select->iterate() as $streamedUser) {
+            $streamedIds[] = $streamedUser->id;
+        }
+        self::assertSame([1, 2], $streamedIds);
+        self::assertSame([1, 2], array_column(iterator_to_array($select->iterateAssoc(), false), 'id'));
 
         // count() ignores LIMIT / OFFSET, which would otherwise hide the single count row.
         self::assertSame(2, $repository->select()->limit(1)->offset(5)->count());
@@ -305,7 +330,7 @@ final class IntegrationTest extends TestCase
         $reflection = new ReflectionClass(AddressWithUsersFixture::class);
         self::assertTrue($reflection->isUninitializedLazyObject($user->address));
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $user = $repository->findOne(['id' => 1]);
         self::assertInstanceOf(UserWithAddressFixture::class, $user);
         self::assertSame('Johnny', $user->firstName);
@@ -337,22 +362,30 @@ final class IntegrationTest extends TestCase
 
         $repository = $orm->getRepository(UserWithAddressFixture::class);
 
-        $orm->getEntityCache()->clear();
-        $users = iterator_to_array(
-            $repository->select()->with('address')->fetchAll(),
-        );
+        $orm->getIdentityMap()->clear();
+        $users = $repository->select()->with('address')->fetchAll();
         self::assertCount(2, $users);
 
-        // Eager loading must populate EntityCache before per-entity hydration,
+        // Eager loading must populate the identity map before per-entity hydration,
         // so the related Address is the cached real entity (not a lazy proxy).
-        $cachedAddress1 = $orm->getEntityCache()->getEntity(AddressWithUsersFixture::class, 1);
-        $cachedAddress2 = $orm->getEntityCache()->getEntity(AddressWithUsersFixture::class, 2);
+        $cachedAddress1 = $orm->getIdentityMap()->get(AddressWithUsersFixture::class, 1);
+        $cachedAddress2 = $orm->getIdentityMap()->get(AddressWithUsersFixture::class, 2);
         self::assertInstanceOf(AddressWithUsersFixture::class, $cachedAddress1);
         self::assertInstanceOf(AddressWithUsersFixture::class, $cachedAddress2);
         self::assertSame($cachedAddress1, $users[0]->address);
         self::assertSame($cachedAddress2, $users[1]->address);
         self::assertSame('Springfield', $users[0]->address->city);
         self::assertSame('Shelbyville', $users[1]->address->city);
+
+        // iterate() with eager loading buffers rows, preloads relations, then yields the same entities.
+        $orm->getIdentityMap()->clear();
+        $streamedUsers = iterator_to_array($repository->select()->with('address')->iterate(), false);
+        self::assertCount(2, $streamedUsers);
+        self::assertInstanceOf(
+            AddressWithUsersFixture::class,
+            $orm->getIdentityMap()->get(AddressWithUsersFixture::class, 1),
+        );
+        self::assertSame('Springfield', $streamedUsers[0]->address->city);
     }
 
     public function testSelectEntityRelationOneToMany(): void
@@ -382,9 +415,7 @@ final class IntegrationTest extends TestCase
 
         $address = $repository->findOne(['id' => 1]);
         self::assertInstanceOf(AddressWithUsersFixture::class, $address);
-        self::assertInstanceOf(Collection::class, $address->users);
         self::assertEquals(1, count($address->users));
-        self::assertInstanceOf(UserWithAddressFixture::class, $address->users[0]);
         self::assertEquals(1, $address->users[0]->id);
     }
 
@@ -420,7 +451,7 @@ final class IntegrationTest extends TestCase
         self::assertSame(3, $user->id);
 
         $users = $repository->findAll();
-        self::assertCount(3, iterator_to_array($users));
+        self::assertCount(3, $users);
     }
 
     public function testDeleteEntity(): void
@@ -452,7 +483,7 @@ final class IntegrationTest extends TestCase
         self::assertInstanceOf(UserFixture::class, $user);
         $repository->delete($user);
 
-        $users = iterator_to_array($repository->findAll());
+        $users = $repository->findAll();
         self::assertCount(1, $users);
         self::assertSame(2, $users[0]->id);
     }
@@ -487,7 +518,7 @@ final class IntegrationTest extends TestCase
             $repository->persist(UserFixture::create(firstName: 'Bob'));
         });
 
-        $users = iterator_to_array($repository->findAll());
+        $users = $repository->findAll();
         self::assertCount(4, $users);
     }
 
@@ -526,7 +557,7 @@ final class IntegrationTest extends TestCase
             // Expected exception, transaction should have been rolled back
         }
 
-        $users = iterator_to_array($repository->findAll());
+        $users = $repository->findAll();
         self::assertCount(2, $users);
     }
 
@@ -776,7 +807,7 @@ final class IntegrationTest extends TestCase
         self::assertSame(1, $post1->id);
         self::assertSame(2, $post2->id);
 
-        $posts = iterator_to_array($postRepository->findAll());
+        $posts = $postRepository->findAll();
         self::assertCount(2, $posts);
     }
 
@@ -814,8 +845,8 @@ final class IntegrationTest extends TestCase
         $article->title = 'Updated Article';
         $repository->persist($article);
 
-        $orm->getEntityCache()->clear();
-        $articles = iterator_to_array($repository->findAll());
+        $orm->getIdentityMap()->clear();
+        $articles = $repository->findAll();
         self::assertCount(1, $articles);
         self::assertSame('Updated Article', $articles[0]->title);
     }
@@ -835,14 +866,14 @@ final class IntegrationTest extends TestCase
         $authorRepository->persist($author);
 
         // Reload to get initialized collection
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $author = $authorRepository->findOne(['id' => 1]);
         self::assertInstanceOf(AuthorFixture::class, $author);
 
         $authorRepository->delete($author);
 
-        self::assertCount(0, iterator_to_array($authorRepository->findAll()));
-        self::assertCount(0, iterator_to_array($postRepository->findAll()));
+        self::assertCount(0, $authorRepository->findAll());
+        self::assertCount(0, $postRepository->findAll());
     }
 
     public function testPersistSkipsUninitializedOneToManyCollection(): void
@@ -855,7 +886,7 @@ final class IntegrationTest extends TestCase
         $post1->author = $author;
         $authorRepository->persist($author);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $author = $authorRepository->findOne(['id' => 1]);
         self::assertInstanceOf(AuthorFixture::class, $author);
 
@@ -864,9 +895,9 @@ final class IntegrationTest extends TestCase
 
         // The posts collection was never accessed, so persisting the author
         // must not load it (and must not rewrite the unchanged posts).
-        self::assertTrue(new ReflectionClass(Collection::class)->isUninitializedLazyObject($author->posts));
+        self::assertFalse($author->posts->isInitialized());
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $author = $authorRepository->findOne(['id' => 1]);
         self::assertInstanceOf(AuthorFixture::class, $author);
         self::assertSame('Johnny', $author->name);
@@ -884,14 +915,14 @@ final class IntegrationTest extends TestCase
         $post1->author = $author;
         $authorRepository->persist($author);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $author = $authorRepository->findOne(['id' => 1]);
         self::assertInstanceOf(AuthorFixture::class, $author);
 
         $author->posts[0]->title = 'Updated Post';
         $authorRepository->persist($author);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $post = $postRepository->findOne(['id' => 1]);
         self::assertInstanceOf(PostFixture::class, $post);
         self::assertSame('Updated Post', $post->title);
@@ -908,7 +939,7 @@ final class IntegrationTest extends TestCase
         $post1->author = $author;
         $authorRepository->persist($author);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $post = $postRepository->findOne(['id' => 1]);
         self::assertInstanceOf(PostFixture::class, $post);
 
@@ -918,7 +949,7 @@ final class IntegrationTest extends TestCase
         // The author proxy was never accessed, so the cascade must not initialize it.
         self::assertTrue(new ReflectionClass(AuthorFixture::class)->isUninitializedLazyObject($post->author));
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $post = $postRepository->findOne(['id' => 1]);
         self::assertInstanceOf(PostFixture::class, $post);
         self::assertSame('Updated Post', $post->title);
@@ -964,9 +995,9 @@ final class IntegrationTest extends TestCase
 
         // The tags collection was never accessed, so persisting the user must not
         // load it or rewrite the join table.
-        self::assertTrue(new ReflectionClass(Collection::class)->isUninitializedLazyObject($user->tags));
+        self::assertFalse($user->tags->isInitialized());
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $user = $repository->findOne(['id' => 1]);
         self::assertInstanceOf(UserWithTagsFixture::class, $user);
         self::assertSame('Johnny', $user->name);
@@ -987,7 +1018,7 @@ final class IntegrationTest extends TestCase
         $user->tags[] = $tag;
         $userRepository->persist($user);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $user = $userRepository->findOne(['id' => 1]);
         self::assertInstanceOf(UserWithTagsFixture::class, $user);
         self::assertCount(3, $user->tags);
@@ -1024,11 +1055,13 @@ final class IntegrationTest extends TestCase
         $profile->bio = 'Updated bio';
         $repository->persist($profile);
 
+        // The nullable inverse side is loaded with the profile; cascading to the unchanged user
+        // writes nothing for it.
         $user = $profile->user;
         self::assertNotNull($user);
-        self::assertTrue(new ReflectionClass(UserWithProfileFixture::class)->isUninitializedLazyObject($user));
+        self::assertSame('John', $user->name);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $profile = $repository->findOne(['id' => 1]);
         self::assertInstanceOf(ProfileFixture::class, $profile);
         self::assertSame('Updated bio', $profile->bio);
@@ -1068,11 +1101,11 @@ final class IntegrationTest extends TestCase
         $noUser = $repository->findOne(['address.city' => 'Shelbyville', 'secondAddress.city' => 'Springfield']);
         self::assertNull($noUser);
 
-        $users = iterator_to_array($repository->findAll(['address.country' => 'USA']));
+        $users = $repository->findAll(['address.country' => 'USA']);
         self::assertCount(2, $users);
 
         // A ManyToOne property name resolves to its foreign key column.
-        $usersByAddress = iterator_to_array($repository->findAll(['address' => 1]));
+        $usersByAddress = $repository->findAll(['address' => 1]);
         self::assertCount(1, $usersByAddress);
         self::assertSame(1, $usersByAddress[0]->id);
     }
@@ -1102,7 +1135,7 @@ final class IntegrationTest extends TestCase
 
         $repository = $orm->getRepository(CategoryFixture::class);
 
-        $children = iterator_to_array($repository->findAll(['parent.name' => 'Root']));
+        $children = $repository->findAll(['parent.name' => 'Root']);
         self::assertCount(2, $children);
         self::assertSame(['Books', 'Music'], array_map(static fn(CategoryFixture $c): string => $c->name, $children));
 

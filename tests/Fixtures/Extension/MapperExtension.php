@@ -11,7 +11,7 @@ use MarekSkopal\ORM\Utils\ValidationUtils;
 
 final class MapperExtension implements MapperInterface
 {
-    public function mapToProperty(EntitySchema $entitySchema, ColumnSchema $columnSchema, string|int|float|null $value,): float
+    public function mapToProperty(EntitySchema $entitySchema, ColumnSchema $columnSchema, string|int|float|bool|null $value,): float
     {
         return ValidationUtils::checkFloat($value) + 1;
     }

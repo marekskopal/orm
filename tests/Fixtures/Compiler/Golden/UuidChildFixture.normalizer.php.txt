@@ -1,0 +1,6 @@
+static function (array $s, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'name' => $s[0] === null ? null : ((string) $s[0]),
+        'item_id' => $s[1] === null ? null : (string) (\Ramsey\Uuid\Uuid::fromString((string) $s[1])),
+    ];
+}

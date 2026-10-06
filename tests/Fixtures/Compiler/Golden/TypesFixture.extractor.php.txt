@@ -1,0 +1,16 @@
+\Closure::bind(static function (\MarekSkopal\ORM\Tests\Fixtures\Entity\TypesFixture $e, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'note' => $e->note,
+        'name' => ($e->name ?? throw new \RuntimeException('Column "name" is not nullable')),
+        'count' => ($e->count ?? throw new \RuntimeException('Column "count" is not nullable')),
+        'ratio' => ($e->ratio ?? throw new \RuntimeException('Column "ratio" is not nullable')),
+        'enabled' => (($e->enabled ?? throw new \RuntimeException('Column "enabled" is not nullable')) ? 1 : 0),
+        'uuid' => (string) ($e->uuid ?? throw new \RuntimeException('Column "uuid" is not nullable')),
+        'created_at' => ($e->createdAt ?? throw new \RuntimeException('Column "created_at" is not nullable'))->format('Y-m-d H:i:s'),
+        'day' => ($e->day ?? throw new \RuntimeException('Column "day" is not nullable'))->format('Y-m-d'),
+        'type' => ($e->type ?? throw new \RuntimeException('Column "type" is not nullable'))->value,
+        'level' => ($v = $e->level) === null ? null : $v->value,
+        'price' => $x->mapToColumn(\MarekSkopal\ORM\Tests\Fixtures\Entity\TypesFixture::class, 'price', ($e->price ?? throw new \RuntimeException('Column "price" is not nullable'))),
+        'secret' => ($e->secret ?? throw new \RuntimeException('Column "secret" is not nullable')),
+    ];
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\TypesFixture::class)

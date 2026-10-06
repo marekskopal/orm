@@ -1,0 +1,7 @@
+\Closure::bind(static function (\MarekSkopal\ORM\Tests\Fixtures\Entity\UuidChildFixture $e, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'id' => (string) ($e->id ?? throw new \RuntimeException('Column "id" is not nullable')),
+        'name' => ($e->name ?? throw new \RuntimeException('Column "name" is not nullable')),
+        'item_id' => (string) ($e->item ?? throw new \RuntimeException('Column "item_id" is not nullable'))->id,
+    ];
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\UuidChildFixture::class)

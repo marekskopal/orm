@@ -1,0 +1,16 @@
+\Closure::bind(static function (array $row, \MarekSkopal\ORM\Relation\RelationResolver $r): \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture {
+    $p_id = (int) ($row['id'] ?? throw new \RuntimeException('Column "id" is not nullable'));
+    $p_createdAt = (\is_int(($v = ($row['created_at'] ?? throw new \RuntimeException('Column "created_at" is not nullable')))) ? new \DateTimeImmutable('@' . $v) : new \DateTimeImmutable($v));
+    $p_firstName = (string) ($row['first_name'] ?? throw new \RuntimeException('Column "first_name" is not nullable'));
+    $p_middleName = ($v = $row['middle_name'] ?? null) === null ? null : (string) $v;
+    $p_lastName = (string) ($row['last_name'] ?? throw new \RuntimeException('Column "last_name" is not nullable'));
+    $p_email = (string) ($row['email'] ?? throw new \RuntimeException('Column "email" is not nullable'));
+    $p_isActive = (bool) ($row['is_active'] ?? throw new \RuntimeException('Column "is_active" is not nullable'));
+    $p_type = \MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum::from((string) ($row['type'] ?? throw new \RuntimeException('Column "type" is not nullable')));
+    $p_address = $r->manyToOne(\MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture::class, (int) ($row['address_id'] ?? throw new \RuntimeException('Column "address_id" is not nullable')));
+    $p_secondAddress = ($v = $row['second_address_id'] ?? null) === null ? null : $r->manyToOne(\MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture::class, (int) $v);
+    $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture(createdAt: $p_createdAt, firstName: $p_firstName, middleName: $p_middleName, lastName: $p_lastName, email: $p_email, isActive: $p_isActive, type: $p_type, address: $p_address, secondAddress: $p_secondAddress);
+    $e->id = $p_id;
+    $r->snapshots[\spl_object_id($e)] = [$row['created_at'] ?? null, $row['first_name'] ?? null, $row['middle_name'] ?? null, $row['last_name'] ?? null, $row['email'] ?? null, $row['is_active'] ?? null, $row['type'] ?? null, $row['address_id'] ?? null, $row['second_address_id'] ?? null];
+    return $e;
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture::class)
