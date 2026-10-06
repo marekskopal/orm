@@ -33,6 +33,9 @@ class SchemaProvider
     /** @var array<class-string, Closure(object): bool> */
     private array $primaryKeyCheckers = [];
 
+    /** @var array<class-string, Closure(object): void> */
+    private array $primaryKeyClearers = [];
+
     private ?SchemaCompiler $compiler = null;
 
     private ?ExtensionMapperProvider $extensionMapperProvider = null;
@@ -151,6 +154,21 @@ class SchemaProvider
         );
 
         $writer($entity, $value);
+    }
+
+    /** Unsets the primary key property, e.g. to undo an id assigned by an insert that was rolled back. */
+    public function clearPrimaryKey(object $entity): void
+    {
+        $entityClass = $entity::class;
+        $clearer = $this->primaryKeyClearers[$entityClass] ??= $this->bindToEntity(
+            $entityClass,
+            static fn(string $property): Closure => static function (object $entity) use ($property): void {
+                // @phpstan-ignore-next-line property.dynamicName
+                unset($entity->{$property});
+            },
+        );
+
+        $clearer($entity);
     }
 
     /** The primary key as a database value: integers and strings as they are, UUIDs and other objects as strings. */

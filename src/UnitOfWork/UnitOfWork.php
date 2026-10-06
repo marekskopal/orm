@@ -46,8 +46,11 @@ class UnitOfWork
     /** @var array<class-string, ReflectionClass<object>> */
     private array $reflectionClasses = [];
 
-    /** @var array<string, list<ColumnSchema>> "class|kind" => columns, see columnsOf() */
+    /** @var array<string, list<ColumnSchema>> cache of the relation-column lists, see relationColumns() */
     private array $columnCache = [];
+
+    /** @var list<Closure(): void> undoes the in-memory effects of the running flush if it fails */
+    private array $undo = [];
 
     public function __construct(
         private readonly DatabaseInterface $database,
@@ -89,9 +92,13 @@ class UnitOfWork
     }
 
     /**
-     * Writes the scheduled work in one transaction (or inside the caller's open transaction). If a
-     * statement fails, the transaction is rolled back and the work stays scheduled; entities written
-     * before the failure keep the ids they were given, so clear the identity map before retrying.
+     * Writes the scheduled work in one transaction (or inside the caller's open transaction); work
+     * that is a single statement at most needs none.
+     *
+     * If a statement fails, the transaction is rolled back, the in-memory effects of the flush are
+     * undone (ids assigned to inserted entities, identity-map registrations, snapshots) and the work
+     * stays scheduled, so flush() can be retried. Inside a transaction the caller opened, nothing is
+     * rolled back or undone: the caller decides what happens to the statements already run.
      */
     public function flush(): void
     {
@@ -104,10 +111,13 @@ class UnitOfWork
 
         // Work that is a single statement at most is atomic without a transaction.
         $pdo = $this->database->getPdo();
-        $ownTransaction = $this->mayWriteSeveralStatements($toWrite, $toDelete) && !$pdo->inTransaction();
+        $callerTransaction = $pdo->inTransaction();
+        $ownTransaction = !$callerTransaction && $this->mayWriteSeveralStatements($toWrite, $toDelete);
         if ($ownTransaction) {
             $pdo->beginTransaction();
         }
+
+        $this->undo = [];
 
         try {
             $this->write($toWrite, $toDelete);
@@ -119,9 +129,18 @@ class UnitOfWork
                 $this->rollBack($pdo);
             }
 
+            if (!$callerTransaction) {
+                foreach (array_reverse($this->undo) as $undo) {
+                    $undo();
+                }
+            }
+
+            $this->undo = [];
+
             throw $e;
         }
 
+        $this->undo = [];
         $this->clear();
     }
 
@@ -145,7 +164,7 @@ class UnitOfWork
         }
 
         // One entity is one statement, unless it also has join rows to write or delete.
-        return $this->columnsOf(reset($entities)::class, 'joinTables') !== [];
+        return $this->joinTableColumns(reset($entities)::class) !== [];
     }
 
     /**
@@ -156,15 +175,26 @@ class UnitOfWork
     {
         $inserts = [];
         $updates = [];
+        $unknownKeys = [];
         foreach ($toWrite as $id => $entity) {
             if ($this->isUninitialised($entity)) {
                 unset($toWrite[$id]);
-            } elseif ($this->isNew($entity)) {
-                $inserts[$id] = $entity;
-            } else {
+            } elseif ($this->isManaged($entity)) {
                 $updates[$id] = $entity;
+            } elseif (!$this->schemaProvider->getPrimaryColumnSchema($entity::class)->isAutoIncrement) {
+                // A key the caller chose: the row may exist already, e.g. after the identity map was cleared.
+                $unknownKeys[$id] = $entity;
+            } elseif ($this->schemaProvider->hasPrimaryKey($entity)) {
+                // A detached entity with an auto-increment id already set is an existing row.
+                $updates[$id] = $entity;
+            } else {
+                $inserts[$id] = $entity;
             }
         }
+
+        $existing = $this->findExisting($unknownKeys);
+        $updates += array_intersect_key($unknownKeys, $existing);
+        $inserts += array_diff_key($unknownKeys, $existing);
 
         $this->insert($inserts);
         foreach ($updates as $entity) {
@@ -194,9 +224,14 @@ class UnitOfWork
             sprintf('Entity "%s" with id "%s" no longer exists.', $entity::class, $this->schemaProvider->getPrimaryKeyValue($entity)),
         );
 
-        // Hydrate a detached copy (the identity map is not consulted) and copy its state over.
+        // Hydrate a detached copy (the identity map is not consulted) and copy its state over. Only a
+        // registered entity keeps a snapshot; the identity map keeps those alive.
         $fresh = ($this->schemaProvider->getHydrator($entity::class))($row, $this->relationResolver);
-        $this->identityMap->moveSnapshot($fresh, $entity);
+        if ($this->identityMap->contains($entity, $this->schemaProvider->getPrimaryKey($entity))) {
+            $this->identityMap->moveSnapshot($fresh, $entity);
+        } else {
+            $this->identityMap->removeSnapshot($fresh);
+        }
 
         $reflectionClass = new ReflectionClass($entity);
         foreach (array_keys($entitySchema->columns) as $propertyName) {
@@ -255,10 +290,8 @@ class UnitOfWork
     private function related(object $entity, CascadeEnum $cascade, bool $onlyChildren = false): array
     {
         $related = [];
-        foreach ($this->columnsOf(
-            $entity::class,
-            $onlyChildren ? 'children:' . $cascade->name : 'cascade:' . $cascade->name,
-        ) as $columnSchema) {
+        $columns = $onlyChildren ? $this->childCascadeColumns($entity::class, $cascade) : $this->cascadeColumns($entity::class, $cascade);
+        foreach ($columns as $columnSchema) {
             $value = $this->readProperty($entity, $columnSchema->propertyName);
             if ($value instanceof Collection) {
                 if (!$onlyChildren && !$value->isInitialized()) {
@@ -275,61 +308,130 @@ class UnitOfWork
     }
 
     /**
-     * Relation columns of a class, computed once per class:
-     * - "cascade:<Cascade>": relations with that cascade;
-     * - "children:<Cascade>": the same without owning relations and without ManyToMany, whose removal
-     *   only removes join rows;
-     * - "manyToMany": owning ManyToMany relations;
-     * - "joinTables": ManyToMany relations of either side.
+     * Relations with the given cascade.
      *
      * @param class-string $entityClass
      * @return list<ColumnSchema>
      */
-    private function columnsOf(string $entityClass, string $kind): array
+    private function cascadeColumns(string $entityClass, CascadeEnum $cascade): array
     {
-        $cacheKey = $entityClass . '|' . $kind;
-        if (isset($this->columnCache[$cacheKey])) {
-            return $this->columnCache[$cacheKey];
-        }
+        return $this->relationColumns(
+            $entityClass,
+            'cascade:' . $cascade->name,
+            static fn(ColumnSchema $column): bool => in_array($cascade, $column->cascade, true),
+        );
+    }
 
-        $columns = [];
-        foreach ($this->schemaProvider->getEntitySchema($entityClass)->columns as $columnSchema) {
-            $relationType = $columnSchema->relationType;
-            $isOwning = $relationType === RelationEnum::ManyToOne || $relationType === RelationEnum::OneToOne;
-            $isManyToMany = $relationType === RelationEnum::ManyToMany || $relationType === RelationEnum::ManyToManyInverse;
+    /**
+     * Relations with the given cascade that lead to children: no owning relations, and no
+     * ManyToMany, whose removal only removes join rows.
+     *
+     * @param class-string $entityClass
+     * @return list<ColumnSchema>
+     */
+    private function childCascadeColumns(string $entityClass, CascadeEnum $cascade): array
+    {
+        return $this->relationColumns(
+            $entityClass,
+            'children:' . $cascade->name,
+            static fn(ColumnSchema $column): bool => in_array($cascade, $column->cascade, true) && in_array(
+                $column->relationType,
+                [RelationEnum::OneToMany, RelationEnum::OneToOneInverse],
+                true,
+            ),
+        );
+    }
 
-            $matches = match (true) {
-                $kind === 'manyToMany' => $relationType === RelationEnum::ManyToMany,
-                $kind === 'joinTables' => $isManyToMany,
-                str_starts_with($kind, 'cascade:') => in_array(
-                    constant(CascadeEnum::class . '::' . substr($kind, 8)),
-                    $columnSchema->cascade,
-                    true,
-                ),
-                default => !$isOwning && !$isManyToMany
-                    && in_array(constant(CascadeEnum::class . '::' . substr($kind, 9)), $columnSchema->cascade, true),
-            };
+    /**
+     * Owning ManyToMany relations.
+     *
+     * @param class-string $entityClass
+     * @return list<ColumnSchema>
+     */
+    private function owningManyToManyColumns(string $entityClass): array
+    {
+        return $this->relationColumns(
+            $entityClass,
+            'manyToMany',
+            static fn(ColumnSchema $column): bool => $column->relationType === RelationEnum::ManyToMany,
+        );
+    }
 
-            if ($matches) {
-                $columns[] = $columnSchema;
+    /**
+     * ManyToMany relations of either side.
+     *
+     * @param class-string $entityClass
+     * @return list<ColumnSchema>
+     */
+    private function joinTableColumns(string $entityClass): array
+    {
+        return $this->relationColumns(
+            $entityClass,
+            'joinTables',
+            static fn(ColumnSchema $column): bool => in_array(
+                $column->relationType,
+                [RelationEnum::ManyToMany, RelationEnum::ManyToManyInverse],
+                true,
+            ),
+        );
+    }
+
+    /**
+     * The columns of a class matching a filter, computed once per class and cache key.
+     *
+     * @param class-string $entityClass
+     * @param Closure(ColumnSchema): bool $filter
+     * @return list<ColumnSchema>
+     */
+    private function relationColumns(string $entityClass, string $cacheKey, Closure $filter): array
+    {
+        $key = $entityClass . '|' . $cacheKey;
+
+        return $this->columnCache[$key] ??= array_values(array_filter(
+            $this->schemaProvider->getEntitySchema($entityClass)->columns,
+            $filter,
+        ));
+    }
+
+    /**
+     * The entities, among unmanaged ones with a key the caller chose, whose row exists already: one
+     * query per class.
+     *
+     * @param array<int, object> $entities
+     * @return array<int, object>
+     */
+    private function findExisting(array $entities): array
+    {
+        /** @var array<class-string, array<int|string, list<int>>> $byClassAndKey */
+        $byClassAndKey = [];
+        foreach ($entities as $id => $entity) {
+            if ($this->schemaProvider->hasPrimaryKey($entity)) {
+                $byClassAndKey[$entity::class][$this->schemaProvider->getPrimaryKeyValue($entity)][] = $id;
             }
         }
 
-        return $this->columnCache[$cacheKey] = $columns;
-    }
+        $existing = [];
+        foreach ($byClassAndKey as $entityClass => $idsByKey) {
+            $primaryColumnName = $this->schemaProvider->getPrimaryColumnSchema($entityClass)->columnName;
+            foreach (array_chunk(array_keys($idsByKey), self::MaxParameters) as $keys) {
+                $rows = $this->queryProvider->select($entityClass)
+                    ->columns([$primaryColumnName])
+                    ->where([$primaryColumnName, 'IN', $keys])
+                    ->fetchAssocAll();
+                foreach ($rows as $row) {
+                    $key = $row[$primaryColumnName] ?? null;
+                    if (!is_int($key) && !is_string($key)) {
+                        continue;
+                    }
 
-    private function isNew(object $entity): bool
-    {
-        if ($this->isManaged($entity)) {
-            return false;
+                    foreach ($idsByKey[$key] ?? [] as $id) {
+                        $existing[$id] = $entities[$id];
+                    }
+                }
+            }
         }
 
-        $primaryColumn = $this->schemaProvider->getPrimaryColumnSchema($entity::class);
-
-        // A detached entity with an auto-increment id already set is an existing row (updated in
-        // full, as it has no snapshot). A key that is not auto-increment is the caller's to choose,
-        // so an unmanaged entity with one is new.
-        return !$primaryColumn->isAutoIncrement || !$this->schemaProvider->hasPrimaryKey($entity);
+        return $existing;
     }
 
     /** @param array<int, object> $entities */
@@ -355,9 +457,20 @@ class UnitOfWork
                     }
 
                     $insert->execute();
-                    foreach ($chunk as $entity) {
-                        $this->identityMap->add($entity, $this->schemaProvider->getPrimaryKey($entity));
-                        $this->identityMap->setSnapshot($entity, $this->updatableValues($entity));
+                    $primaryColumn = $this->schemaProvider->getPrimaryColumnSchema($entityClass);
+                    foreach ($insert->getExtractedValues() as $index => $values) {
+                        $entity = $chunk[$index];
+                        $primaryKey = $this->schemaProvider->getPrimaryKey($entity);
+                        unset($values[$primaryColumn->columnName]);
+                        $this->identityMap->add($entity, $primaryKey);
+                        $this->identityMap->setSnapshot($entity, $values);
+
+                        $this->undo[] = function () use ($entity, $primaryKey, $primaryColumn): void {
+                            $this->identityMap->remove($entity, $primaryKey);
+                            if ($primaryColumn->isAutoIncrement) {
+                                $this->schemaProvider->clearPrimaryKey($entity);
+                            }
+                        };
                     }
                 }
             }
@@ -415,6 +528,12 @@ class UnitOfWork
     /** @return list<object> */
     private function owningRelations(object $entity): array
     {
+        // An uninitialised proxy is never new, and for deletes reading its relations would load it
+        // (or fail if its row is gone): it is ordered first among the entities it belongs with.
+        if ($this->isUninitialised($entity)) {
+            return [];
+        }
+
         $related = [];
         foreach ($this->schemaProvider->getEntitySchema($entity::class)->getInsertableColumns() as $columnSchema) {
             if ($columnSchema->relationType === RelationEnum::ManyToOne || $columnSchema->relationType === RelationEnum::OneToOne) {
@@ -455,13 +574,23 @@ class UnitOfWork
         // A detached entity becomes managed, unless another instance is already registered for its id;
         // snapshots are only kept for registered entities.
         $primaryKey = $this->schemaProvider->getPrimaryKey($entity);
+        $registered = false;
         if ($this->identityMap->get($entity::class, $primaryKey) === null) {
             $this->identityMap->add($entity, $primaryKey);
+            $registered = true;
         }
 
         if ($this->identityMap->contains($entity, $primaryKey)) {
             $this->identityMap->setSnapshot($entity, $current);
         }
+
+        $this->undo[] = function () use ($entity, $primaryKey, $snapshot, $registered): void {
+            if ($registered) {
+                $this->identityMap->remove($entity, $primaryKey);
+            } elseif ($snapshot !== null) {
+                $this->identityMap->setSnapshot($entity, $snapshot);
+            }
+        };
     }
 
     /**
@@ -481,7 +610,7 @@ class UnitOfWork
     /** Brings the join rows of initialised owning ManyToMany collections in line with the collections. */
     private function syncJoinTables(object $entity, bool $isNew): void
     {
-        foreach ($this->columnsOf($entity::class, 'manyToMany') as $columnSchema) {
+        foreach ($this->owningManyToManyColumns($entity::class) as $columnSchema) {
             $collection = $this->readProperty($entity, $columnSchema->propertyName);
             if (!$collection instanceof Collection || !$collection->isInitialized()) {
                 continue;
@@ -578,7 +707,20 @@ class UnitOfWork
 
                     $delete->execute();
                     foreach ($chunk as $entity) {
-                        $this->identityMap->remove($entity, $this->schemaProvider->getPrimaryKey($entity));
+                        $primaryKey = $this->schemaProvider->getPrimaryKey($entity);
+                        $registered = $this->identityMap->contains($entity, $primaryKey);
+                        $snapshot = $this->identityMap->getSnapshot($entity);
+                        $this->identityMap->remove($entity, $primaryKey);
+
+                        $this->undo[] = function () use ($entity, $primaryKey, $registered, $snapshot): void {
+                            if ($registered) {
+                                $this->identityMap->add($entity, $primaryKey);
+                            }
+
+                            if ($snapshot !== null) {
+                                $this->identityMap->setSnapshot($entity, $snapshot);
+                            }
+                        };
                     }
                 }
             }
@@ -589,7 +731,7 @@ class UnitOfWork
     private function deleteJoinRows(object $entity): void
     {
         $quoteChar = $this->database->getIdentifierQuoteChar();
-        foreach ($this->columnsOf($entity::class, 'joinTables') as $columnSchema) {
+        foreach ($this->joinTableColumns($entity::class) as $columnSchema) {
             if ($columnSchema->relationType === RelationEnum::ManyToMany) {
                 $joinTable = $columnSchema->joinTable;
                 $column = $columnSchema->joinColumn;

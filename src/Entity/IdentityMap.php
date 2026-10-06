@@ -57,7 +57,14 @@ class IdentityMap
 
     public function add(object $entity, mixed $id): void
     {
-        $this->entities[$entity::class][self::key($id)] = $entity;
+        $key = self::key($id);
+        $previous = $this->entities[$entity::class][$key] ?? null;
+        if ($previous !== null && $previous !== $entity) {
+            // Only registered entities may keep a snapshot: the replaced one is no longer kept alive here.
+            unset($this->snapshots[spl_object_id($previous)]);
+        }
+
+        $this->entities[$entity::class][$key] = $entity;
     }
 
     /** Whether this exact instance is the one registered for its class and id. */
@@ -87,6 +94,11 @@ class IdentityMap
     public function setSnapshot(object $entity, array $snapshot): void
     {
         $this->snapshots[spl_object_id($entity)] = $snapshot;
+    }
+
+    public function removeSnapshot(object $entity): void
+    {
+        unset($this->snapshots[spl_object_id($entity)]);
     }
 
     public function hasSnapshot(object $entity): bool

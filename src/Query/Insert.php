@@ -17,6 +17,9 @@ class Insert extends AbstractQuery
     /** @var list<T> */
     private array $entities = [];
 
+    /** @var list<array<string, string|int|float|null>> */
+    private array $extractedValues = [];
+
     /** @param class-string<T> $entityClass */
     public function __construct(
         DatabaseInterface $database,
@@ -129,23 +132,28 @@ class Insert extends AbstractQuery
         return 'VALUES ' . implode(',', array_fill(0, count($this->entities), $placeholder));
     }
 
+    /**
+     * The values written for each entity, keyed by column name, in entity order; available after
+     * execute(), so callers need not extract the entities again.
+     *
+     * @return list<array<string, string|int|float|null>>
+     */
+    public function getExtractedValues(): array
+    {
+        return $this->extractedValues;
+    }
+
     /** @return list<string|int|float|null> */
     private function getValues(): array
     {
+        $this->extractedValues = [];
         $values = [];
         foreach ($this->entities as $entity) {
-            array_push($values, ...$this->getEntityValues($entity));
+            $extracted = $this->schemaProvider->extract($entity);
+            $this->extractedValues[] = $extracted;
+            array_push($values, ...array_values($extracted));
         }
 
         return $values;
-    }
-
-    /**
-     * @param T $entity
-     * @return list<string|int|float|null>
-     */
-    private function getEntityValues(object $entity): array
-    {
-        return array_values($this->schemaProvider->extract($entity));
     }
 }

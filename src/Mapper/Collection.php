@@ -58,6 +58,20 @@ class Collection implements IteratorAggregate, ArrayAccess, Countable
         return $collection;
     }
 
+    /**
+     * Fills a lazy collection that was not accessed yet, e.g. with items preloaded by with().
+     *
+     * @internal used by RelationResolver
+     * @param array<T> $items
+     */
+    public function initializeWith(array $items): void
+    {
+        if ($this->items === null) {
+            $this->items = $items;
+            $this->resolver = null;
+        }
+    }
+
     /** Whether the items are in memory; false for a lazy collection that was never accessed. */
     public function isInitialized(): bool
     {

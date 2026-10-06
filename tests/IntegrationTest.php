@@ -1055,9 +1055,11 @@ final class IntegrationTest extends TestCase
         $profile->bio = 'Updated bio';
         $repository->persist($profile);
 
+        // The nullable inverse side is loaded with the profile; cascading to the unchanged user
+        // writes nothing for it.
         $user = $profile->user;
         self::assertNotNull($user);
-        self::assertTrue(new ReflectionClass(UserWithProfileFixture::class)->isUninitializedLazyObject($user));
+        self::assertSame('John', $user->name);
 
         $orm->getIdentityMap()->clear();
         $profile = $repository->findOne(['id' => 1]);
