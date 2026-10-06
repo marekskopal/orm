@@ -460,14 +460,16 @@ final class UnitOfWorkTest extends TestCase
         CountingStatement::reset();
         $orm->getUnitOfWork()->persist($loaded)->persist($new)->flush();
 
-        // One query finds which keys exist; the existing row is updated, the new one inserted.
+        // One query finds which keys exist; the existing row is updated, the new one inserted. The
+        // table alias depends on the order entity files are scanned, so it is not asserted.
+        self::assertCount(3, CountingStatement::$queries);
+        self::assertMatchesRegularExpression(
+            '/^SELECT "(\\w+)"\\."id" FROM "codes" "\\1" WHERE "\\1"\\."id" IN \\(\\?,\\?\\)$/',
+            CountingStatement::$queries[0],
+        );
         self::assertSame(
-            [
-                'SELECT "c"."id" FROM "codes" "c" WHERE "c"."id" IN (?,?)',
-                'INSERT INTO "codes" ("id","code") VALUES (?,?)',
-                'UPDATE "codes" SET "code"=? WHERE "id"=?',
-            ],
-            CountingStatement::$queries,
+            ['INSERT INTO "codes" ("id","code") VALUES (?,?)', 'UPDATE "codes" SET "code"=? WHERE "id"=?'],
+            array_slice(CountingStatement::$queries, 1),
         );
         self::assertSame(
             [[1, '00000000-0000-4000-8000-000000000001'], [2, '00000000-0000-4000-8000-000000000002']],
