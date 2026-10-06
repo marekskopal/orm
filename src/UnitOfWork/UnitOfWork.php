@@ -502,7 +502,6 @@ class UnitOfWork
 
         $ownerId = $this->schemaProvider->getPrimaryKeyValue($entity);
         $quoteChar = $this->database->getIdentifierQuoteChar();
-        $pdo = $this->database->getPdo();
         $table = QuoteUtils::quote($joinTable, $quoteChar);
         $joinColumnSql = QuoteUtils::quote($joinColumn, $quoteChar);
         $inverseColumnSql = QuoteUtils::quote($inverseJoinColumn, $quoteChar);
@@ -515,8 +514,10 @@ class UnitOfWork
 
         $existing = [];
         if (!$isNew) {
-            $statement = $pdo->prepare('SELECT ' . $inverseColumnSql . ' FROM ' . $table . ' WHERE ' . $joinColumnSql . ' = ?');
-            $statement->execute([$ownerId]);
+            $statement = $this->database->execute(
+                'SELECT ' . $inverseColumnSql . ' FROM ' . $table . ' WHERE ' . $joinColumnSql . ' = ?',
+                [$ownerId],
+            );
             /** @var list<int|string> $existingIds */
             $existingIds = $statement->fetchAll(PDO::FETCH_COLUMN);
             foreach ($existingIds as $existingId) {
@@ -526,10 +527,11 @@ class UnitOfWork
 
         $toDelete = array_values(array_diff_key($existing, $wanted));
         if ($toDelete !== []) {
-            $pdo->prepare(
+            $this->database->execute(
                 'DELETE FROM ' . $table . ' WHERE ' . $joinColumnSql . ' = ? AND ' . $inverseColumnSql
                 . ' IN (' . implode(',', array_fill(0, count($toDelete), '?')) . ')',
-            )->execute([$ownerId, ...$toDelete]);
+                [$ownerId, ...$toDelete],
+            );
         }
 
         $toInsert = array_values(array_diff_key($wanted, $existing));
@@ -539,10 +541,11 @@ class UnitOfWork
                 array_push($parameters, $ownerId, $relatedId);
             }
 
-            $pdo->prepare(
+            $this->database->execute(
                 'INSERT INTO ' . $table . ' (' . $joinColumnSql . ', ' . $inverseColumnSql . ') VALUES '
                 . implode(',', array_fill(0, count($chunk), '(?, ?)')),
-            )->execute($parameters);
+                $parameters,
+            );
         }
     }
 
@@ -605,9 +608,10 @@ class UnitOfWork
                 throw new \LogicException(sprintf('ManyToMany relation "%s" has no join table or column.', $columnSchema->propertyName));
             }
 
-            $this->database->getPdo()->prepare(
+            $this->database->execute(
                 'DELETE FROM ' . QuoteUtils::quote($joinTable, $quoteChar) . ' WHERE ' . QuoteUtils::quote($column, $quoteChar) . ' = ?',
-            )->execute([$this->schemaProvider->getPrimaryKeyValue($entity)]);
+                [$this->schemaProvider->getPrimaryKeyValue($entity)],
+            );
         }
     }
 

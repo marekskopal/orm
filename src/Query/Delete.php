@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace MarekSkopal\ORM\Query;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
@@ -60,14 +59,7 @@ class Delete extends AbstractQuery
 
     private function query(): PDOStatement
     {
-        try {
-            $sql = $this->getSql();
-            $pdoStatement = $this->pdo->prepare($sql);
-            $pdoStatement->execute($this->getIds());
-            return $pdoStatement;
-        } catch (\PDOException $e) {
-            throw ExceptionFactory::create($e, $sql);
-        }
+        return $this->database->execute($this->getSql(), $this->getIds());
     }
 
     private function getWhereQuery(): string

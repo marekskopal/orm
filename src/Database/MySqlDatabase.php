@@ -6,17 +6,18 @@ namespace MarekSkopal\ORM\Database;
 
 use PDO;
 
-readonly class MySqlDatabase extends AbstractDatabase
+class MySqlDatabase extends AbstractDatabase
 {
     public function __construct(
-        private string $host,
+        private readonly string $host,
         string $username,
         string $password,
-        private string $database,
-        private string $charset = 'utf8mb4',
-        private int $port = 3306,
+        private readonly string $database,
+        private readonly string $charset = 'utf8mb4',
+        private readonly int $port = 3306,
+        int $statementCacheSize = self::DefaultStatementCacheSize,
     ) {
-        parent::__construct($username, $password);
+        parent::__construct($username, $password, $statementCacheSize);
     }
 
     protected function getDsn(): string

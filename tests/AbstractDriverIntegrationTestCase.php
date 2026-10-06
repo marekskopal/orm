@@ -29,7 +29,7 @@ use PHPUnit\Framework\TestCase;
  */
 abstract class AbstractDriverIntegrationTestCase extends TestCase
 {
-    /** Opens the connection; throws PDOException when the server is unreachable. */
+    /** Creates the database; its connection opens lazily. */
     abstract protected function connect(): DatabaseInterface;
 
     /** Suffix of the driver-specific SQL fixture files, e.g. "mysql" for database_users_mysql.sql. */
@@ -45,6 +45,8 @@ abstract class AbstractDriverIntegrationTestCase extends TestCase
     {
         try {
             $database = $this->connect();
+            // The connection is lazy, so open it here to turn an unreachable server into a skip.
+            $database->connect();
         } catch (PDOException $e) {
             $message = static::class . ': database not available: ' . $e->getMessage();
             if (self::env('ORM_TEST_REQUIRE_DATABASES', '0') === '1') {

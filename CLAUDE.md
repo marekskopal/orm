@@ -44,7 +44,7 @@ This is a lightweight PHP ORM library (PHP 8.4+, namespace `MarekSkopal\ORM`). S
 
 7. **Repositories** (`src/Repository/`) — `AbstractRepository` provides `findAll()`, `findOne()`, and `persist()` / `delete()`, which schedule on the shared unit of work and flush it. Custom repositories extend `AbstractRepository` and are referenced in `#[Entity(repositoryClass: MyRepository::class)]`.
 
-8. **Database layer** (`src/Database/`) — `DatabaseInterface` abstraction over PDO; implementations for `MySqlDatabase`, `PostgresDatabase` and `SqliteDatabase`.
+8. **Database layer** (`src/Database/`) — `DatabaseInterface` abstraction over PDO; implementations for `MySqlDatabase`, `PostgresDatabase` and `SqliteDatabase`. `AbstractDatabase` connects lazily and caches prepared statements per SQL string (LRU, 256 by default). All ORM SQL goes through `execute()`, which wraps driver errors in `QueryException`/`ConstrainException`; streaming reads (`Select::iterate()`) pass `cached: false` because a cached statement is shared by every caller with the same SQL. Query counts in tests use `tests/Fixtures/Database/CountingStatement.php` (`$count` = executions, `$prepares` = prepares).
 
 ### Key conventions
 

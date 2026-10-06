@@ -6,11 +6,11 @@ namespace MarekSkopal\ORM\Database;
 
 use MarekSkopal\ORM\Utils\QuoteUtils;
 
-readonly class SqliteDatabase extends AbstractDatabase
+class SqliteDatabase extends AbstractDatabase
 {
-    public function __construct(private string $path)
+    public function __construct(private readonly string $path, int $statementCacheSize = self::DefaultStatementCacheSize)
     {
-        parent::__construct();
+        parent::__construct(statementCacheSize: $statementCacheSize);
     }
 
     protected function getDsn(): string

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Query;
 
+use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\DatabaseInterface;
+use MarekSkopal\ORM\Database\SqliteDatabase;
 use MarekSkopal\ORM\Query\Insert;
 use MarekSkopal\ORM\Schema\Builder\SchemaBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
@@ -32,6 +34,8 @@ use Ramsey\Uuid\Uuid;
 #[UsesClass(EntitySchema::class)]
 #[UsesClass(NameUtils::class)]
 #[UsesClass(QuoteUtils::class)]
+#[UsesClass(AbstractDatabase::class)]
+#[UsesClass(SqliteDatabase::class)]
 #[UsesClass(SchemaProvider::class)]
 #[UsesClass(Schema::class)]
 #[UsesClass(SchemaCompiler::class)]
@@ -100,8 +104,9 @@ final class InsertTest extends TestCase
 
     public function testExecuteWithReturningAssignsIds(): void
     {
-        $pdo = $this->createSqlitePdo();
-        $insert = $this->createSqliteInsert($pdo, returningClause: 'RETURNING "id"');
+        $database = $this->createSqliteDatabase();
+        $insert = new Insert($database, UserFixture::class, EntitySchemaFixture::create(), $this->createSchemaProvider());
+        $pdo = $database->getPdo();
 
         $userA = UserFixture::create(email: 'a@example.com');
         $userB = UserFixture::create(email: 'b@example.com');
@@ -139,12 +144,9 @@ final class InsertTest extends TestCase
 
     public function testPrimaryKeyThatIsNotAutoIncrementIsSentAndKept(): void
     {
-        $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        $database = new SqliteDatabase(':memory:');
+        $pdo = $database->getPdo();
         $pdo->exec('CREATE TABLE codes (id INTEGER PRIMARY KEY, code TEXT NOT NULL)');
-        $database = $this::createStub(DatabaseInterface::class);
-        $database->method('getPdo')->willReturn($pdo);
-        $database->method('getIdentifierQuoteChar')->willReturn('"');
-        $database->method('getInsertReturningClause')->willReturn('RETURNING "id"');
 
         $schema = new SchemaBuilder()->addEntityPath(__DIR__ . '/../Fixtures/Entity')->build();
         $insert = new Insert($database, Code::class, $schema->entities[Code::class], new SchemaProvider($schema));
@@ -166,10 +168,10 @@ final class InsertTest extends TestCase
         return $statement->fetchColumn();
     }
 
-    private function createSqlitePdo(): PDO
+    private function createSqliteDatabase(): SqliteDatabase
     {
-        $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-        $pdo->exec(
+        $database = new SqliteDatabase(':memory:');
+        $database->getPdo()->exec(
             'CREATE TABLE users ('
             . 'id INTEGER PRIMARY KEY AUTOINCREMENT,'
             . 'created_at TEXT NOT NULL,'
@@ -182,18 +184,7 @@ final class InsertTest extends TestCase
             . ')',
         );
 
-        return $pdo;
-    }
-
-    /** @return Insert<UserFixture> */
-    private function createSqliteInsert(PDO $pdo, string $returningClause): Insert
-    {
-        $database = $this::createStub(DatabaseInterface::class);
-        $database->method('getPdo')->willReturn($pdo);
-        $database->method('getIdentifierQuoteChar')->willReturn('"');
-        $database->method('getInsertReturningClause')->willReturn($returningClause);
-
-        return new Insert($database, UserFixture::class, EntitySchemaFixture::create(), $this->createSchemaProvider());
+        return $database;
     }
 
     private function createSchemaProvider(): SchemaProvider

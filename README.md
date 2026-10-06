@@ -27,8 +27,8 @@ composer require marekskopal/orm
 
 ## Basic Usage
 ```php
-//Create DB connection - MySQL
-$database = new MysqlDatabase('localhost', 'root', 'password', 'database');
+//Create DB connection - MySQL (the connection opens on the first query)
+$database = new MySqlDatabase('localhost', 'root', 'password', 'database');
 
 //Create DB connection - PostgreSQL
 $database = new PostgresDatabase('localhost', 'postgres', 'password', 'database');
@@ -592,6 +592,18 @@ $orm = new ORM($database, Schema::fromFile(__DIR__ . '/var/schema.php'));
 ```
 
 The file contains the schema and the generated code. With opcache enabled it is served from shared memory, and each entity's schema is only built when a request first uses it. Opcache skips files modified in the last two seconds (`opcache.file_update_protection`), so a schema dumped right before a request is cached from the following ones on. Dump the schema again whenever an entity changes.
+
+## Connections and prepared statements
+
+Creating a database object does not connect: the connection opens on the first query, so a request that never queries never connects. Call `connect()` to open it early, for example to surface connection errors at startup.
+
+Each distinct SQL string is prepared once and its statement reused, which saves a round trip per query on MySQL and PostgreSQL. The cache keeps the 256 most recently used statements; set another size, or `0` to disable it, with the last constructor argument:
+
+```php
+$database = new MySqlDatabase('localhost', 'root', 'password', 'database', statementCacheSize: 512);
+```
+
+After changing the schema on an open connection (for example in a migration), call `$database->clearStatementCache()`, since cached statements may refer to the old table definitions. Queries you run yourself can use the cache too with `$database->execute($sql, $params)`.
 
 ## Long-running applications
 
