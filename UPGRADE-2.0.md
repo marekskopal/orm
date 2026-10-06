@@ -143,7 +143,9 @@ of work:
   instance. A deleted entity is removed from it.
 - Cascades are followed recursively, and relations that were never loaded are skipped.
 - A write of more than one statement (cascades, join rows) runs in a transaction unless one is
-  already open.
+  already open. If a statement fails, the transaction is rolled back, the in-memory effects are
+  undone (assigned ids, identity map entries, snapshots) and the work stays scheduled, so a
+  `flush()` can simply be retried.
 
 To write many entities at once, schedule them and flush. 2,000 new entities of one class are
 written with one statement:
@@ -163,7 +165,9 @@ directly.
 ### Primary keys that are not auto-increment
 
 A primary key without `autoIncrement: true`, such as a UUID, is now included in the insert and
-never overwritten. An entity with such a key that was not read from the database is inserted:
+never overwritten. For an entity with such a key that was not read from the database (or was
+detached by clearing the identity map), the flush checks whether its row exists, with one query
+per class: an existing row is updated in full, otherwise the entity is inserted.
 
 ```php
 #[Column(type: Type::Uuid, primary: true)]
@@ -172,9 +176,8 @@ public UuidInterface $id;
 $repository->persist(new Item(Uuid::uuid4(), 'Name'));
 ```
 
-In 1.x the key was left out of the insert, and an entity whose key was already set was sent as
-an `UPDATE`, which wrote nothing. If you relied on `persist()` updating an existing row through
-a hand-built entity with a non-auto-increment key, load the entity first and change it.
+In 1.x the key was left out of the insert, and an entity whose key was already set was always
+sent as an `UPDATE`, which wrote nothing for a new row.
 
 Hand-built entities with an auto-increment id already set are still treated as existing rows and
 updated in full.
@@ -305,6 +308,11 @@ These need no code change, but they change what the ORM does:
   and inserts only the rows that differ, instead of deleting all and inserting each.
 - **Nullable `OneToOne` foreign keys.** A `NULL` foreign key on a nullable owning `OneToOne`
   hydrates as `null`. In 1.x it produced a proxy for id `0`.
+- **Nullable inverse `OneToOne` relations load with their parent.** A proxy cannot turn into
+  `null`, so an inverse `OneToOne` property that accepts `null` is loaded when its parent is
+  hydrated: one query per relation for a whole result, and `null` when there is no related row.
+  In 1.x it was a proxy that threw on access when the row was missing. A non-nullable inverse
+  side stays lazy.
 - **Connection errors.** They appear on the first query instead of in the constructor.
 - **Reads cost a little more memory.** Change detection keeps a snapshot of each hydrated
   entity, about 45 bytes per mapped column, until the identity map is cleared.

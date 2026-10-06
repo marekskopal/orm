@@ -114,6 +114,7 @@ final class InsertTest extends TestCase
 
         self::assertSame(1, $userA->id);
         self::assertSame(2, $userB->id);
+        self::assertSame(['a@example.com', 'b@example.com'], array_column($insert->getExtractedValues(), 'email'));
         self::assertSame('a@example.com', $this->fetchEmail($pdo, 1));
         self::assertSame('b@example.com', $this->fetchEmail($pdo, 2));
     }

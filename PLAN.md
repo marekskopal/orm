@@ -426,6 +426,32 @@ Remaining, owned by workstreams 3 and 4: add their query-count and identity asse
 `AbstractDriverIntegrationTestCase` (alongside the SQLite `IntegrationTest`) so they run on
 all three drivers.
 
+## Final review fixes
+
+The final review of the branch found these, fixed before tagging:
+
+1. A failed flush left assigned ids, identity-map entries and snapshots behind, so a retry turned
+   re-inserts into no-op updates. `flush()` now keeps an undo journal and replays it on failure
+   (not inside a transaction the caller opened).
+2. A nullable inverse OneToOne was a proxy that threw when the row was missing. It now loads with
+   its parent, batched in `hydrateAll()`, and is `null` when missing.
+3. `refresh()` of a detached entity, and `IdentityMap::add()` replacing an instance, could leave
+   snapshots for unregistered objects (object ids can be reused). Both now drop them.
+4. `with()` stored preloaded collections and inverse entities for parents already hydrated; they
+   were never consumed and later served stale. Existing parents now get their lazy collections
+   filled in place, and nothing is stored for them.
+5. A detached entity with a manual key was re-inserted (duplicate key). The flush now checks which
+   such keys exist, one query per class, and updates those rows.
+6. Removing uninitialised proxies loaded them to compute delete order; they are now ordered without
+   being read.
+7. The extractor ran twice per inserted entity; `Insert::getExtractedValues()` lets the unit of
+   work reuse the values for the snapshot.
+8. `with()` re-fetched owning relations already loaded; it now skips them unless nested paths
+   need their rows.
+9. `ExtensionMapperProvider` resolved schema, column and mapper per call; it now caches them.
+10. `UnitOfWork::columnsOf()` dispatched on strings decoded with `constant()`; typed helpers
+    replace it.
+
 ## Migration notes for the release
 
 Written: [UPGRADE-2.0.md](UPGRADE-2.0.md). It opens with an upgrade checklist, then covers every

@@ -14,6 +14,7 @@ use MarekSkopal\ORM\Attribute\OneToOne;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\SqliteDatabase;
 use MarekSkopal\ORM\Entity\IdentityMap;
+use MarekSkopal\ORM\Exception\QueryException;
 use MarekSkopal\ORM\Exception\TransactionException;
 use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
@@ -44,12 +45,14 @@ use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Database\CountingStatement;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AuthorFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\CategoryFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Code;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\PostFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\TagFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithTagsFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UuidChildFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UuidItemFixture;
@@ -363,6 +366,133 @@ final class UnitOfWorkTest extends TestCase
 
         self::assertSame(0, (int) $this->query($orm, 'SELECT COUNT(*) FROM authors')->fetchColumn());
         self::assertFalse($this->pdo($orm)->inTransaction());
+    }
+
+    public function testFailedFlushUndoesItsEffectsSoARetryWritesEverything(): void
+    {
+        $orm = $this->createOrm('database_cascade.sql');
+        $author = new AuthorFixture('Ann', new Collection());
+        $post = new PostFixture('First', $author);
+        $author->posts[] = $post;
+
+        // The authors insert succeeds, the posts insert fails.
+        $this->pdo($orm)->exec('DROP TABLE posts');
+        $unitOfWork = $orm->getUnitOfWork();
+        $unitOfWork->persist($author);
+
+        try {
+            $unitOfWork->flush();
+            self::fail('flush() did not fail');
+        } catch (QueryException) {
+            // Expected: the posts table does not exist.
+        }
+
+        // The rolled-back insert left no id, registration or snapshot behind.
+        self::assertFalse(isset($author->id));
+        self::assertFalse($unitOfWork->isManaged($author));
+
+        $this->pdo($orm)->exec(
+            'CREATE TABLE posts (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, author_id INTEGER NOT NULL)',
+        );
+        $unitOfWork->flush();
+
+        self::assertSame(1, $author->id);
+        self::assertSame(
+            [['title' => 'First', 'author_id' => 1]],
+            $this->query($orm, 'SELECT title, author_id FROM posts')->fetchAll(PDO::FETCH_ASSOC),
+        );
+    }
+
+    public function testFailedFlushRestoresSnapshotsOfUpdatedEntities(): void
+    {
+        $orm = $this->createOrm('database_users.sql');
+        $user = $orm->getRepository(UserFixture::class)->findOne(['id' => 1]);
+        self::assertInstanceOf(UserFixture::class, $user);
+
+        // Deletes run after updates, so the update has run when the delete fails.
+        $ghost = new AuthorFixture('No table', new Collection());
+        $ghost->id = 5;
+        $user->firstName = 'Changed';
+        $unitOfWork = $orm->getUnitOfWork();
+        $unitOfWork->persist($user)->remove($ghost);
+
+        try {
+            $unitOfWork->flush();
+            self::fail('flush() did not fail');
+        } catch (QueryException) {
+            // Expected: the authors table does not exist.
+        }
+
+        // The update was rolled back; its snapshot too, so the change is still detected.
+        $unitOfWork->clear();
+        CountingStatement::reset();
+        $orm->getRepository(UserFixture::class)->persist($user);
+        self::assertSame(['UPDATE "users" SET "first_name"=? WHERE "id"=?'], CountingStatement::$queries);
+    }
+
+    public function testRefreshOfDetachedEntityKeepsNoSnapshot(): void
+    {
+        $orm = $this->createOrm('database_users.sql');
+        $user = $orm->getRepository(UserFixture::class)->findOne(['id' => 1]);
+        self::assertInstanceOf(UserFixture::class, $user);
+
+        $orm->getIdentityMap()->clear();
+        $orm->getUnitOfWork()->refresh($user);
+
+        self::assertSame('John', $user->firstName);
+        self::assertFalse($orm->getIdentityMap()->hasSnapshot($user));
+    }
+
+    public function testDetachedEntityWithManualKeyIsUpdatedNotInserted(): void
+    {
+        $orm = $this->createOrm('database_users.sql');
+        $this->pdo($orm)->exec('CREATE TABLE codes (id INTEGER PRIMARY KEY, code TEXT NOT NULL)');
+        $this->pdo($orm)->exec("INSERT INTO codes VALUES (1, 'f47ac10b-58cc-4372-a567-0e02b2c3d479')");
+        $repository = $orm->getRepository(Code::class);
+
+        $loaded = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(Code::class, $loaded);
+        // A per-request clear detaches the entity.
+        $orm->getIdentityMap()->clear();
+        $loaded->code = Uuid::fromString('00000000-0000-4000-8000-000000000001');
+        $new = new Code(2, Uuid::fromString('00000000-0000-4000-8000-000000000002'));
+
+        CountingStatement::reset();
+        $orm->getUnitOfWork()->persist($loaded)->persist($new)->flush();
+
+        // One query finds which keys exist; the existing row is updated, the new one inserted. The
+        // table alias depends on the order entity files are scanned, so it is not asserted.
+        self::assertCount(3, CountingStatement::$queries);
+        self::assertMatchesRegularExpression(
+            '/^SELECT "(\\w+)"\\."id" FROM "codes" "\\1" WHERE "\\1"\\."id" IN \\(\\?,\\?\\)$/',
+            CountingStatement::$queries[0],
+        );
+        self::assertSame(
+            ['INSERT INTO "codes" ("id","code") VALUES (?,?)', 'UPDATE "codes" SET "code"=? WHERE "id"=?'],
+            array_slice(CountingStatement::$queries, 1),
+        );
+        self::assertSame(
+            [[1, '00000000-0000-4000-8000-000000000001'], [2, '00000000-0000-4000-8000-000000000002']],
+            $this->query($orm, 'SELECT id, code FROM codes ORDER BY id')->fetchAll(PDO::FETCH_NUM),
+        );
+        self::assertSame($loaded, $repository->findOne(['id' => 1]));
+    }
+
+    public function testRemovingProxiesDoesNotLoadThem(): void
+    {
+        $orm = $this->createOrm('database_users_with_address.sql');
+        $users = $orm->getRepository(UserWithAddressFixture::class)->select()->orderBy('id')->fetchAll();
+        $first = $users[0]->address;
+        $second = $users[1]->address;
+        // One of the rows is already gone; deleting it must still be harmless.
+        $this->pdo($orm)->exec('DELETE FROM addresses WHERE id = 2');
+
+        CountingStatement::reset();
+        $orm->getUnitOfWork()->remove($first)->remove($second)->flush();
+
+        self::assertSame(['DELETE FROM "addresses" WHERE "id" IN (?,?)'], CountingStatement::$queries);
+        self::assertTrue(new ReflectionClass(AddressWithUsersFixture::class)->isUninitializedLazyObject($first));
+        self::assertSame(0, (int) $this->query($orm, 'SELECT COUNT(*) FROM addresses')->fetchColumn());
     }
 
     public function testFlushInsideCallerTransactionDoesNotCommit(): void

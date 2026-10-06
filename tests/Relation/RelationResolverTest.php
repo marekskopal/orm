@@ -51,7 +51,6 @@ use MarekSkopal\ORM\Tests\Fixtures\Entity\PostFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\ProfileFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\TagFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
-use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithProfileFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithTagsFixture;
 use MarekSkopal\ORM\Transaction\TransactionProvider;
 use MarekSkopal\ORM\Utils\CaseUtils;
@@ -282,16 +281,58 @@ final class RelationResolverTest extends TestCase
         self::assertNull($orphan->user);
     }
 
-    public function testInverseOneToOneLoadsLazily(): void
+    public function testNullableInverseOneToOneLoadsWithItsOwner(): void
     {
         $orm = $this->createOrm('database_one_to_one.sql');
-        $profile = $orm->getRepository(ProfileFixture::class)->findOne(['id' => 2]);
-        self::assertInstanceOf(ProfileFixture::class, $profile);
-        self::assertInstanceOf(UserWithProfileFixture::class, $profile->user);
+        $orm->getQueryProvider()->getDatabase()->getPdo()->exec("INSERT INTO profiles (id, bio) VALUES (3, 'Nobody')");
 
-        CountingStatement::$count = 0;
-        self::assertSame('Jane', $profile->user->name);
+        CountingStatement::reset();
+        $profiles = $orm->getRepository(ProfileFixture::class)->select()->orderBy('id')->fetchAll();
+        // The profiles, then all their users with one query: a proxy cannot become null.
+        self::assertSame(2, CountingStatement::$count);
+        self::assertSame('Jane', $profiles[1]->user?->name);
+        self::assertNull($profiles[2]->user);
+        self::assertSame(2, CountingStatement::$count);
+
+        $orm->getIdentityMap()->clear();
+        $orphan = $orm->getRepository(ProfileFixture::class)->findOne(['id' => 3]);
+        self::assertInstanceOf(ProfileFixture::class, $orphan);
+        self::assertNull($orphan->user);
+    }
+
+    public function testWithFillsLazyCollectionsOfLoadedOwnersAndLeavesNothingBehind(): void
+    {
+        $orm = $this->createOrm('database_users_with_address.sql');
+        $repository = $orm->getRepository(AddressWithUsersFixture::class);
+        $addresses = $repository->select()->orderBy('id')->fetchAll();
+        self::assertFalse($addresses[0]->users->isInitialized());
+
+        // The owners exist already: their lazy collections are filled in place.
+        $again = $repository->select()->with('users')->orderBy('id')->fetchAll();
+        self::assertSame($addresses, $again);
+        self::assertTrue($addresses[0]->users->isInitialized());
+
+        CountingStatement::reset();
+        self::assertCount(1, $addresses[1]->users);
+        self::assertSame(0, CountingStatement::$count);
+
+        // No preloaded entry outlives the call: a refresh reads the current rows.
+        $orm->getQueryProvider()->getDatabase()->getPdo()->exec('UPDATE users SET address_id = 1 WHERE id = 2');
+        $orm->getUnitOfWork()->refresh($addresses[0]);
+        self::assertCount(2, $addresses[0]->users);
+    }
+
+    public function testWithSkipsOwningRelationsAlreadyLoaded(): void
+    {
+        $orm = $this->createOrm('database_users_with_address.sql');
+        $orm->getRepository(AddressWithUsersFixture::class)->findAll();
+
+        CountingStatement::reset();
+        $users = $orm->getRepository(UserWithAddressFixture::class)->select()->with('address')->fetchAll();
+
+        // Only the users: every address is loaded already.
         self::assertSame(1, CountingStatement::$count);
+        self::assertSame('Springfield', $users[0]->address->city);
     }
 
     public function testWithRejectsUnknownAndNonRelationProperties(): void

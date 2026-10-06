@@ -273,7 +273,7 @@ final class User
 Primary keys:
 
 - An auto-increment key is assigned by the database on insert. An entity built by hand with its id already set is treated as an existing row and updated in full.
-- A key that is not auto-increment, such as a UUID, is yours to set before persisting. An entity with such a key that was not read from the database is inserted with it.
+- A key that is not auto-increment, such as a UUID, is yours to set before persisting. For an entity with such a key that is not managed (not read from the database, or detached by clearing the identity map), the flush checks whether its row exists, with one query per class, and updates it or inserts it.
 
 ### Unit of work
 
@@ -297,7 +297,7 @@ $unitOfWork->flush();
 3. join table changes of loaded `ManyToMany` collections, as the difference between the stored rows and the collection;
 4. deletes, children before parents, with one `DELETE ... IN` per class and level.
 
-Only the scheduled entities and the entities their cascade relations reach are written. The work runs in a transaction unless it is a single statement or a transaction is already open; if a statement fails, the transaction is rolled back and the work stays scheduled. Repository `persist()` and `delete()` flush the unit of work, including anything scheduled on it directly.
+Only the scheduled entities and the entities their cascade relations reach are written. The work runs in a transaction unless it is a single statement or a transaction is already open; if a statement fails, the transaction is rolled back, its in-memory effects (assigned ids, identity map entries, snapshots) are undone, and the work stays scheduled, so `flush()` can be retried. Repository `persist()` and `delete()` flush the unit of work, including anything scheduled on it directly.
 
 `refresh($entity)` reloads an entity's properties from the database and discards unflushed changes; readonly properties keep their value.
 

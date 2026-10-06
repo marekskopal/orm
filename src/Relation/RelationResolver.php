@@ -77,6 +77,12 @@ class RelationResolver
     /** @var array<class-string, ReflectionProperty> */
     private array $primaryProperties = [];
 
+    /** @var array<class-string, Closure(object, string): mixed> */
+    private array $propertyReaders = [];
+
+    /** @var array<class-string, list<ColumnSchema>> inverse OneToOne relations whose property accepts null */
+    private array $nullableInverseRelations = [];
+
     public function __construct(
         private readonly DatabaseInterface $database,
         private readonly SchemaProvider $schemaProvider,
@@ -128,6 +134,8 @@ class RelationResolver
         $entityClass = $entitySchema->entityClass;
         $primaryColumnName = $entitySchema->getPrimaryColumn()->columnName;
         $hydrator = $this->schemaProvider->getHydrator($entityClass);
+
+        $this->preloadNullableInverseRelations($entitySchema, $rows);
 
         // A reference to this class's slice of the identity map: one array lookup per row instead of two.
         // Nested hydrations (self-referencing relations) write through the same map, so it stays consistent.
@@ -307,6 +315,12 @@ class RelationResolver
 
         $foreignKeyColumn = $this->getInverseForeignKeyColumn($columnSchema);
 
+        // A proxy cannot turn into null, so a nullable relation is resolved now. Batch hydration
+        // preloads these relations, so this query only runs for single hydrations.
+        if ($nullable) {
+            return $this->select($targetClass)->where([$foreignKeyColumn, '=', $ownerId])->fetchOne();
+        }
+
         return $this->getReflectionClass($targetClass)->newLazyProxy(
             function () use ($targetClass, $foreignKeyColumn, $ownerId): object {
                 $entity = $this->select($targetClass)->where([$foreignKeyColumn, '=', $ownerId])->fetchOne()
@@ -389,12 +403,17 @@ class RelationResolver
             }
         }
 
+        $targetSchema = $this->schemaProvider->getEntitySchema($this->getRelationEntityClass($columnSchema));
+        $primaryColumnName = $targetSchema->getPrimaryColumn()->columnName;
+
+        // Entities already loaded need no query, unless nested paths need their rows.
+        if ($nestedPaths === []) {
+            $ids = array_filter($ids, fn(int|string $id): bool => $this->getHydrated($targetSchema->entityClass, $id) === null);
+        }
+
         if ($ids === []) {
             return;
         }
-
-        $targetSchema = $this->schemaProvider->getEntitySchema($this->getRelationEntityClass($columnSchema));
-        $primaryColumnName = $targetSchema->getPrimaryColumn()->columnName;
 
         $relatedRows = [];
         foreach (array_chunk(array_values($ids), self::BatchSize) as $chunk) {
@@ -405,9 +424,7 @@ class RelationResolver
         }
 
         $this->preload($targetSchema, $nestedPaths, $relatedRows);
-        foreach ($relatedRows as $relatedRow) {
-            $this->hydrate($targetSchema, $relatedRow);
-        }
+        $this->hydrateAll($targetSchema, $relatedRows);
     }
 
     /**
@@ -424,13 +441,25 @@ class RelationResolver
 
         /** @var array<int|string, list<object>> $grouped */
         $grouped = array_fill_keys($ownerIds, []);
-        foreach ($relatedRows as $relatedRow) {
-            $grouped[$this->getId($relatedRow, self::OwnerColumn)][] = $this->hydrate($targetSchema, $relatedRow);
+        foreach ($this->hydrateAll($targetSchema, $relatedRows) as $index => $related) {
+            $grouped[$this->getId($relatedRows[$index], self::OwnerColumn)][] = $related;
         }
 
         $key = $entitySchema->entityClass . '::' . $columnSchema->propertyName;
         foreach ($grouped as $ownerId => $items) {
-            $this->preloadedCollections[$key][$ownerId] = $items;
+            $owner = $this->getHydrated($entitySchema->entityClass, $ownerId);
+            if ($owner === null) {
+                // Consumed when the owner is hydrated.
+                $this->preloadedCollections[$key][$ownerId] = $items;
+                continue;
+            }
+
+            // The owner exists already: fill its collection if it is still lazy, and store nothing,
+            // so no entry outlives the call.
+            $collection = $this->readProperty($owner, $columnSchema->propertyName);
+            if ($collection instanceof Collection && !$collection->isInitialized()) {
+                $collection->initializeWith($items);
+            }
         }
     }
 
@@ -454,13 +483,99 @@ class RelationResolver
 
         $this->preload($targetSchema, $nestedPaths, $relatedRows);
 
+        $related = [];
+        foreach ($this->hydrateAll($targetSchema, $relatedRows) as $index => $entity) {
+            $related[$this->getId($relatedRows[$index], $foreignKeyColumn)] = $entity;
+        }
+
+        // Only owners not hydrated yet consume an entry; an existing owner keeps its value, so no
+        // entry outlives the call.
         $key = $entitySchema->entityClass . '::' . $columnSchema->propertyName;
         foreach ($ownerIds as $ownerId) {
-            $this->preloadedInverse[$key][$ownerId] = null;
+            if ($this->getHydrated($entitySchema->entityClass, $ownerId) === null) {
+                $this->preloadedInverse[$key][$ownerId] = $related[$ownerId] ?? null;
+            }
         }
-        foreach ($relatedRows as $relatedRow) {
-            $this->preloadedInverse[$key][$this->getId($relatedRow, $foreignKeyColumn)] = $this->hydrate($targetSchema, $relatedRow);
+    }
+
+    /**
+     * Loads the nullable inverse OneToOne relations of rows about to be hydrated with one query per
+     * relation, so the hydrator never queries them one row at a time.
+     *
+     * @param list<array<string, mixed>> $rows
+     */
+    private function preloadNullableInverseRelations(EntitySchema $entitySchema, array $rows): void
+    {
+        $relations = $this->getNullableInverseRelations($entitySchema);
+        if ($relations === [] || $rows === []) {
+            return;
         }
+
+        $primaryColumnName = $entitySchema->getPrimaryColumn()->columnName;
+        foreach ($relations as $columnSchema) {
+            $key = $entitySchema->entityClass . '::' . $columnSchema->propertyName;
+            $pending = array_values(array_filter(
+                $rows,
+                fn(array $row): bool => !array_key_exists($this->getId($row, $primaryColumnName), $this->preloadedInverse[$key] ?? [])
+                    && $this->getHydrated($entitySchema->entityClass, $this->getId($row, $primaryColumnName)) === null,
+            ));
+
+            if ($pending !== []) {
+                $this->preloadInverse($entitySchema, $columnSchema, [], $pending);
+            }
+        }
+    }
+
+    /** @return list<ColumnSchema> */
+    private function getNullableInverseRelations(EntitySchema $entitySchema): array
+    {
+        $entityClass = $entitySchema->entityClass;
+        if (isset($this->nullableInverseRelations[$entityClass])) {
+            return $this->nullableInverseRelations[$entityClass];
+        }
+
+        $relations = [];
+        foreach ($entitySchema->columns as $columnSchema) {
+            if ($columnSchema->relationType !== RelationEnum::OneToOneInverse) {
+                continue;
+            }
+
+            $type = new ReflectionProperty($entityClass, $columnSchema->propertyName)->getType();
+            if ($type === null || $type->allowsNull()) {
+                $relations[] = $columnSchema;
+            }
+        }
+
+        return $this->nullableInverseRelations[$entityClass] = $relations;
+    }
+
+    /**
+     * The identity-mapped entity for an id if it is hydrated, i.e. present and not an uninitialised
+     * proxy.
+     *
+     * @param class-string $entityClass
+     */
+    private function getHydrated(string $entityClass, int|string $id): ?object
+    {
+        $entity = $this->identityMap[$entityClass][$id] ?? null;
+        if ($entity === null || $this->getReflectionClass($entityClass)->isUninitializedLazyObject($entity)) {
+            return null;
+        }
+
+        return $entity;
+    }
+
+    /** Reads a property in the entity's scope, so private properties work; unset properties read as null. */
+    private function readProperty(object $entity, string $propertyName): mixed
+    {
+        $reader = $this->propertyReaders[$entity::class] ??= Closure::bind(
+            // @phpstan-ignore-next-line property.dynamicName
+            static fn(object $entity, string $propertyName): mixed => $entity->{$propertyName} ?? null,
+            null,
+            $entity::class,
+        );
+
+        return $reader($entity, $propertyName);
     }
 
     /**

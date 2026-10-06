@@ -151,6 +151,25 @@ final class IdentityMapTest extends TestCase
         self::assertTrue($cache->hasSnapshot($user));
     }
 
+    public function testReplacingRegisteredInstanceDropsItsSnapshot(): void
+    {
+        $cache = new IdentityMap();
+        $old = UserFixture::create();
+        $new = UserFixture::create();
+        $cache->add($old, 1);
+        $cache->setSnapshot($old, ['a' => 1]);
+
+        $cache->add($new, 1);
+
+        self::assertFalse($cache->hasSnapshot($old));
+        self::assertSame($new, $cache->get(UserFixture::class, 1));
+
+        // Adding the same instance again keeps its snapshot.
+        $cache->setSnapshot($new, ['a' => 2]);
+        $cache->add($new, 1);
+        self::assertSame(['a' => 2], $cache->getSnapshot($new));
+    }
+
     public function testMoveSnapshot(): void
     {
         $cache = new IdentityMap();
