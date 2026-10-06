@@ -187,8 +187,7 @@ class Select extends AbstractQuery
      */
     public function fetchOne(): ?object
     {
-        /** @var array<string, mixed>|false $result */
-        $result = $this->query($this->buildSql(limit: 1, offset: $this->offset))->fetch(mode: PDO::FETCH_ASSOC);
+        $result = $this->fetchFirstRow($this->buildSql(limit: 1, offset: $this->offset));
         if ($result === false) {
             return null;
         }
@@ -228,10 +227,17 @@ class Select extends AbstractQuery
     {
         if ($this->with === []) {
             $query = $this->query(cached: false);
-            while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
-                /** @var array<string, mixed> $row */
-                yield $this->hydrate($row);
+
+            try {
+                while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
+                    /** @var array<string, mixed> $row */
+                    yield $this->hydrate($row);
+                }
+            } finally {
+                // Also runs when the generator is abandoned early, so the open cursor stops holding locks.
+                $query->closeCursor();
             }
+
             return;
         }
 
@@ -258,8 +264,7 @@ class Select extends AbstractQuery
     /** @return array<string, mixed>|null */
     public function fetchAssocOne(): ?array
     {
-        /** @var array<string, mixed>|false $result */
-        $result = $this->query($this->buildSql(limit: 1, offset: $this->offset))->fetch(mode: PDO::FETCH_ASSOC);
+        $result = $this->fetchFirstRow($this->buildSql(limit: 1, offset: $this->offset));
         return $result === false ? null : $result;
     }
 
@@ -282,9 +287,14 @@ class Select extends AbstractQuery
     public function iterateAssoc(): Generator
     {
         $query = $this->query(cached: false);
-        while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
-            /** @var array<string, mixed> $row */
-            yield $row;
+
+        try {
+            while ($row = $query->fetch(mode: PDO::FETCH_ASSOC)) {
+                /** @var array<string, mixed> $row */
+                yield $row;
+            }
+        } finally {
+            $query->closeCursor();
         }
     }
 
@@ -295,7 +305,7 @@ class Select extends AbstractQuery
     public function count(): int
     {
         /** @var array{c: int|string} $result */
-        $result = $this->query($this->getCountSql())->fetch(mode: PDO::FETCH_ASSOC);
+        $result = $this->fetchFirstRow($this->getCountSql());
         return (int) $result['c'];
     }
 
@@ -429,6 +439,21 @@ class Select extends AbstractQuery
         $this->usedAliases[$alias] = true;
 
         return $alias;
+    }
+
+    /**
+     * Reads the first row and closes the cursor, so a partly read cached statement holds no locks.
+     *
+     * @return array<string, mixed>|false
+     */
+    private function fetchFirstRow(string $sql): array|false
+    {
+        $statement = $this->query($sql);
+        /** @var array<string, mixed>|false $row */
+        $row = $statement->fetch(mode: PDO::FETCH_ASSOC);
+        $statement->closeCursor();
+
+        return $row;
     }
 
     /** @param bool $cached false for a result read row by row, which must not share a cached statement */

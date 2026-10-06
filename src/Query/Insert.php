@@ -93,6 +93,7 @@ class Insert extends AbstractQuery
         if ($this->database->getInsertReturningClause($primaryColumnSchema->columnName) !== '') {
             /** @var list<array<string, mixed>> $rows */
             $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+            $statement->closeCursor();
             foreach ($this->entities as $i => $entity) {
                 $id = $rows[$i][$primaryColumnSchema->columnName] ?? null;
                 if (!is_int($id) && !is_string($id)) {

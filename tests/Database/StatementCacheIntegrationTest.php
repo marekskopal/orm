@@ -50,6 +50,7 @@ use MarekSkopal\ORM\Transaction\TransactionProvider;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
 use MarekSkopal\ORM\Utils\ValidationUtils;
+use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
@@ -154,9 +155,67 @@ final class StatementCacheIntegrationTest extends TestCase
         self::assertSame(['1-1', '1-2', '2-1', '2-2'], $pairs);
     }
 
-    private function createOrm(): ORM
+    public function testReadsAndWritesDoNotKeepTheDatabaseLocked(): void
     {
-        $database = new SqliteDatabase(':memory:');
+        $file = tempnam(sys_get_temp_dir(), 'orm-lock-');
+        self::assertIsString($file);
+
+        try {
+            $orm = $this->createOrm($file);
+            $repository = $orm->getRepository(UserWithAddressFixture::class);
+            $other = new PDO('sqlite:' . $file);
+            $other->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $other->setAttribute(PDO::ATTR_TIMEOUT, 0);
+            $assertWritable = static fn(): int|false => $other->exec('UPDATE users SET last_name = last_name WHERE id = 2');
+
+            $user = $repository->findOne(['id' => 1]);
+            self::assertNotNull($user);
+            self::assertSame(1, $assertWritable());
+
+            self::assertNotNull($repository->select()->where(['id' => 1])->fetchAssocOne());
+            self::assertSame(1, $assertWritable());
+
+            self::assertSame(2, $repository->select()->count());
+            self::assertSame(1, $assertWritable());
+
+            // A generator abandoned after its first row.
+            $repository->select()->orderBy('id')->iterate()->current();
+            self::assertSame(1, $assertWritable());
+
+            // A generator abandoned after its first row.
+            $repository->select()->orderBy('id')->iterateAssoc()->current();
+            self::assertSame(1, $assertWritable());
+
+            $user->lastName = 'Changed';
+            $repository->persist($user);
+            self::assertSame(1, $assertWritable());
+
+            $copy = new UserWithAddressFixture(
+                createdAt: $user->createdAt,
+                firstName: 'Copy',
+                middleName: null,
+                lastName: 'Copy',
+                email: 'copy@example.com',
+                isActive: true,
+                type: $user->type,
+                address: $user->address,
+                secondAddress: null,
+            );
+            $repository->persist($copy);
+            self::assertSame(1, $assertWritable());
+
+            $repository->delete($copy);
+            self::assertSame(1, $assertWritable());
+        } finally {
+            unset($orm, $repository, $user, $copy, $other);
+            gc_collect_cycles();
+            @unlink($file);
+        }
+    }
+
+    private function createOrm(string $file = ':memory:'): ORM
+    {
+        $database = new SqliteDatabase($file);
         $sql = file_get_contents(__DIR__ . '/../Fixtures/Database/database_users_with_address.sql');
         self::assertIsString($sql);
         foreach (array_filter(
