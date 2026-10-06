@@ -16,7 +16,7 @@ use MarekSkopal\ORM\Attribute\OneToOne;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Database\SqliteDatabase;
-use MarekSkopal\ORM\Entity\EntityCache;
+use MarekSkopal\ORM\Entity\IdentityMap;
 use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\ORM;
@@ -67,7 +67,7 @@ use SplFileInfo;
 #[UsesClass(SchemaProvider::class)]
 #[UsesClass(ExtensionMapperProvider::class)]
 #[UsesClass(RelationResolver::class)]
-#[UsesClass(EntityCache::class)]
+#[UsesClass(IdentityMap::class)]
 #[UsesClass(Collection::class)]
 #[UsesClass(ORM::class)]
 #[UsesClass(QueryProvider::class)]
@@ -175,12 +175,12 @@ final class SchemaDumperTest extends TestCase
         $compiled = $builtProvider->getHydrator(TypesFixture::class)($row, new RelationResolver(
             $database,
             $builtProvider,
-            new EntityCache(),
+            new IdentityMap(),
         ));
         $dumped = $loadedProvider->getHydrator(TypesFixture::class)($row, new RelationResolver(
             $database,
             $loadedProvider,
-            new EntityCache(),
+            new IdentityMap(),
         ));
 
         self::assertEquals($compiled, $dumped);

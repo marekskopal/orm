@@ -11,7 +11,7 @@ use MarekSkopal\ORM\Attribute\Entity;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Entity\EntityCache;
+use MarekSkopal\ORM\Entity\IdentityMap;
 use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\Relation\RelationResolver;
@@ -48,7 +48,7 @@ use ReflectionClass;
 #[UsesClass(ExtractorGenerator::class)]
 #[UsesClass(CodeExporter::class)]
 #[UsesClass(RelationResolver::class)]
-#[UsesClass(EntityCache::class)]
+#[UsesClass(IdentityMap::class)]
 #[UsesClass(Collection::class)]
 #[UsesClass(Column::class)]
 #[UsesClass(ColumnEnum::class)]
@@ -80,7 +80,7 @@ final class SchemaCompilerTest extends TestCase
         $this->relationResolver = new RelationResolver(
             $this::createStub(DatabaseInterface::class),
             $this->schemaProvider,
-            new EntityCache(),
+            new IdentityMap(),
         );
     }
 

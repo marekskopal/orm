@@ -19,10 +19,13 @@ final class SchemaCompiler
 
     private readonly ExtractorGenerator $extractorGenerator;
 
+    private readonly NormalizerGenerator $normalizerGenerator;
+
     public function __construct(private readonly SchemaProvider $schemaProvider)
     {
-        $this->hydratorGenerator = new HydratorGenerator();
+        $this->hydratorGenerator = new HydratorGenerator($schemaProvider);
         $this->extractorGenerator = new ExtractorGenerator($schemaProvider);
+        $this->normalizerGenerator = new NormalizerGenerator($this->hydratorGenerator, $this->extractorGenerator);
     }
 
     /**
@@ -46,6 +49,18 @@ final class SchemaCompiler
     {
         /** @var Closure(object, ExtensionMapperProvider): array<string, string|int|float|null> $closure */
         $closure = $this->evaluate($this->extractorGenerator->generate($this->schemaProvider->getEntitySchema($entityClass)));
+
+        return $closure;
+    }
+
+    /**
+     * @param class-string $entityClass
+     * @return Closure(list<mixed>, ExtensionMapperProvider): array<string, string|int|float|null>
+     */
+    public function compileNormalizer(string $entityClass): Closure
+    {
+        /** @var Closure(list<mixed>, ExtensionMapperProvider): array<string, string|int|float|null> $closure */
+        $closure = $this->evaluate($this->normalizerGenerator->generate($this->schemaProvider->getEntitySchema($entityClass)));
 
         return $closure;
     }

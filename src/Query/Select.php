@@ -182,7 +182,10 @@ class Select extends AbstractQuery
         return $this;
     }
 
-    /** @return T|null */
+    /**
+     * @phpstan-impure
+     * @return T|null
+     */
     public function fetchOne(): ?object
     {
         /** @var array<string, mixed>|false $result */

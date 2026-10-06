@@ -1,0 +1,16 @@
+static function (array $s, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'note' => $s[0] === null ? null : ((string) $s[0]),
+        'name' => $s[1] === null ? null : ((string) $s[1]),
+        'count' => $s[2] === null ? null : ((int) $s[2]),
+        'ratio' => $s[3] === null ? null : ((float) $s[3]),
+        'enabled' => $s[4] === null ? null : (((bool) $s[4]) ? 1 : 0),
+        'uuid' => $s[5] === null ? null : (string) (\Ramsey\Uuid\Uuid::fromString((string) $s[5])),
+        'created_at' => $s[6] === null ? null : ((\is_int(($v = $s[6])) ? new \DateTime('@' . $v) : new \DateTime($v)))->format('Y-m-d H:i:s'),
+        'day' => $s[7] === null ? null : ((\is_int(($v = $s[7])) ? new \DateTimeImmutable('@' . $v) : new \DateTimeImmutable($v)))->format('Y-m-d'),
+        'type' => $s[8] === null ? null : (\MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum::from((string) $s[8]))->value,
+        'level' => $s[9] === null ? null : (\MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserLevelEnum::from((int) $s[9]))->value,
+        'price' => $s[10] === null ? null : $x->mapToColumn(\MarekSkopal\ORM\Tests\Fixtures\Entity\TypesFixture::class, 'price', ($x->mapToProperty(\MarekSkopal\ORM\Tests\Fixtures\Entity\TypesFixture::class, 'price', $s[10]))),
+        'secret' => $s[11] === null ? null : ((string) $s[11]),
+    ];
+}

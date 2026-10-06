@@ -209,7 +209,7 @@ $author = $orm->getRepository(Author::class)->findOne(['id' => 1]);
 $orm->getRepository(Author::class)->delete($author);
 ```
 
-Cascade is supported on `OneToMany`, `ManyToOne`, `OneToOne`, and `ManyToMany` relations. For `ManyToMany`, cascade remove deletes the join table rows; cascade persist syncs the join table after persisting.
+Cascade is supported on `OneToMany`, `ManyToOne`, `OneToOne`, and `ManyToMany` relations, and it is followed recursively: a persisted post's author is persisted, and so is that author's profile if its relation cascades too. Relations that were never loaded are skipped, since they cannot hold changes. For `ManyToMany`, cascade persist brings the join table in line with the collection; removing an entity always deletes its join table rows, but never the entities on the other side.
 
 ### Dates
 
@@ -263,6 +263,41 @@ final class User
 
 }
 ```
+
+## Persisting and deleting
+
+`persist()` and `delete()` on a repository write right away. An entity read from the database (or written earlier) is updated, and only the columns that changed since then are written; an unchanged entity costs no query. A new entity is inserted and becomes the instance `findOne()` returns for its id. A deleted entity is forgotten, so a later `findOne()` for its id does not return it.
+
+Primary keys:
+
+- An auto-increment key is assigned by the database on insert. An entity built by hand with its id already set is treated as an existing row and updated in full.
+- A key that is not auto-increment, such as a UUID, is yours to set before persisting. An entity with such a key that was not read from the database is inserted with it.
+
+### Unit of work
+
+To write many entities at once, schedule them on the unit of work and flush:
+
+```php
+$unitOfWork = $orm->getUnitOfWork();
+
+foreach ($rows as $row) {
+    $unitOfWork->persist(new User($row['name'], $row['email']));
+}
+$unitOfWork->remove($obsoleteUser);
+
+$unitOfWork->flush();
+```
+
+`flush()` writes, in this order:
+
+1. inserts, parents before the children that reference them, with one multi-row `INSERT` per class and level;
+2. updates of the changed columns only;
+3. join table changes of loaded `ManyToMany` collections, as the difference between the stored rows and the collection;
+4. deletes, children before parents, with one `DELETE ... IN` per class and level.
+
+Only the scheduled entities and the entities their cascade relations reach are written. The work runs in a transaction unless it is a single statement or a transaction is already open; if a statement fails, the transaction is rolled back and the work stays scheduled. Repository `persist()` and `delete()` flush the unit of work, including anything scheduled on it directly.
+
+`refresh($entity)` reloads an entity's properties from the database and discards unflushed changes; readonly properties keep their value.
 
 ## Queries
 
@@ -477,6 +512,8 @@ $queryProvider->update(User::class)
     ->execute();
 ```
 
+The builder writes every updatable column. Pass `values(['email' => 'jane@example.com'])` to write only the given columns.
+
 ### Delete
 
 You can delete entities using `Delete` builder.
@@ -558,10 +595,10 @@ The file contains the schema and the generated code. With opcache enabled it is 
 
 ## Long-running applications
 
-If you are using ORM in long-running PHP applications like FrankenPHP, Roadrunner or Swoole, you should call `clear` method on ORM cache after each request to free memory.
+If you are using ORM in long-running PHP applications like FrankenPHP, Roadrunner or Swoole, clear the identity map after each request. It holds every entity read or written, together with the snapshot used to detect changes, until it is cleared.
 
 ```php
-$orm->getEntityCache()->clear();
+$orm->getIdentityMap()->clear();
 ```
 
 ## Security considerations

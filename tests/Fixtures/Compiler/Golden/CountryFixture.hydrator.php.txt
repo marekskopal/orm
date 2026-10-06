@@ -2,5 +2,6 @@
     $p_id = (int) ($row['id'] ?? throw new \RuntimeException('Column "id" is not nullable'));
     $p_name = (string) ($row['name'] ?? throw new \RuntimeException('Column "name" is not nullable'));
     $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\CountryFixture(id: $p_id, name: $p_name);
+    $r->snapshots[\spl_object_id($e)] = [$row['name'] ?? null];
     return $e;
 }, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\CountryFixture::class)

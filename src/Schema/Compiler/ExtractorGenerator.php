@@ -67,14 +67,20 @@ final class ExtractorGenerator
         );
     }
 
-    private function convert(EntitySchema $entitySchema, ColumnSchema $columnSchema, string $source): string
+    /**
+     * Converts the property value in $source to its database value. A relation column converts the
+     * related entity to its primary key, unless $relationAsKey says $source already is that key.
+     */
+    public function convert(EntitySchema $entitySchema, ColumnSchema $columnSchema, string $source, bool $relationAsKey = false): string
     {
         if ($columnSchema->relationType === RelationEnum::ManyToOne || $columnSchema->relationType === RelationEnum::OneToOne) {
             $relationEntityClass = $columnSchema->relationEntityClass ?? throw new \LogicException(
                 sprintf('Relation "%s" has no entity class.', $columnSchema->propertyName),
             );
+            $targetSchema = $this->schemaProvider->getEntitySchema($relationEntityClass);
+            $primaryColumn = $targetSchema->getPrimaryColumn();
 
-            return $source . '->' . $this->schemaProvider->getPrimaryColumnSchema($relationEntityClass)->propertyName;
+            return $this->convert($targetSchema, $primaryColumn, $relationAsKey ? $source : $source . '->' . $primaryColumn->propertyName);
         }
 
         return match ($columnSchema->propertyType) {

@@ -6,7 +6,6 @@ namespace MarekSkopal\ORM\Query;
 
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Exception\ExceptionFactory;
-use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use PDOStatement;
@@ -16,6 +15,9 @@ class Update extends AbstractQuery
 {
     /** @var T */
     private object $entity;
+
+    /** @var array<string, string|int|float|null>|null column name => value; null writes every updatable column */
+    private ?array $values = null;
 
     /** @param class-string<T> $entityClass */
     public function __construct(
@@ -39,8 +41,25 @@ class Update extends AbstractQuery
         return $this;
     }
 
+    /**
+     * Restricts the update to the given columns, e.g. the ones that changed since the entity was read.
+     *
+     * @param array<string, string|int|float|null> $values column name => database value
+     * @return self<T>
+     */
+    public function values(array $values): self
+    {
+        $this->values = $values;
+
+        return $this;
+    }
+
     public function execute(): void
     {
+        if ($this->values === []) {
+            return;
+        }
+
         $this->query();
     }
 
@@ -54,8 +73,8 @@ class Update extends AbstractQuery
             'UPDATE',
             $this->escape($this->schema->table),
             'SET',
-            $this->getSetQuery(),
-            $this->getWhereQuery(),
+            implode(',', array_map(fn(string $column): string => $this->escape($column) . '=?', array_keys($this->getColumnValues()))),
+            'WHERE ' . $this->escape($this->schema->getPrimaryColumn()->columnName) . '=?',
         ]);
     }
 
@@ -64,37 +83,31 @@ class Update extends AbstractQuery
         try {
             $sql = $this->getSql();
             $pdoStatement = $this->pdo->prepare($sql);
-            $pdoStatement->execute($this->getValues());
+            $pdoStatement->execute([...array_values($this->getColumnValues()), $this->schemaProvider->getPrimaryKeyValue($this->entity)]);
             return $pdoStatement;
         } catch (\PDOException $e) {
             throw ExceptionFactory::create($e, $sql);
         }
     }
 
-    private function getSetQuery(): string
+    /** @return array<string, string|int|float|null> */
+    private function getColumnValues(): array
     {
-        return implode(',', array_map(
-            fn(ColumnSchema $column): string => $this->escape($column->columnName) . '=?',
-            $this->schema->getInsertableColumns(),
-        ));
+        if ($this->values !== null) {
+            return $this->values;
+        }
+
+        return array_intersect_key($this->schemaProvider->extract($this->entity), $this->getUpdatableColumnNames());
     }
 
-    private function getWhereQuery(): string
+    /** @return array<string, true> */
+    private function getUpdatableColumnNames(): array
     {
-        $primaryColumnSchema = $this->schema->getPrimaryColumn();
+        $columnNames = [];
+        foreach ($this->schema->getUpdatableColumns() as $column) {
+            $columnNames[$column->columnName] = true;
+        }
 
-        return 'WHERE ' . $this->escape($primaryColumnSchema->columnName) . '=?';
-    }
-
-    /** @return list<string|int|float|null> */
-    private function getValues(): array
-    {
-        $primaryColumnSchema = $this->schema->getPrimaryColumn();
-
-        $values = array_values($this->schemaProvider->extract($this->entity));
-        // @phpstan-ignore-next-line property.dynamicName
-        $values[] = (int) $this->entity->{$primaryColumnSchema->propertyName};
-
-        return $values;
+        return $columnNames;
     }
 }

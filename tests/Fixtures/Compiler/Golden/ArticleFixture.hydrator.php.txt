@@ -3,5 +3,6 @@
     $p_title = (string) ($row['title'] ?? throw new \RuntimeException('Column "title" is not nullable'));
     $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\ArticleFixture(title: $p_title);
     $e->id = $p_id;
+    $r->snapshots[\spl_object_id($e)] = [$row['title'] ?? null];
     return $e;
 }, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\ArticleFixture::class)

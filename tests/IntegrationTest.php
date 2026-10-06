@@ -13,7 +13,7 @@ use MarekSkopal\ORM\Attribute\OneToMany;
 use MarekSkopal\ORM\Attribute\OneToOne;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\SqliteDatabase;
-use MarekSkopal\ORM\Entity\EntityCache;
+use MarekSkopal\ORM\Entity\IdentityMap;
 use MarekSkopal\ORM\Exception\TransactionException;
 use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
@@ -74,7 +74,7 @@ use ReflectionClass;
 #[UsesClass(OneToOne::class)]
 #[UsesClass(AbstractDatabase::class)]
 #[UsesClass(SqliteDatabase::class)]
-#[UsesClass(EntityCache::class)]
+#[UsesClass(IdentityMap::class)]
 #[UsesClass(QueryProvider::class)]
 #[UsesClass(Select::class)]
 #[UsesClass(SelectFactory::class)]
@@ -330,7 +330,7 @@ final class IntegrationTest extends TestCase
         $reflection = new ReflectionClass(AddressWithUsersFixture::class);
         self::assertTrue($reflection->isUninitializedLazyObject($user->address));
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $user = $repository->findOne(['id' => 1]);
         self::assertInstanceOf(UserWithAddressFixture::class, $user);
         self::assertSame('Johnny', $user->firstName);
@@ -362,14 +362,14 @@ final class IntegrationTest extends TestCase
 
         $repository = $orm->getRepository(UserWithAddressFixture::class);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $users = $repository->select()->with('address')->fetchAll();
         self::assertCount(2, $users);
 
-        // Eager loading must populate EntityCache before per-entity hydration,
+        // Eager loading must populate the identity map before per-entity hydration,
         // so the related Address is the cached real entity (not a lazy proxy).
-        $cachedAddress1 = $orm->getEntityCache()->getEntity(AddressWithUsersFixture::class, 1);
-        $cachedAddress2 = $orm->getEntityCache()->getEntity(AddressWithUsersFixture::class, 2);
+        $cachedAddress1 = $orm->getIdentityMap()->get(AddressWithUsersFixture::class, 1);
+        $cachedAddress2 = $orm->getIdentityMap()->get(AddressWithUsersFixture::class, 2);
         self::assertInstanceOf(AddressWithUsersFixture::class, $cachedAddress1);
         self::assertInstanceOf(AddressWithUsersFixture::class, $cachedAddress2);
         self::assertSame($cachedAddress1, $users[0]->address);
@@ -378,12 +378,12 @@ final class IntegrationTest extends TestCase
         self::assertSame('Shelbyville', $users[1]->address->city);
 
         // iterate() with eager loading buffers rows, preloads relations, then yields the same entities.
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $streamedUsers = iterator_to_array($repository->select()->with('address')->iterate(), false);
         self::assertCount(2, $streamedUsers);
         self::assertInstanceOf(
             AddressWithUsersFixture::class,
-            $orm->getEntityCache()->getEntity(AddressWithUsersFixture::class, 1),
+            $orm->getIdentityMap()->get(AddressWithUsersFixture::class, 1),
         );
         self::assertSame('Springfield', $streamedUsers[0]->address->city);
     }
@@ -845,7 +845,7 @@ final class IntegrationTest extends TestCase
         $article->title = 'Updated Article';
         $repository->persist($article);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $articles = $repository->findAll();
         self::assertCount(1, $articles);
         self::assertSame('Updated Article', $articles[0]->title);
@@ -866,7 +866,7 @@ final class IntegrationTest extends TestCase
         $authorRepository->persist($author);
 
         // Reload to get initialized collection
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $author = $authorRepository->findOne(['id' => 1]);
         self::assertInstanceOf(AuthorFixture::class, $author);
 
@@ -886,7 +886,7 @@ final class IntegrationTest extends TestCase
         $post1->author = $author;
         $authorRepository->persist($author);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $author = $authorRepository->findOne(['id' => 1]);
         self::assertInstanceOf(AuthorFixture::class, $author);
 
@@ -897,7 +897,7 @@ final class IntegrationTest extends TestCase
         // must not load it (and must not rewrite the unchanged posts).
         self::assertFalse($author->posts->isInitialized());
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $author = $authorRepository->findOne(['id' => 1]);
         self::assertInstanceOf(AuthorFixture::class, $author);
         self::assertSame('Johnny', $author->name);
@@ -915,14 +915,14 @@ final class IntegrationTest extends TestCase
         $post1->author = $author;
         $authorRepository->persist($author);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $author = $authorRepository->findOne(['id' => 1]);
         self::assertInstanceOf(AuthorFixture::class, $author);
 
         $author->posts[0]->title = 'Updated Post';
         $authorRepository->persist($author);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $post = $postRepository->findOne(['id' => 1]);
         self::assertInstanceOf(PostFixture::class, $post);
         self::assertSame('Updated Post', $post->title);
@@ -939,7 +939,7 @@ final class IntegrationTest extends TestCase
         $post1->author = $author;
         $authorRepository->persist($author);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $post = $postRepository->findOne(['id' => 1]);
         self::assertInstanceOf(PostFixture::class, $post);
 
@@ -949,7 +949,7 @@ final class IntegrationTest extends TestCase
         // The author proxy was never accessed, so the cascade must not initialize it.
         self::assertTrue(new ReflectionClass(AuthorFixture::class)->isUninitializedLazyObject($post->author));
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $post = $postRepository->findOne(['id' => 1]);
         self::assertInstanceOf(PostFixture::class, $post);
         self::assertSame('Updated Post', $post->title);
@@ -997,7 +997,7 @@ final class IntegrationTest extends TestCase
         // load it or rewrite the join table.
         self::assertFalse($user->tags->isInitialized());
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $user = $repository->findOne(['id' => 1]);
         self::assertInstanceOf(UserWithTagsFixture::class, $user);
         self::assertSame('Johnny', $user->name);
@@ -1018,7 +1018,7 @@ final class IntegrationTest extends TestCase
         $user->tags[] = $tag;
         $userRepository->persist($user);
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $user = $userRepository->findOne(['id' => 1]);
         self::assertInstanceOf(UserWithTagsFixture::class, $user);
         self::assertCount(3, $user->tags);
@@ -1059,7 +1059,7 @@ final class IntegrationTest extends TestCase
         self::assertNotNull($user);
         self::assertTrue(new ReflectionClass(UserWithProfileFixture::class)->isUninitializedLazyObject($user));
 
-        $orm->getEntityCache()->clear();
+        $orm->getIdentityMap()->clear();
         $profile = $repository->findOne(['id' => 1]);
         self::assertInstanceOf(ProfileFixture::class, $profile);
         self::assertSame('Updated bio', $profile->bio);

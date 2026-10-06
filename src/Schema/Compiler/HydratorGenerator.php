@@ -11,6 +11,7 @@ use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
+use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use Ramsey\Uuid\Uuid;
 use ReflectionClass;
 use ReflectionEnum;
@@ -22,6 +23,10 @@ use ReflectionEnum;
  */
 final class HydratorGenerator
 {
+    public function __construct(private readonly SchemaProvider $schemaProvider)
+    {
+    }
+
     public function generate(EntitySchema $entitySchema): string
     {
         $entityClass = CodeExporter::className($entitySchema->entityClass);
@@ -66,6 +71,13 @@ final class HydratorGenerator
                 $lines[] = '$e->' . $propertyName . ' = $p_' . $propertyName . ';';
             }
         }
+
+        // The raw values of the updatable columns, for change detection on flush.
+        $snapshot = [];
+        foreach ($entitySchema->getUpdatableColumns() as $columnSchema) {
+            $snapshot[] = '$row[' . CodeExporter::value($columnSchema->columnName) . '] ?? null';
+        }
+        $lines[] = '$r->snapshots[\\spl_object_id($e)] = [' . implode(', ', $snapshot) . '];';
         $lines[] = 'return $e;';
 
         return '\\Closure::bind(static function (array $row, ' . CodeExporter::className(RelationResolver::class) . ' $r): '
@@ -114,15 +126,27 @@ final class HydratorGenerator
         );
     }
 
-    /** Converts the raw value in $source; $source is evaluated exactly once. */
-    private function convert(EntitySchema $entitySchema, ColumnSchema $columnSchema, string $source): string
+    /**
+     * Converts the raw database value in $source to the property value; $source is evaluated exactly
+     * once. A relation column converts to the related entity (through $r) unless $relationAsKey, in
+     * which case it converts to the related primary key value.
+     */
+    public function convert(
+        EntitySchema $entitySchema,
+        ColumnSchema $columnSchema,
+        string $source,
+        string $extensionCall = '$r->mapExtension',
+        bool $relationAsKey = false,
+    ): string
     {
         if ($columnSchema->relationType === RelationEnum::ManyToOne || $columnSchema->relationType === RelationEnum::OneToOne) {
             $relationEntityClass = $columnSchema->relationEntityClass ?? throw new \LogicException(
                 sprintf('Relation "%s" has no entity class.', $columnSchema->propertyName),
             );
+            $targetSchema = $this->schemaProvider->getEntitySchema($relationEntityClass);
+            $key = $this->convert($targetSchema, $targetSchema->getPrimaryColumn(), $source, $extensionCall);
 
-            return '$r->manyToOne(' . CodeExporter::className($relationEntityClass) . '::class, (int) ' . $source . ')';
+            return $relationAsKey ? $key : '$r->manyToOne(' . CodeExporter::className($relationEntityClass) . '::class, ' . $key . ')';
         }
 
         return match ($columnSchema->propertyType) {
@@ -134,7 +158,7 @@ final class HydratorGenerator
             PropertyTypeEnum::DateTime => $this->convertDateTime(DateTime::class, $source),
             PropertyTypeEnum::DateTimeImmutable => $this->convertDateTime(DateTimeImmutable::class, $source),
             PropertyTypeEnum::Enum => $this->convertEnum($columnSchema, $source),
-            PropertyTypeEnum::Extension => '$r->mapExtension(' . CodeExporter::className($entitySchema->entityClass) . '::class, '
+            PropertyTypeEnum::Extension => $extensionCall . '(' . CodeExporter::className($entitySchema->entityClass) . '::class, '
                 . CodeExporter::value($columnSchema->propertyName) . ', ' . $source . ')',
             PropertyTypeEnum::Relation => throw new \LogicException(
                 sprintf('Relation "%s" has an unsupported relation type.', $columnSchema->propertyName),

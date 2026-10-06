@@ -12,7 +12,7 @@ use MarekSkopal\ORM\Attribute\OneToMany;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Database\PostgresDatabase;
-use MarekSkopal\ORM\Entity\EntityCache;
+use MarekSkopal\ORM\Entity\IdentityMap;
 use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\ORM;
@@ -55,7 +55,7 @@ use PHPUnit\Framework\Attributes\UsesClass;
 #[UsesClass(Entity::class)]
 #[UsesClass(ManyToOne::class)]
 #[UsesClass(AbstractDatabase::class)]
-#[UsesClass(EntityCache::class)]
+#[UsesClass(IdentityMap::class)]
 #[UsesClass(ORM::class)]
 #[UsesClass(QueryProvider::class)]
 #[UsesClass(Select::class)]

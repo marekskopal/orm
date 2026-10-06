@@ -6,5 +6,6 @@
     $p_country = (string) ($row['country'] ?? throw new \RuntimeException('Column "country" is not nullable'));
     $p_users = $r->collection('MarekSkopal\\ORM\\Tests\\Fixtures\\Entity\\AddressWithUsersFixture::users', $id);
     $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture(id: $p_id, street: $p_street, city: $p_city, country: $p_country, users: $p_users);
+    $r->snapshots[\spl_object_id($e)] = [$row['street'] ?? null, $row['city'] ?? null, $row['country'] ?? null];
     return $e;
 }, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture::class)

@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Select::with()` accepts every relation kind (`OneToMany`, `ManyToMany` and both inverse sides, besides `ManyToOne` and `OneToOne`) and dotted paths such as `posts.tags`, with one query per relation level. `fetchOne()` honours `with()` too.
 - Lazy `ManyToOne` and `OneToOne` relations load in batches: when one proxy is read, every pending proxy of the same class loads with one `WHERE id IN (...)` query.
 - `Collection::isInitialized()` tells whether a lazy collection has been loaded.
+- `UnitOfWork`, available from `ORM::getUnitOfWork()`: `persist()` and `remove()` schedule entities, `flush()` writes them. Inserts of a class are grouped into multi-row statements and deletes into one `DELETE ... IN`, ordered so parents are inserted before their children and deleted after them. 2,000 new entities are written with one statement. `refresh()` reloads an entity and discards unflushed changes.
+- Change detection: an update writes only the columns that changed since the entity was read or last written, and an unchanged entity costs no query. It relies on a snapshot recorded at hydration, which adds about 3 ms and 45 bytes per mapped column per 20,000 hydrated entities.
+- Entities with UUID or other non-integer primary keys, including UUID foreign keys, can be read, related and written.
+- `Update::values()` restricts an update to the given columns.
 
 ### Changed
 - **Breaking:** `Select::fetchAll()` and `Select::fetchAssocAll()` return a `list` instead of a one-shot `Iterator`, so the result can be counted, indexed and iterated more than once. Code that streamed large results should switch to `iterate()` or `iterateAssoc()`. Wrapping calls in `iterator_to_array()` no longer works and should be removed.
@@ -32,7 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Update` binds positional parameters instead of named ones.
 - A lazy `ManyToMany` collection loads with one query joining the join table instead of two queries.
 - A `NULL` foreign key on a nullable `OneToOne` owning side hydrates as `null`. Previously it produced a proxy for id `0`.
-- `EntityCache` accepts string ids as well as integers.
+- **Breaking:** `EntityCache` is renamed `IdentityMap`, and `ORM::getEntityCache()` is now `ORM::getIdentityMap()`. Its methods are `get()`, `add()`, `contains()`, `remove()` and `clear()`, and keys are normalised so integer, string and UUID keys work. Long-running applications call `$orm->getIdentityMap()->clear()` after each request.
+- **Breaking:** repository `persist()` and `delete()` go through the unit of work: they flush it, including anything scheduled on it directly, and run in a transaction when they write more than one statement. `AbstractRepository` takes a `UnitOfWork` as a fourth constructor argument, and `Delete` takes a `SchemaProvider` as a fifth.
+- **Breaking:** an unmanaged entity with a primary key that is not auto-increment is inserted with that key; previously it was sent as an `UPDATE`, which wrote nothing. A primary key that is not auto-increment is included in inserts and never overwritten from `lastInsertId()`.
+- Cascades are followed recursively, and a persisted entity is registered in the identity map; a deleted one is evicted, so `findOne()` never returns a deleted instance.
+- `ManyToMany` join rows are synced by difference instead of delete-all and insert-each. Deleting an entity deletes the join rows referencing it from either side of a `ManyToMany` relation, with or without cascade.
 
 ### Removed
 - **Breaking:** `EntityFactory`, `EntityReflection` and `Mapper` are replaced by the generated hydrators and extractors and by `RelationResolver`. Custom extension mappers implementing `MapperInterface` keep working.

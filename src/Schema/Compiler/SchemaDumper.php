@@ -19,8 +19,9 @@ final class SchemaDumper
     public function dump(Schema $schema): string
     {
         $schemaProvider = new SchemaProvider($schema);
-        $hydratorGenerator = new HydratorGenerator();
+        $hydratorGenerator = new HydratorGenerator($schemaProvider);
         $extractorGenerator = new ExtractorGenerator($schemaProvider);
+        $normalizerGenerator = new NormalizerGenerator($hydratorGenerator, $extractorGenerator);
 
         $entities = [];
         foreach ($schema->entities as $entityClass => $entitySchema) {
@@ -30,6 +31,7 @@ final class SchemaDumper
                     $entitySchema,
                     $hydratorGenerator->generate($entitySchema),
                     $extractorGenerator->generate($entitySchema),
+                    $normalizerGenerator->generate($entitySchema),
                 ) . ')';
         }
 
@@ -37,7 +39,7 @@ final class SchemaDumper
             . CodeExporter::className(Schema::class) . "([\n" . implode(",\n", $entities) . ",\n]);\n";
     }
 
-    private function entitySchema(EntitySchema $entitySchema, string $hydrator, string $extractor): string
+    private function entitySchema(EntitySchema $entitySchema, string $hydrator, string $extractor, string $normalizer): string
     {
         $columns = [];
         foreach ($entitySchema->columns as $propertyName => $columnSchema) {
@@ -52,6 +54,7 @@ final class SchemaDumper
             . "    columns: [\n" . implode("\n", $columns) . "\n    ],\n"
             . '    hydrator: ' . $this->indent($hydrator) . ",\n"
             . '    extractor: ' . $this->indent($extractor) . ",\n"
+            . '    normalizer: ' . $this->indent($normalizer) . ",\n"
             . ')';
     }
 

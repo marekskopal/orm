@@ -4,16 +4,11 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Repository;
 
-use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
-use MarekSkopal\ORM\Schema\ColumnSchema;
-use MarekSkopal\ORM\Schema\Enum\CascadeEnum;
-use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
-use MarekSkopal\ORM\Utils\QuoteUtils;
-use ReflectionClass;
+use MarekSkopal\ORM\UnitOfWork\UnitOfWork;
 
 /**
  * @template T of object
@@ -27,6 +22,7 @@ abstract class AbstractRepository implements RepositoryInterface
         protected readonly string $entityClass,
         protected readonly QueryProvider $queryProvider,
         protected readonly SchemaProvider $schemaProvider,
+        protected readonly UnitOfWork $unitOfWork,
     ) {
     }
 
@@ -37,6 +33,7 @@ abstract class AbstractRepository implements RepositoryInterface
     }
 
     /**
+     * @phpstan-impure
      * @param Where $where
      * @return list<T>
      */
@@ -46,6 +43,7 @@ abstract class AbstractRepository implements RepositoryInterface
     }
 
     /**
+     * @phpstan-impure
      * @param Where $where
      * @return T|null
      */
@@ -54,196 +52,25 @@ abstract class AbstractRepository implements RepositoryInterface
         return $this->select()->where($where)->fetchOne();
     }
 
-    /** @param T $entity */
+    /**
+     * Inserts or updates the entity and its cascade-persist relations right away. Only changed
+     * columns are written. This flushes the unit of work, including work scheduled on it directly.
+     *
+     * @param T $entity
+     */
     public function persist(object $entity): void
     {
-        $entitySchema = $this->schemaProvider->getEntitySchema($entity::class);
-
-        $owningRelations = [];
-        $collectionRelations = [];
-        foreach ($entitySchema->columns as $columnSchema) {
-            if (!in_array(CascadeEnum::Persist, $columnSchema->cascade, true)) {
-                continue;
-            }
-
-            if (
-                $columnSchema->relationType === RelationEnum::ManyToOne
-                || $columnSchema->relationType === RelationEnum::OneToOne
-            ) {
-                $owningRelations[] = $columnSchema;
-            } elseif (
-                $columnSchema->relationType === RelationEnum::OneToMany
-                || $columnSchema->relationType === RelationEnum::OneToOneInverse
-                || $columnSchema->relationType === RelationEnum::ManyToMany
-            ) {
-                $collectionRelations[] = $columnSchema;
-            }
-        }
-
-        // Cascade persist owning-side relations before the entity (so their PKs are available for FK columns)
-        foreach ($owningRelations as $columnSchema) {
-            // @phpstan-ignore-next-line property.dynamicName
-            $related = $entity->{$columnSchema->propertyName};
-            if (!is_object($related) || $this->isUninitializedLazyObject($related)) {
-                continue;
-            }
-
-            $this->persistEntity($related);
-        }
-
-        // Persist the entity itself
-        $primaryColumnSchema = $entitySchema->getPrimaryColumn();
-        // @phpstan-ignore-next-line property.dynamicName
-        if (!isset($entity->{$primaryColumnSchema->propertyName})) {
-            $this->queryProvider->insert($entity::class)->entity($entity)->execute();
-        } else {
-            $this->queryProvider->update($entity::class)->entity($entity)->execute();
-        }
-
-        // Cascade persist collection-side relations after the entity (entity PK is now available)
-        foreach ($collectionRelations as $columnSchema) {
-            // @phpstan-ignore-next-line property.dynamicName
-            $related = $entity->{$columnSchema->propertyName};
-
-            // An uninitialized lazy relation cannot contain user changes, so persisting
-            // it would only load and rewrite unchanged rows.
-            if (!is_object($related) || $this->isUninitializedLazyObject($related)) {
-                continue;
-            }
-
-            if ($columnSchema->relationType === RelationEnum::OneToOneInverse) {
-                $this->persistEntity($related);
-                continue;
-            }
-
-            if (!is_iterable($related)) {
-                continue;
-            }
-
-            foreach ($related as $relatedItem) {
-                // @phpstan-ignore-next-line argument.type
-                $this->persistEntity($relatedItem);
-            }
-
-            if ($columnSchema->relationType === RelationEnum::ManyToMany) {
-                $this->syncManyToManyJoinTable($entity, $columnSchema);
-            }
-        }
+        $this->unitOfWork->persist($entity)->flush();
     }
 
-    /** @param T $entity */
+    /**
+     * Deletes the entity and its cascade-remove relations right away. This flushes the unit of
+     * work, including work scheduled on it directly.
+     *
+     * @param T $entity
+     */
     public function delete(object $entity): void
     {
-        $entitySchema = $this->schemaProvider->getEntitySchema($entity::class);
-
-        // Cascade remove collection-side relations before the entity (avoid FK constraint violations)
-        foreach ($entitySchema->columns as $columnSchema) {
-            if (!in_array(CascadeEnum::Remove, $columnSchema->cascade, true)) {
-                continue;
-            }
-
-            if ($columnSchema->relationType === RelationEnum::OneToMany) {
-                // @phpstan-ignore-next-line property.dynamicName
-                foreach ($entity->{$columnSchema->propertyName} as $related) {
-                    // @phpstan-ignore-next-line argument.type
-                    $this->deleteEntity($related);
-                }
-            }
-
-            if ($columnSchema->relationType === RelationEnum::OneToOneInverse) {
-                // @phpstan-ignore-next-line property.dynamicName
-                $related = $entity->{$columnSchema->propertyName};
-                if ($related !== null) {
-                    // @phpstan-ignore-next-line argument.type
-                    $this->deleteEntity($related);
-                }
-            }
-
-            if ($columnSchema->relationType === RelationEnum::ManyToMany) {
-                $this->deleteManyToManyJoinRows($entity, $columnSchema);
-            }
-        }
-
-        $this->queryProvider->delete($entity::class)->entity($entity)->execute();
-    }
-
-    private function isUninitializedLazyObject(object $object): bool
-    {
-        if ($object instanceof Collection) {
-            return !$object->isInitialized();
-        }
-
-        return new ReflectionClass($object)->isUninitializedLazyObject($object);
-    }
-
-    private function persistEntity(object $entity): void
-    {
-        $primaryColumnSchema = $this->schemaProvider->getPrimaryColumnSchema($entity::class);
-        // @phpstan-ignore-next-line property.dynamicName
-        if (!isset($entity->{$primaryColumnSchema->propertyName})) {
-            $this->queryProvider->insert($entity::class)->entity($entity)->execute();
-        } else {
-            $this->queryProvider->update($entity::class)->entity($entity)->execute();
-        }
-    }
-
-    private function deleteEntity(object $entity): void
-    {
-        $this->queryProvider->delete($entity::class)->entity($entity)->execute();
-    }
-
-    private function syncManyToManyJoinTable(object $entity, ColumnSchema $columnSchema): void
-    {
-        $joinTable = $columnSchema->joinTable ?? throw new \RuntimeException('joinTable not set on ManyToMany column');
-        $joinColumn = $columnSchema->joinColumn ?? throw new \RuntimeException('joinColumn not set on ManyToMany column');
-        $inverseJoinColumn = $columnSchema->inverseJoinColumn ?? throw new \RuntimeException(
-            'inverseJoinColumn not set on ManyToMany column',
-        );
-        $relatedEntityClass = $columnSchema->relationEntityClass ?? throw new \RuntimeException(
-            'relationEntityClass not set on ManyToMany column',
-        );
-
-        $entityPk = $this->schemaProvider->getPrimaryColumnSchema($entity::class);
-        $relatedPk = $this->schemaProvider->getPrimaryColumnSchema($relatedEntityClass);
-
-        // @phpstan-ignore-next-line property.dynamicName
-        $entityId = $entity->{$entityPk->propertyName};
-
-        $database = $this->queryProvider->getDatabase();
-        $pdo = $database->getPdo();
-        $q = $database->getIdentifierQuoteChar();
-
-        $pdo->prepare(
-            'DELETE FROM ' . QuoteUtils::quote($joinTable, $q) . ' WHERE ' . QuoteUtils::quote($joinColumn, $q) . ' = ?',
-        )->execute([$entityId]);
-
-        $insertStatement = $pdo->prepare(
-            'INSERT INTO ' . QuoteUtils::quote($joinTable, $q)
-            . ' (' . QuoteUtils::quote($joinColumn, $q) . ', ' . QuoteUtils::quote($inverseJoinColumn, $q) . ') VALUES (?, ?)',
-        );
-
-        // @phpstan-ignore-next-line property.dynamicName
-        foreach ($entity->{$columnSchema->propertyName} as $related) {
-            // @phpstan-ignore-next-line property.dynamicName
-            $relatedId = $related->{$relatedPk->propertyName};
-            $insertStatement->execute([$entityId, $relatedId]);
-        }
-    }
-
-    private function deleteManyToManyJoinRows(object $entity, ColumnSchema $columnSchema): void
-    {
-        $joinTable = $columnSchema->joinTable ?? throw new \RuntimeException('joinTable not set on ManyToMany column');
-        $joinColumn = $columnSchema->joinColumn ?? throw new \RuntimeException('joinColumn not set on ManyToMany column');
-
-        $entityPk = $this->schemaProvider->getPrimaryColumnSchema($entity::class);
-        // @phpstan-ignore-next-line property.dynamicName
-        $entityId = $entity->{$entityPk->propertyName};
-
-        $database = $this->queryProvider->getDatabase();
-        $q = $database->getIdentifierQuoteChar();
-
-        $database->getPdo()->prepare(
-            'DELETE FROM ' . QuoteUtils::quote($joinTable, $q) . ' WHERE ' . QuoteUtils::quote($joinColumn, $q) . ' = ?',
-        )->execute([$entityId]);
+        $this->unitOfWork->remove($entity)->flush();
     }
 }

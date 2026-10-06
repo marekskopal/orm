@@ -6,7 +6,7 @@ namespace MarekSkopal\ORM\Relation;
 
 use Closure;
 use MarekSkopal\ORM\Database\DatabaseInterface;
-use MarekSkopal\ORM\Entity\EntityCache;
+use MarekSkopal\ORM\Entity\IdentityMap;
 use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Select;
@@ -15,6 +15,7 @@ use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Utils\QuoteUtils;
+use Ramsey\Uuid\UuidInterface;
 use ReflectionClass;
 use ReflectionProperty;
 use WeakMap;
@@ -38,7 +39,7 @@ class RelationResolver
 
     private const string JoinAlias = '__orm_join';
 
-    /** @var array<class-string, array<int|string, true>> ids of uninitialised proxies whose row is not loaded yet */
+    /** @var array<class-string, array<int|string, mixed>> key => id of uninitialised proxies whose row is not loaded yet */
     private array $pendingIds = [];
 
     /** @var array<class-string, array<int|string, array<string, mixed>>> loaded rows waiting for their proxy to initialise */
@@ -50,13 +51,24 @@ class RelationResolver
     /** @var array<string, array<int|string, object|null>> relation key => owner id => entity loaded by with() */
     private array $preloadedInverse = [];
 
-    /** @var array<class-string, array<int|string, object>> the EntityCache identity map, bound by reference */
+    /** @var array<class-string, array<int|string, object>> the IdentityMap entities, bound by reference */
     private array $identityMap;
+
+    /**
+     * The IdentityMap snapshots, bound by reference. Public so generated hydrators record a snapshot
+     * without a method call.
+     *
+     * @internal
+     * @var array<int, list<mixed>|array<string, string|int|float|null>> object id => snapshot
+     */
+    public array $snapshots;
+
+    private readonly IdentityMap $identityMapService;
 
     /** @var array<class-string, Closure(object): object> */
     private array $proxyFactories = [];
 
-    /** @var WeakMap<object, int|string> proxy => id */
+    /** @var WeakMap<object, mixed> proxy => id */
     private WeakMap $proxyIds;
 
     /** @var array<class-string, ReflectionClass<object>> */
@@ -68,11 +80,13 @@ class RelationResolver
     public function __construct(
         private readonly DatabaseInterface $database,
         private readonly SchemaProvider $schemaProvider,
-        EntityCache $entityCache,
+        IdentityMap $identityMap,
     ) {
         $this->proxyIds = new WeakMap();
-        $this->identityMap = &$entityCache->getIdentityMap();
-        $entityCache->onClear($this->reset(...));
+        $this->identityMap = &$identityMap->getEntitiesReference();
+        $this->snapshots = &$identityMap->getSnapshotsReference();
+        $this->identityMapService = $identityMap;
+        $identityMap->onClear($this->reset(...));
     }
 
     /**
@@ -195,14 +209,17 @@ class RelationResolver
      *
      * @template T of object
      * @param class-string<T> $entityClass
+     * @param mixed $id the primary key value, already converted to the type of the primary key property
      * @return T
      */
-    public function manyToOne(string $entityClass, int $id): object
+    public function manyToOne(string $entityClass, mixed $id): object
     {
-        /** @var T|null $entity */
-        $entity = $this->identityMap[$entityClass][$id] ?? null;
+        $key = is_int($id) ? $id : IdentityMap::key($id);
 
-        return $entity ?? $this->createProxy($entityClass, $id);
+        /** @var T|null $entity */
+        $entity = $this->identityMap[$entityClass][$key] ?? null;
+
+        return $entity ?? $this->createProxy($entityClass, $id, $key);
     }
 
     /**
@@ -210,20 +227,17 @@ class RelationResolver
      * @param class-string<T> $entityClass
      * @return T
      */
-    private function createProxy(string $entityClass, int $id): object
+    private function createProxy(string $entityClass, mixed $id, int|string $key): object
     {
         /** @var Closure(T): T $factory the hydrator returns an instance of the proxied class */
-        $factory = $this->proxyFactories[$entityClass] ??= fn(object $proxy): object => $this->initialiseProxy(
-            $entityClass,
-            $this->proxyIds[$proxy],
-        );
+        $factory = $this->proxyFactories[$entityClass] ??= fn(object $proxy): object => $this->initialiseProxy($proxy, $entityClass);
         $proxy = $this->getReflectionClass($entityClass)->newLazyProxy($factory);
 
         // Seed the primary key so reading it (e.g. for the owner's foreign key column) does not initialise the proxy.
         $this->getPrimaryProperty($entityClass)->setRawValueWithoutLazyInitialization($proxy, $id);
         $this->proxyIds[$proxy] = $id;
-        $this->pendingIds[$entityClass][$id] = true;
-        $this->identityMap[$entityClass][$id] = $proxy;
+        $this->pendingIds[$entityClass][$key] = $id;
+        $this->identityMap[$entityClass][$key] = $proxy;
 
         return $proxy;
     }
@@ -319,19 +333,25 @@ class RelationResolver
     }
 
     /** @param class-string $entityClass */
-    private function initialiseProxy(string $entityClass, int|string $id): object
+    private function initialiseProxy(object $proxy, string $entityClass): object
     {
-        if (!isset($this->proxyRows[$entityClass][$id])) {
-            $this->loadPendingProxies($entityClass, $id);
+        $id = $this->proxyIds[$proxy];
+        $key = IdentityMap::key($id);
+        if (!isset($this->proxyRows[$entityClass][$key])) {
+            $this->loadPendingProxies($entityClass, $id, $key);
         }
 
-        $row = $this->proxyRows[$entityClass][$id] ?? throw new \RuntimeException(
-            sprintf('Entity "%s" with id "%s" not found', $entityClass, $id),
+        $row = $this->proxyRows[$entityClass][$key] ?? throw new \RuntimeException(
+            sprintf('Entity "%s" with id "%s" not found', $entityClass, $key),
         );
-        unset($this->proxyRows[$entityClass][$id]);
+        unset($this->proxyRows[$entityClass][$key]);
 
-        // The proxy stays the canonical instance in the identity map; this object only backs it.
-        return ($this->schemaProvider->getHydrator($entityClass))($row, $this);
+        // The proxy stays the canonical instance in the identity map; this object only backs it,
+        // so the snapshot belongs to the proxy.
+        $entity = ($this->schemaProvider->getHydrator($entityClass))($row, $this);
+        $this->identityMapService->moveSnapshot($entity, $proxy);
+
+        return $entity;
     }
 
     /**
@@ -339,14 +359,16 @@ class RelationResolver
      *
      * @param class-string $entityClass
      */
-    private function loadPendingProxies(string $entityClass, int|string $id): void
+    private function loadPendingProxies(string $entityClass, mixed $id, int|string $key): void
     {
         $ids = $this->pendingIds[$entityClass] ?? [];
-        $ids[$id] = true;
+        $ids[$key] = $id;
         unset($this->pendingIds[$entityClass]);
 
         $primaryColumnName = $this->schemaProvider->getPrimaryColumnSchema($entityClass)->columnName;
-        foreach (array_chunk(array_keys($ids), self::BatchSize) as $chunk) {
+        /** @var list<int|string|UuidInterface> $idValues */
+        $idValues = array_values($ids);
+        foreach (array_chunk($idValues, self::BatchSize) as $chunk) {
             foreach ($this->select($entityClass)->where([$primaryColumnName, 'IN', $chunk])->fetchAssocAll() as $row) {
                 $this->proxyRows[$entityClass][$this->getId($row, $primaryColumnName)] = $row;
             }
@@ -363,7 +385,7 @@ class RelationResolver
         foreach ($rows as $row) {
             $value = $row[$columnSchema->columnName] ?? null;
             if (is_int($value) || is_string($value)) {
-                $ids[(int) $value] = true;
+                $ids[$value] = $value;
             }
         }
 
@@ -375,7 +397,7 @@ class RelationResolver
         $primaryColumnName = $targetSchema->getPrimaryColumn()->columnName;
 
         $relatedRows = [];
-        foreach (array_chunk(array_keys($ids), self::BatchSize) as $chunk) {
+        foreach (array_chunk(array_values($ids), self::BatchSize) as $chunk) {
             array_push(
                 $relatedRows,
                 ...$this->select($targetSchema->entityClass)->where([$primaryColumnName, 'IN', $chunk])->fetchAssocAll(),

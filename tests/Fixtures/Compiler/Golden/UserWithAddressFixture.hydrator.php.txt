@@ -11,5 +11,6 @@
     $p_secondAddress = ($v = $row['second_address_id'] ?? null) === null ? null : $r->manyToOne(\MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture::class, (int) $v);
     $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture(createdAt: $p_createdAt, firstName: $p_firstName, middleName: $p_middleName, lastName: $p_lastName, email: $p_email, isActive: $p_isActive, type: $p_type, address: $p_address, secondAddress: $p_secondAddress);
     $e->id = $p_id;
+    $r->snapshots[\spl_object_id($e)] = [$row['created_at'] ?? null, $row['first_name'] ?? null, $row['middle_name'] ?? null, $row['last_name'] ?? null, $row['email'] ?? null, $row['is_active'] ?? null, $row['type'] ?? null, $row['address_id'] ?? null, $row['second_address_id'] ?? null];
     return $e;
 }, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture::class)

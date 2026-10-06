@@ -82,6 +82,38 @@ final class UpdateTest extends TestCase
         );
     }
 
+    public function testValuesRestrictTheUpdateToGivenColumns(): void
+    {
+        $database = $this::createStub(DatabaseInterface::class);
+        $database->method('getPdo')->willReturn($this::createStub(PDO::class));
+        $database->method('getIdentifierQuoteChar')->willReturn('`');
+        $entitySchema = EntitySchemaFixture::create();
+
+        $update = new Update(
+            $database,
+            UserFixture::class,
+            $entitySchema,
+            new SchemaProvider(new Schema([UserFixture::class => $entitySchema])),
+        );
+        $update->entity(UserFixture::create())->values(['email' => 'a@example.com']);
+
+        self::assertSame('UPDATE `users` SET `email`=? WHERE `id`=?', $update->getSql());
+    }
+
+    public function testEmptyValuesExecuteNothing(): void
+    {
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->never())->method('prepare');
+        $database = $this::createStub(DatabaseInterface::class);
+        $database->method('getPdo')->willReturn($pdo);
+        $entitySchema = EntitySchemaFixture::create();
+
+        new Update($database, UserFixture::class, $entitySchema, new SchemaProvider(new Schema([UserFixture::class => $entitySchema])))
+            ->entity(UserFixture::create())
+            ->values([])
+            ->execute();
+    }
+
     public function testGetSqlNoEntities(): void
     {
         $this->expectException(\LogicException::class);
