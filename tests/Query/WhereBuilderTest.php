@@ -15,6 +15,7 @@ use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\AddressEntitySchemaFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\UserEntityWithAddressSchemaFixture;
@@ -368,6 +369,46 @@ final class WhereBuilderTest extends TestCase
             '`u`.`id` IN (' . $select->getSql() . ')',
             $whereBuilder->build(),
         );
+    }
+
+    public function testInSelectBindsSubqueryParams(): void
+    {
+        $select = $this->select;
+        $select->columns(['id'])->where(['first_name' => 'John'])->where(['last_name', '!=', 'Doe']);
+
+        $this->whereBuilder->where(['is_active' => true])->where(['id', 'IN', $select])->where(['email' => 'a@b.c']);
+
+        // The subquery's params bind in place, between the outer ones.
+        self::assertSame([1, 'John', 'Doe', 'a@b.c'], $this->whereBuilder->getParams());
+    }
+
+    #[TestWith(['=', '`u`.`id` = ('])]
+    #[TestWith(['>', '`u`.`id` > ('])]
+    public function testComparisonWithSelect(string $operator, string $expectedPrefix): void
+    {
+        $select = $this->select;
+        $select->columns(['id'])->where(['first_name' => 'John']);
+
+        $this->whereBuilder->where(['id', $operator, $select]);
+
+        self::assertSame($expectedPrefix . $select->getSql() . ')', $this->whereBuilder->build());
+        self::assertSame(['John'], $this->whereBuilder->getParams());
+    }
+
+    public function testInRejectsScalarValue(): void
+    {
+        $this->whereBuilder->where(['id', 'IN', 1]);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('IN condition must have array or Select as value');
+        $this->whereBuilder->build();
+    }
+
+    public function testGetParamsBackedEnum(): void
+    {
+        $this->whereBuilder->where(['type' => UserTypeEnum::Admin])->where(['type', 'IN', [UserTypeEnum::User]]);
+
+        self::assertSame(['admin', 'user'], $this->whereBuilder->getParams());
     }
 
     public function testBuildRelation(): void

@@ -423,6 +423,8 @@ $user = $queryProvider->select(User::class)
     ->fetchOne();
 ```
 
+A comparison operator takes a subquery that returns a single value, e.g. `['id', '=', $maxIdSubquery]` renders `id = (SELECT ...)`.
+
 #### Loading relations
 
 Relations are loaded lazily, but never one query per row:
