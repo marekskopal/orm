@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2026-10-10
+
+### Fixed
+- A scalar `#[Column]` with `#[ForeignKey]` was hydrated and persisted as a `ManyToOne` relation: reading a row failed with a `TypeError` because a related entity was passed to the scalar property, and persisting wrote the foreign key as `NULL` ([#30](https://github.com/marekskopal/orm/issues/30)). The property now holds the raw key again, as in 1.x, and the column still carries the relation for the FK constraint in `orm-migrations`. `with()` rejects such a property as not a relation.
+
 ## [2.0.1] - 2026-10-06
 
 ### Fixed
@@ -193,6 +198,7 @@ Initial release.
 - Extension mapper support for custom property mapping.
 - MySQL and SQLite database drivers.
 
+[2.0.2]: https://github.com/marekskopal/orm/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/marekskopal/orm/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/marekskopal/orm/compare/v1.4.0...v2.0.0
 [1.4.0]: https://github.com/marekskopal/orm/compare/v1.3.0...v1.4.0
