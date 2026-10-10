@@ -9,7 +9,6 @@ use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
-use MarekSkopal\ORM\Schema\Enum\RelationEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 
 /**
@@ -60,7 +59,7 @@ final class ExtractorGenerator
     /** Strings and numbers are bound as they are, so a nullable one needs no null branch. */
     private function isWrittenAsIs(ColumnSchema $columnSchema): bool
     {
-        return $columnSchema->relationType === null && in_array(
+        return in_array(
             $columnSchema->propertyType,
             [PropertyTypeEnum::String, PropertyTypeEnum::Int, PropertyTypeEnum::Float],
             true,
@@ -73,7 +72,7 @@ final class ExtractorGenerator
      */
     public function convert(EntitySchema $entitySchema, ColumnSchema $columnSchema, string $source, bool $relationAsKey = false): string
     {
-        if ($columnSchema->relationType === RelationEnum::ManyToOne || $columnSchema->relationType === RelationEnum::OneToOne) {
+        if ($columnSchema->isOwningRelation()) {
             $relationEntityClass = $columnSchema->relationEntityClass ?? throw new \LogicException(
                 sprintf('Relation "%s" has no entity class.', $columnSchema->propertyName),
             );

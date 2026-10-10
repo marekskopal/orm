@@ -536,7 +536,7 @@ class UnitOfWork
 
         $related = [];
         foreach ($this->schemaProvider->getEntitySchema($entity::class)->getInsertableColumns() as $columnSchema) {
-            if ($columnSchema->relationType === RelationEnum::ManyToOne || $columnSchema->relationType === RelationEnum::OneToOne) {
+            if ($columnSchema->isOwningRelation()) {
                 $value = $this->readProperty($entity, $columnSchema->propertyName);
                 if (is_object($value)) {
                     $related[] = $value;
