@@ -7,10 +7,13 @@ namespace MarekSkopal\ORM\Tests\Query;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Database\SqliteDatabase;
+use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\Query\Update;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
 use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\HydratorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\NormalizerGenerator;
 use MarekSkopal\ORM\Schema\Compiler\SchemaCompiler;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
@@ -19,6 +22,7 @@ use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
 use MarekSkopal\ORM\Utils\NameUtils;
+use MarekSkopal\ORM\Utils\QuoteUtils;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -35,6 +39,10 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(SchemaCompiler::class)]
 #[UsesClass(ExtractorGenerator::class)]
 #[UsesClass(CodeExporter::class)]
+#[UsesClass(ExtensionMapperProvider::class)]
+#[UsesClass(HydratorGenerator::class)]
+#[UsesClass(NormalizerGenerator::class)]
+#[UsesClass(QuoteUtils::class)]
 final class UpdateTest extends TestCase
 {
     public function testGetSql(): void

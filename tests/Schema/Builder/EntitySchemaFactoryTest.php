@@ -14,8 +14,10 @@ use MarekSkopal\ORM\Schema\Builder\EntitySchemaFactory;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\CaseEnum;
+use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
+use MarekSkopal\ORM\Tests\Fixtures\InvalidEntity\MissingColumnAttributeEntity;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -34,6 +36,7 @@ use ReflectionClass;
 #[UsesClass(OneToMany::class)]
 #[UsesClass(CaseUtils::class)]
 #[UsesClass(NameUtils::class)]
+#[UsesClass(PropertyTypeEnum::class)]
 final class EntitySchemaFactoryTest extends TestCase
 {
     public function testCreate(): void
@@ -73,5 +76,20 @@ final class EntitySchemaFactoryTest extends TestCase
 
         // UserFixture has explicit table='users' in #[Entity] attribute, so it overrides the case
         self::assertSame('users', $entitySchema->table);
+    }
+
+    public function testCreateRejectsPropertyWithoutColumnAttribute(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'Column attribute not found on property "unmapped" on class "' . MissingColumnAttributeEntity::class . '".',
+        );
+
+        new EntitySchemaFactory()->create(
+            /** @phpstan-ignore-next-line argument.type */
+            new ReflectionClass(MissingColumnAttributeEntity::class),
+            CaseEnum::SnakeCase,
+            CaseEnum::SnakeCase,
+        );
     }
 }

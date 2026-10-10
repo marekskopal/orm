@@ -6,6 +6,7 @@ namespace MarekSkopal\ORM\Tests;
 
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\SqliteDatabase;
+use MarekSkopal\ORM\Entity\IdentityMap;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\ORM;
 use MarekSkopal\ORM\Query\Factory\DeleteFactory;
@@ -26,6 +27,8 @@ use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\SchemaFixture;
+use MarekSkopal\ORM\Transaction\TransactionProvider;
+use MarekSkopal\ORM\UnitOfWork\UnitOfWork;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
@@ -49,6 +52,9 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(ExtractorGenerator::class)]
 #[UsesClass(CodeExporter::class)]
 #[UsesClass(ExtensionMapperProvider::class)]
+#[UsesClass(IdentityMap::class)]
+#[UsesClass(TransactionProvider::class)]
+#[UsesClass(UnitOfWork::class)]
 final class ORMTest extends TestCase
 {
     public function testGetRepository(): void

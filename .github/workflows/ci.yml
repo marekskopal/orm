@@ -84,7 +84,22 @@ jobs:
         with:
           php-version: '8.4'
           extensions: pdo_sqlite, pdo_pgsql, pdo_mysql
+          coverage: pcov
 
       - uses: ramsey/composer-install@v3
 
-      - run: vendor/bin/phpunit
+      # With coverage on, a test that runs a class missing from its #[CoversClass]/#[UsesClass]
+      # attributes is risky, and failOnRisky fails the run.
+      - run: vendor/bin/phpunit --coverage-text --only-summary-for-coverage-text
+
+      # Coverage of everything the tests execute, not only the classes each test targets.
+      - run: vendor/bin/phpunit --disable-coverage-targeting --coverage-clover=clover.xml
+
+      - name: Check line coverage
+        run: |
+          php -r '
+            $metrics = simplexml_load_file("clover.xml")->project->metrics;
+            $coverage = 100 * (int) $metrics["coveredstatements"] / (int) $metrics["statements"];
+            printf("Line coverage: %.2f%%\n", $coverage);
+            exit($coverage < 98 ? 1 : 0);
+          '

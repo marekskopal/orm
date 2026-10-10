@@ -8,8 +8,11 @@ use DateTime;
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
+use MarekSkopal\ORM\Attribute\ForeignKey;
+use MarekSkopal\ORM\Attribute\ManyToMany;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
+use MarekSkopal\ORM\Attribute\OneToOne;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Entity\IdentityMap;
 use MarekSkopal\ORM\Mapper\Collection;
@@ -23,6 +26,7 @@ use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
 use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
 use MarekSkopal\ORM\Schema\Compiler\HydratorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\NormalizerGenerator;
 use MarekSkopal\ORM\Schema\Compiler\SchemaCompiler;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
@@ -66,6 +70,10 @@ use ReflectionClass;
 #[UsesClass(CaseUtils::class)]
 #[UsesClass(NameUtils::class)]
 #[UsesClass(ValidationUtils::class)]
+#[UsesClass(ForeignKey::class)]
+#[UsesClass(ManyToMany::class)]
+#[UsesClass(OneToOne::class)]
+#[UsesClass(NormalizerGenerator::class)]
 final class SchemaCompilerTest extends TestCase
 {
     private const string Uuid = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';

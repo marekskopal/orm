@@ -53,4 +53,4 @@ This is a lightweight PHP ORM library (PHP 8.4+, namespace `MarekSkopal\ORM`). S
 - `ColumnSchema` is keyed by **property name** in `EntitySchema::$columns`; column name is a separate field.
 - Tests use fixtures in `tests/Fixtures/` (entity, schema, repository fixtures) rather than a database; `IntegrationTest.php` uses SQLite. `MySqlIntegrationTest` and `PostgresIntegrationTest` extend `AbstractDriverIntegrationTestCase` and run against real servers (skipped when unreachable; see README "Running tests"). Driver-specific SQL fixtures are named `database_<name>_<driver>.sql`.
 - PHPStan runs at max level; all new code must be fully typed.
-- Tests require `#[CoversClass]` attributes (strict coverage metadata is enforced).
+- Tests require `#[CoversClass]` attributes (strict coverage metadata is enforced). With coverage on (`--coverage-text`, as CI runs it), a test that executes a `src/` class not listed in its `#[CoversClass]`/`#[UsesClass]` is risky and fails the run; the plain `vendor/bin/phpunit` does not catch this. CI also requires ≥ 98% line coverage measured with `--disable-coverage-targeting`.

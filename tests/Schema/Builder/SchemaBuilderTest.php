@@ -18,9 +18,11 @@ use MarekSkopal\ORM\Schema\Builder\EntitySchemaFactory;
 use MarekSkopal\ORM\Schema\Builder\SchemaBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Schema\Enum\CaseEnum;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
+use MarekSkopal\ORM\Tests\Fixtures\CaseEntity\OrderLineItem;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Code;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\TagFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
@@ -54,6 +56,8 @@ final class SchemaBuilderTest extends TestCase
 {
     private const string EntityPath = __DIR__ . '/../../Fixtures/Entity';
 
+    private const string CaseEntityPath = __DIR__ . '/../../Fixtures/CaseEntity';
+
     public function testTableAliasesFollowSortedFileOrder(): void
     {
         // Filesystems list directories in different orders (sorted on macOS, not on Linux); the
@@ -79,5 +83,28 @@ final class SchemaBuilderTest extends TestCase
         foreach ($single->entities as $entityClass => $entitySchema) {
             self::assertSame($entitySchema->tableAlias, $overlapping->entities[$entityClass]->tableAlias);
         }
+    }
+
+    public function testTableAndColumnNamesDefaultToSnakeCase(): void
+    {
+        $entitySchema = new SchemaBuilder()->addEntityPath(self::CaseEntityPath)->build()->entities[OrderLineItem::class];
+
+        self::assertSame('order_line_items', $entitySchema->table);
+        self::assertSame('unit_price', $entitySchema->columns['unitPrice']->columnName);
+        self::assertSame('parent_item_id', $entitySchema->columns['parentItem']->columnName);
+    }
+
+    public function testTableAndColumnCasesAreConfigurable(): void
+    {
+        $entitySchema = new SchemaBuilder()
+            ->addEntityPath(self::CaseEntityPath)
+            ->setTableCase(CaseEnum::CamelCase)
+            ->setColumnCase(CaseEnum::CamelCase)
+            ->build()
+            ->entities[OrderLineItem::class];
+
+        self::assertSame('orderLineItems', $entitySchema->table);
+        self::assertSame('unitPrice', $entitySchema->columns['unitPrice']->columnName);
+        self::assertSame('parentItemId', $entitySchema->columns['parentItem']->columnName);
     }
 }

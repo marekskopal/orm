@@ -16,16 +16,21 @@ use MarekSkopal\ORM\Attribute\OneToOne;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\SqliteDatabase;
 use MarekSkopal\ORM\Entity\IdentityMap;
+use MarekSkopal\ORM\Exception\ConstrainException;
+use MarekSkopal\ORM\Exception\ExceptionFactory;
+use MarekSkopal\ORM\Exception\QueryException;
 use MarekSkopal\ORM\Exception\TransactionException;
 use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\ORM;
 use MarekSkopal\ORM\Query\Delete;
+use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Factory\DeleteFactory;
 use MarekSkopal\ORM\Query\Factory\InsertFactory;
 use MarekSkopal\ORM\Query\Factory\SelectFactory;
 use MarekSkopal\ORM\Query\Factory\UpdateFactory;
 use MarekSkopal\ORM\Query\Insert;
+use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Update;
@@ -40,6 +45,7 @@ use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
 use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
 use MarekSkopal\ORM\Schema\Compiler\HydratorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\NormalizerGenerator;
 use MarekSkopal\ORM\Schema\Compiler\SchemaCompiler;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
@@ -59,8 +65,10 @@ use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressIdFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithProfileFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithTagsFixture;
 use MarekSkopal\ORM\Transaction\TransactionProvider;
+use MarekSkopal\ORM\UnitOfWork\UnitOfWork;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
+use MarekSkopal\ORM\Utils\QuoteUtils;
 use MarekSkopal\ORM\Utils\ValidationUtils;
 use PDO;
 use PDOStatement;
@@ -113,6 +121,14 @@ use ReflectionClass;
 #[UsesClass(ExtractorGenerator::class)]
 #[UsesClass(CodeExporter::class)]
 #[UsesClass(ExtensionMapperProvider::class)]
+#[UsesClass(RawExpression::class)]
+#[UsesClass(Join::class)]
+#[UsesClass(NormalizerGenerator::class)]
+#[UsesClass(UnitOfWork::class)]
+#[UsesClass(QuoteUtils::class)]
+#[UsesClass(ExceptionFactory::class)]
+#[UsesClass(QueryException::class)]
+#[UsesClass(ConstrainException::class)]
 final class IntegrationTest extends TestCase
 {
     public function testSelectEntity(): void
@@ -1205,5 +1221,54 @@ final class IntegrationTest extends TestCase
 
         $this->expectException(\InvalidArgumentException::class);
         $repository->select()->with('addressId')->fetchAll();
+    }
+
+    private function createUsersOrm(): ORM
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_users.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database_users.sql file');
+        }
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        return new ORM($database, new SchemaBuilder()->addEntityPath(__DIR__ . '/Fixtures/Entity')->build());
+    }
+
+    public function testSubqueries(): void
+    {
+        $orm = $this->createUsersOrm();
+        $repository = $orm->getRepository(UserFixture::class);
+        $ids = static fn(array $users): array => array_map(
+            static fn(UserFixture $user): int => $user->id,
+            array_filter($users, static fn(mixed $user): bool => $user instanceof UserFixture),
+        );
+
+        $janes = $orm->getQueryProvider()->select(UserFixture::class)->columns(['id'])->where(['firstName' => 'Jane']);
+        self::assertSame([2], $ids($repository->select()->where(['lastName' => 'Doe'])->where(['id', 'IN', $janes])->fetchAll()));
+        self::assertSame([1], $ids($repository->select()->where(['id', 'NOT IN', $janes])->fetchAll()));
+
+        $maxId = $orm->getQueryProvider()->select(UserFixture::class)
+            ->columns([new RawExpression('MAX(id)')])
+            ->where(['lastName' => 'Doe']);
+        self::assertSame([2], $ids($repository->select()->where(['id', '=', $maxId])->fetchAll()));
+        self::assertSame([1], $ids($repository->select()->where(['id', '<', $maxId])->fetchAll()));
+    }
+
+    public function testConstraintViolationThrowsConstrainException(): void
+    {
+        $database = $this->createUsersOrm()->getQueryProvider()->getDatabase();
+        $sql = 'INSERT INTO users (id, created_at, first_name, last_name, email, is_active, type) VALUES (1, 0, ?, ?, ?, 1, ?)';
+
+        $this->expectException(ConstrainException::class);
+        $database->execute($sql, ['Dup', 'Dup', 'dup@example.com', 'user']);
     }
 }

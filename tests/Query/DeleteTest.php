@@ -14,6 +14,7 @@ use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
+use MarekSkopal\ORM\Utils\QuoteUtils;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -22,6 +23,9 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(Delete::class)]
 #[UsesClass(EntitySchema::class)]
 #[UsesClass(ColumnSchema::class)]
+#[UsesClass(SchemaProvider::class)]
+#[UsesClass(Schema::class)]
+#[UsesClass(QuoteUtils::class)]
 class DeleteTest extends TestCase
 {
     public function testGetSql(): void

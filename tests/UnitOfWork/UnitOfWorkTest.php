@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Tests\UnitOfWork;
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
+use MarekSkopal\ORM\Attribute\ForeignKey;
 use MarekSkopal\ORM\Attribute\ManyToMany;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
@@ -14,21 +15,25 @@ use MarekSkopal\ORM\Attribute\OneToOne;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\SqliteDatabase;
 use MarekSkopal\ORM\Entity\IdentityMap;
+use MarekSkopal\ORM\Exception\ExceptionFactory;
 use MarekSkopal\ORM\Exception\QueryException;
 use MarekSkopal\ORM\Exception\TransactionException;
 use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\ORM;
 use MarekSkopal\ORM\Query\Delete;
+use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Factory\DeleteFactory;
 use MarekSkopal\ORM\Query\Factory\InsertFactory;
 use MarekSkopal\ORM\Query\Factory\SelectFactory;
 use MarekSkopal\ORM\Query\Factory\UpdateFactory;
 use MarekSkopal\ORM\Query\Insert;
+use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Update;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
+use MarekSkopal\ORM\Relation\RelationResolver;
 use MarekSkopal\ORM\Repository\AbstractRepository;
 use MarekSkopal\ORM\Schema\Builder\ClassScanner\ClassScanner;
 use MarekSkopal\ORM\Schema\Builder\ColumnSchemaFactory;
@@ -60,6 +65,7 @@ use MarekSkopal\ORM\Transaction\TransactionProvider;
 use MarekSkopal\ORM\UnitOfWork\UnitOfWork;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
+use MarekSkopal\ORM\Utils\QuoteUtils;
 use MarekSkopal\ORM\Utils\ValidationUtils;
 use PDO;
 use PDOStatement;
@@ -112,6 +118,14 @@ use ReflectionClass;
 #[UsesClass(ExtractorGenerator::class)]
 #[UsesClass(CodeExporter::class)]
 #[UsesClass(ExtensionMapperProvider::class)]
+#[UsesClass(ForeignKey::class)]
+#[UsesClass(ExceptionFactory::class)]
+#[UsesClass(QueryException::class)]
+#[UsesClass(ORM::class)]
+#[UsesClass(RawExpression::class)]
+#[UsesClass(Join::class)]
+#[UsesClass(RelationResolver::class)]
+#[UsesClass(QuoteUtils::class)]
 final class UnitOfWorkTest extends TestCase
 {
     public function testPersistedEntityIsTheIdentityMappedInstance(): void
@@ -289,6 +303,94 @@ final class UnitOfWorkTest extends TestCase
             [2, 3],
             $this->query($orm, 'SELECT tag_id FROM user_tags WHERE user_id = 1 ORDER BY tag_id')->fetchAll(PDO::FETCH_COLUMN),
         );
+    }
+
+    public function testRemovingTheInverseSideOfManyToManyDeletesItsJoinRows(): void
+    {
+        $orm = $this->createOrm('database_many_to_many.sql');
+        $tag = $orm->getRepository(TagFixture::class)->findOne(['id' => 2]);
+        self::assertInstanceOf(TagFixture::class, $tag);
+
+        CountingStatement::reset();
+        $orm->getRepository(TagFixture::class)->delete($tag);
+
+        // The join rows reference the tag, so they go first; the users' collections are not loaded.
+        self::assertSame(
+            ['DELETE FROM "user_tags" WHERE "tag_id" = ?', 'DELETE FROM "tags" WHERE "id" IN (?)'],
+            CountingStatement::$queries,
+        );
+        self::assertSame(
+            [['user_id' => 1, 'tag_id' => 1], ['user_id' => 2, 'tag_id' => 3]],
+            $this->query($orm, 'SELECT user_id, tag_id FROM user_tags ORDER BY user_id, tag_id')->fetchAll(PDO::FETCH_ASSOC),
+        );
+    }
+
+    public function testRemovingTheOwningSideOfManyToManyDeletesItsJoinRows(): void
+    {
+        $orm = $this->createOrm('database_many_to_many.sql');
+        $user = $orm->getRepository(UserWithTagsFixture::class)->findOne(['id' => 2]);
+        self::assertInstanceOf(UserWithTagsFixture::class, $user);
+
+        $orm->getRepository(UserWithTagsFixture::class)->delete($user);
+
+        self::assertSame(
+            [1, 1],
+            $this->query($orm, 'SELECT user_id FROM user_tags ORDER BY tag_id')->fetchAll(PDO::FETCH_COLUMN),
+        );
+    }
+
+    public function testNewEntitiesReferencingEachOtherAreRejected(): void
+    {
+        $orm = $this->createOrm('database_categories.sql');
+        $first = new CategoryFixture('First', null);
+        $second = new CategoryFixture('Second', $first);
+        $first->parent = $second;
+
+        $unitOfWork = $orm->getUnitOfWork();
+        $unitOfWork->persist($first)->persist($second);
+
+        CountingStatement::reset();
+
+        try {
+            $unitOfWork->flush();
+            self::fail('flush() wrote a cycle of new entities');
+        } catch (\LogicException $e) {
+            self::assertSame('Cannot write "' . CategoryFixture::class . '": its new relations form a cycle.', $e->getMessage());
+        }
+
+        self::assertSame([], CountingStatement::$queries);
+    }
+
+    public function testFailedFlushRestoresIdentityMapAndSnapshotsOfDeletedEntities(): void
+    {
+        $orm = $this->createOrm('database_users.sql');
+        $user = $orm->getRepository(UserFixture::class)->findOne(['id' => 1]);
+        self::assertInstanceOf(UserFixture::class, $user);
+        $snapshot = $orm->getIdentityMap()->getSnapshot($user);
+        self::assertNotNull($snapshot);
+
+        // The user is deleted first; deleting the ghost then fails and rolls the flush back.
+        $ghost = new AuthorFixture('No table', new Collection());
+        $ghost->id = 5;
+        $unitOfWork = $orm->getUnitOfWork();
+        $unitOfWork->remove($user)->remove($ghost);
+
+        try {
+            $unitOfWork->flush();
+            self::fail('flush() did not fail');
+        } catch (QueryException) {
+            // Expected: the authors table does not exist.
+        }
+
+        self::assertSame(2, $this->query($orm, 'SELECT COUNT(*) FROM users')->fetchColumn());
+        self::assertSame($user, $orm->getIdentityMap()->get(UserFixture::class, 1));
+        self::assertSame($snapshot, $orm->getIdentityMap()->getSnapshot($user));
+
+        // A retry without the ghost deletes the user.
+        $unitOfWork->clear();
+        $orm->getRepository(UserFixture::class)->delete($user);
+        self::assertSame(1, $this->query($orm, 'SELECT COUNT(*) FROM users')->fetchColumn());
+        self::assertNull($orm->getIdentityMap()->get(UserFixture::class, 1));
     }
 
     public function testPrimaryKeyThatIsNotAutoIncrementIsInserted(): void

@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Tests\Database;
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
+use MarekSkopal\ORM\Attribute\ForeignKey;
 use MarekSkopal\ORM\Attribute\ManyToMany;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
@@ -19,6 +20,7 @@ use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\ORM;
 use MarekSkopal\ORM\Query\Delete;
+use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Factory\DeleteFactory;
 use MarekSkopal\ORM\Query\Factory\InsertFactory;
 use MarekSkopal\ORM\Query\Factory\SelectFactory;
@@ -38,6 +40,7 @@ use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
 use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
 use MarekSkopal\ORM\Schema\Compiler\HydratorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\NormalizerGenerator;
 use MarekSkopal\ORM\Schema\Compiler\SchemaCompiler;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
@@ -47,8 +50,10 @@ use MarekSkopal\ORM\Tests\Fixtures\Database\CountingStatement;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
 use MarekSkopal\ORM\Transaction\TransactionProvider;
+use MarekSkopal\ORM\UnitOfWork\UnitOfWork;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
+use MarekSkopal\ORM\Utils\QuoteUtils;
 use MarekSkopal\ORM\Utils\ValidationUtils;
 use PDO;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -97,6 +102,12 @@ use PHPUnit\Framework\TestCase;
 #[UsesClass(ExtractorGenerator::class)]
 #[UsesClass(CodeExporter::class)]
 #[UsesClass(ExtensionMapperProvider::class)]
+#[UsesClass(ForeignKey::class)]
+#[UsesClass(ORM::class)]
+#[UsesClass(RawExpression::class)]
+#[UsesClass(NormalizerGenerator::class)]
+#[UsesClass(UnitOfWork::class)]
+#[UsesClass(QuoteUtils::class)]
 final class StatementCacheIntegrationTest extends TestCase
 {
     public function testOrmDoesNotConnectUntilItQueries(): void

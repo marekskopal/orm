@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS posts;
+DROP TABLE IF EXISTS authors;
+CREATE TABLE authors (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE posts (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    author_id INT NOT NULL REFERENCES authors (id)
+)
