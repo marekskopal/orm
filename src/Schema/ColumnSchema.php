@@ -45,4 +45,19 @@ readonly class ColumnSchema
         public array $cascade = [],
     ) {
     }
+
+    /**
+     * Whether the property holds related entities. A scalar #[Column] with #[ForeignKey] carries a
+     * relation type and entity class for the FK constraint, but its property holds the raw key.
+     */
+    public function isRelation(): bool
+    {
+        return $this->propertyType === PropertyTypeEnum::Relation;
+    }
+
+    /** A ManyToOne or OneToOne relation, whose property holds the related entity and whose column its key. */
+    public function isOwningRelation(): bool
+    {
+        return $this->isRelation() && ($this->relationType === RelationEnum::ManyToOne || $this->relationType === RelationEnum::OneToOne);
+    }
 }

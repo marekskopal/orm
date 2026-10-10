@@ -194,7 +194,7 @@ class RelationResolver
                 sprintf('"%s" is not a property of entity "%s".', $propertyName, $entitySchema->entityClass),
             );
 
-            match ($columnSchema->relationType) {
+            match ($columnSchema->isRelation() ? $columnSchema->relationType : null) {
                 RelationEnum::ManyToOne, RelationEnum::OneToOne => $this->preloadOwning($columnSchema, $nestedPaths, $rows),
                 RelationEnum::OneToMany, RelationEnum::ManyToMany, RelationEnum::ManyToManyInverse => $this->preloadCollection(
                     $entitySchema,

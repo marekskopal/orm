@@ -1,0 +1,13 @@
+\Closure::bind(static function (\MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressIdFixture $e, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'created_at' => ($e->createdAt ?? throw new \RuntimeException('Column "created_at" is not nullable'))->format('Y-m-d H:i:s'),
+        'first_name' => ($e->firstName ?? throw new \RuntimeException('Column "first_name" is not nullable')),
+        'middle_name' => $e->middleName,
+        'last_name' => ($e->lastName ?? throw new \RuntimeException('Column "last_name" is not nullable')),
+        'email' => ($e->email ?? throw new \RuntimeException('Column "email" is not nullable')),
+        'is_active' => (($e->isActive ?? throw new \RuntimeException('Column "is_active" is not nullable')) ? 1 : 0),
+        'type' => ($e->type ?? throw new \RuntimeException('Column "type" is not nullable'))->value,
+        'address_id' => ($e->addressId ?? throw new \RuntimeException('Column "address_id" is not nullable')),
+        'second_address_id' => $e->secondAddressId,
+    ];
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressIdFixture::class)

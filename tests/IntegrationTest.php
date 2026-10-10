@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests;
 
+use DateTimeImmutable;
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
+use MarekSkopal\ORM\Attribute\ForeignKey;
 use MarekSkopal\ORM\Attribute\ManyToMany;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
@@ -47,17 +49,21 @@ use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\ArticleFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AuthorFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\CategoryFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\PostFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\ProfileFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\TagFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressIdFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithProfileFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithTagsFixture;
 use MarekSkopal\ORM\Transaction\TransactionProvider;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
 use MarekSkopal\ORM\Utils\ValidationUtils;
+use PDO;
+use PDOStatement;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
@@ -69,6 +75,7 @@ use ReflectionClass;
 #[UsesClass(Column::class)]
 #[UsesClass(ColumnEnum::class)]
 #[UsesClass(Entity::class)]
+#[UsesClass(ForeignKey::class)]
 #[UsesClass(ManyToMany::class)]
 #[UsesClass(ManyToOne::class)]
 #[UsesClass(OneToOne::class)]
@@ -1144,5 +1151,59 @@ final class IntegrationTest extends TestCase
         self::assertSame('Novels', $grandchild->name);
         self::assertNotNull($grandchild->parent);
         self::assertSame('Books', $grandchild->parent->name);
+    }
+
+    public function testScalarForeignKeyColumnHoldsRawKey(): void
+    {
+        $database = new SqliteDatabase(':memory:');
+        $sqlFileContent = file_get_contents(__DIR__ . '/Fixtures/Database/database_users_with_address.sql');
+        if ($sqlFileContent === false) {
+            throw new \RuntimeException('Cannot read database.sql file');
+        }
+
+        $schema = new SchemaBuilder()
+            ->addEntityPath(__DIR__ . '/Fixtures/Entity')
+            ->build();
+
+        $orm = new ORM($database, $schema);
+
+        foreach (explode(';', $sqlFileContent) as $sql) {
+            $sql = trim($sql);
+            if ($sql === '') {
+                continue;
+            }
+
+            $database->getPdo()->exec($sql);
+        }
+
+        $repository = $orm->getRepository(UserWithAddressIdFixture::class);
+
+        $user = $repository->findOne(['id' => 1]);
+        self::assertInstanceOf(UserWithAddressIdFixture::class, $user);
+        self::assertSame(1, $user->addressId);
+        self::assertNull($user->secondAddressId);
+
+        $user->secondAddressId = 2;
+        $repository->persist($user);
+
+        $newUser = new UserWithAddressIdFixture(
+            createdAt: new DateTimeImmutable('2024-01-01 00:00:00'),
+            firstName: 'Jim',
+            middleName: null,
+            lastName: 'Doe',
+            email: 'jim.doe@example.com',
+            isActive: true,
+            type: UserTypeEnum::User,
+            addressId: 2,
+            secondAddressId: 1,
+        );
+        $repository->persist($newUser);
+
+        $statement = $database->getPdo()->query('SELECT `id`, `address_id`, `second_address_id` FROM `users` ORDER BY `id`');
+        self::assertInstanceOf(PDOStatement::class, $statement);
+        self::assertEquals([[1, 1, 2], [2, 2, null], [3, 2, 1]], $statement->fetchAll(PDO::FETCH_NUM));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $repository->select()->with('addressId')->fetchAll();
     }
 }

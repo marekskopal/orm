@@ -139,7 +139,7 @@ final class HydratorGenerator
         bool $relationAsKey = false,
     ): string
     {
-        if ($columnSchema->relationType === RelationEnum::ManyToOne || $columnSchema->relationType === RelationEnum::OneToOne) {
+        if ($columnSchema->isOwningRelation()) {
             $relationEntityClass = $columnSchema->relationEntityClass ?? throw new \LogicException(
                 sprintf('Relation "%s" has no entity class.', $columnSchema->propertyName),
             );
