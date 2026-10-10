@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] - 2026-10-10
+
+### Fixed
+- A where condition comparing a column with a subquery, e.g. `['id', '=', $select]`, rendered `id=?` and bound all of the subquery's parameters to that one placeholder. It now renders `id = (SELECT ...)` ([#33](https://github.com/marekskopal/orm/pull/33)).
+- Filtering on a relation path, e.g. `where(['address.city' => ...])`, after a `join()` on the same foreign key column referenced a table alias that was never joined, so the query failed. The relation path now reuses the existing join ([#33](https://github.com/marekskopal/orm/pull/33)).
+
 ## [2.0.2] - 2026-10-10
 
 ### Fixed
@@ -198,6 +204,7 @@ Initial release.
 - Extension mapper support for custom property mapping.
 - MySQL and SQLite database drivers.
 
+[2.0.3]: https://github.com/marekskopal/orm/compare/v2.0.2...v2.0.3
 [2.0.2]: https://github.com/marekskopal/orm/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/marekskopal/orm/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/marekskopal/orm/compare/v1.4.0...v2.0.0
