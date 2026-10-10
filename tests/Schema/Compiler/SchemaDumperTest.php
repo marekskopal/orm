@@ -9,6 +9,7 @@ use FilesystemIterator;
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
+use MarekSkopal\ORM\Attribute\ForeignKey;
 use MarekSkopal\ORM\Attribute\ManyToMany;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
@@ -24,6 +25,7 @@ use MarekSkopal\ORM\Query\Factory\DeleteFactory;
 use MarekSkopal\ORM\Query\Factory\InsertFactory;
 use MarekSkopal\ORM\Query\Factory\SelectFactory;
 use MarekSkopal\ORM\Query\Factory\UpdateFactory;
+use MarekSkopal\ORM\Query\Insert;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Where\WhereBuilder;
@@ -37,6 +39,7 @@ use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
 use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
 use MarekSkopal\ORM\Schema\Compiler\HydratorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\NormalizerGenerator;
 use MarekSkopal\ORM\Schema\Compiler\SchemaCompiler;
 use MarekSkopal\ORM\Schema\Compiler\SchemaDumper;
 use MarekSkopal\ORM\Schema\EntitySchema;
@@ -46,6 +49,7 @@ use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\TypesFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Transaction\TransactionProvider;
+use MarekSkopal\ORM\UnitOfWork\UnitOfWork;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
 use MarekSkopal\ORM\Utils\QuoteUtils;
@@ -98,6 +102,10 @@ use SplFileInfo;
 #[UsesClass(NameUtils::class)]
 #[UsesClass(QuoteUtils::class)]
 #[UsesClass(ValidationUtils::class)]
+#[UsesClass(ForeignKey::class)]
+#[UsesClass(Insert::class)]
+#[UsesClass(NormalizerGenerator::class)]
+#[UsesClass(UnitOfWork::class)]
 final class SchemaDumperTest extends TestCase
 {
     private string $directory;

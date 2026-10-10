@@ -185,6 +185,12 @@ class WhereBuilder
                 throw new \InvalidArgumentException('IN condition must have array or Select as value');
             }
 
+            // A scalar subquery; its params bind in place of the placeholder.
+            if ($condition[2] instanceof Select) {
+                $query[] = $column . ' ' . $operator . ' (' . $condition[2]->getSql() . ')';
+                continue;
+            }
+
             if ($operator === 'LIKE' || $operator === 'NOT LIKE') {
                 $query[] = $column . ' ' . $operator . ' ?';
                 continue;

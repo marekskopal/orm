@@ -7,16 +7,23 @@ namespace MarekSkopal\ORM\Tests;
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
+use MarekSkopal\ORM\Attribute\ForeignKey;
+use MarekSkopal\ORM\Attribute\ManyToMany;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
+use MarekSkopal\ORM\Attribute\OneToOne;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Database\MySqlDatabase;
 use MarekSkopal\ORM\Entity\IdentityMap;
+use MarekSkopal\ORM\Exception\ConstrainException;
+use MarekSkopal\ORM\Exception\ExceptionFactory;
+use MarekSkopal\ORM\Exception\QueryException;
 use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\ORM;
 use MarekSkopal\ORM\Query\Delete;
+use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Factory\DeleteFactory;
 use MarekSkopal\ORM\Query\Factory\InsertFactory;
 use MarekSkopal\ORM\Query\Factory\SelectFactory;
@@ -37,13 +44,17 @@ use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
 use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
 use MarekSkopal\ORM\Schema\Compiler\HydratorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\NormalizerGenerator;
 use MarekSkopal\ORM\Schema\Compiler\SchemaCompiler;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
+use MarekSkopal\ORM\Transaction\TransactionProvider;
+use MarekSkopal\ORM\UnitOfWork\UnitOfWork;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
+use MarekSkopal\ORM\Utils\QuoteUtils;
 use MarekSkopal\ORM\Utils\ValidationUtils;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
@@ -90,6 +101,17 @@ use PHPUnit\Framework\Attributes\UsesClass;
 #[UsesClass(ExtractorGenerator::class)]
 #[UsesClass(CodeExporter::class)]
 #[UsesClass(ExtensionMapperProvider::class)]
+#[UsesClass(ForeignKey::class)]
+#[UsesClass(ManyToMany::class)]
+#[UsesClass(OneToOne::class)]
+#[UsesClass(RawExpression::class)]
+#[UsesClass(NormalizerGenerator::class)]
+#[UsesClass(TransactionProvider::class)]
+#[UsesClass(UnitOfWork::class)]
+#[UsesClass(QuoteUtils::class)]
+#[UsesClass(ExceptionFactory::class)]
+#[UsesClass(QueryException::class)]
+#[UsesClass(ConstrainException::class)]
 final class MySqlIntegrationTest extends AbstractDriverIntegrationTestCase
 {
     protected function connect(): DatabaseInterface

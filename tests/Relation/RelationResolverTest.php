@@ -7,6 +7,7 @@ namespace MarekSkopal\ORM\Tests\Relation;
 use MarekSkopal\ORM\Attribute\Column;
 use MarekSkopal\ORM\Attribute\ColumnEnum;
 use MarekSkopal\ORM\Attribute\Entity;
+use MarekSkopal\ORM\Attribute\ForeignKey;
 use MarekSkopal\ORM\Attribute\ManyToMany;
 use MarekSkopal\ORM\Attribute\ManyToOne;
 use MarekSkopal\ORM\Attribute\OneToMany;
@@ -19,11 +20,13 @@ use MarekSkopal\ORM\Mapper\Collection;
 use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\ORM;
 use MarekSkopal\ORM\Query\Delete;
+use MarekSkopal\ORM\Query\Expression\RawExpression;
 use MarekSkopal\ORM\Query\Factory\DeleteFactory;
 use MarekSkopal\ORM\Query\Factory\InsertFactory;
 use MarekSkopal\ORM\Query\Factory\SelectFactory;
 use MarekSkopal\ORM\Query\Factory\UpdateFactory;
 use MarekSkopal\ORM\Query\Insert;
+use MarekSkopal\ORM\Query\Model\Join;
 use MarekSkopal\ORM\Query\QueryProvider;
 use MarekSkopal\ORM\Query\Select;
 use MarekSkopal\ORM\Query\Update;
@@ -38,6 +41,7 @@ use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
 use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
 use MarekSkopal\ORM\Schema\Compiler\HydratorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\NormalizerGenerator;
 use MarekSkopal\ORM\Schema\Compiler\SchemaCompiler;
 use MarekSkopal\ORM\Schema\EntitySchema;
 use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
@@ -47,14 +51,18 @@ use MarekSkopal\ORM\Tests\Fixtures\Database\CountingStatement;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AddressWithUsersFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\AuthorFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\CategoryFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\CitizenFixture;
+use MarekSkopal\ORM\Tests\Fixtures\Entity\PassportFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\PostFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\ProfileFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\TagFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithTagsFixture;
 use MarekSkopal\ORM\Transaction\TransactionProvider;
+use MarekSkopal\ORM\UnitOfWork\UnitOfWork;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
+use MarekSkopal\ORM\Utils\QuoteUtils;
 use MarekSkopal\ORM\Utils\ValidationUtils;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -103,6 +111,13 @@ use ReflectionClass;
 #[UsesClass(ExtractorGenerator::class)]
 #[UsesClass(CodeExporter::class)]
 #[UsesClass(ExtensionMapperProvider::class)]
+#[UsesClass(ForeignKey::class)]
+#[UsesClass(ORM::class)]
+#[UsesClass(RawExpression::class)]
+#[UsesClass(Join::class)]
+#[UsesClass(NormalizerGenerator::class)]
+#[UsesClass(UnitOfWork::class)]
+#[UsesClass(QuoteUtils::class)]
 final class RelationResolverTest extends TestCase
 {
     public function testManyToOneProxiesInitialiseInOneBatch(): void
@@ -298,6 +313,60 @@ final class RelationResolverTest extends TestCase
         $orphan = $orm->getRepository(ProfileFixture::class)->findOne(['id' => 3]);
         self::assertInstanceOf(ProfileFixture::class, $orphan);
         self::assertNull($orphan->user);
+    }
+
+    public function testNonNullableInverseOneToOneIsALazyProxy(): void
+    {
+        $orm = $this->createOrm('database_passports.sql');
+
+        CountingStatement::reset();
+        $citizens = $orm->getRepository(CitizenFixture::class)->select()->orderBy('id')->fetchAll();
+        // Only the citizens: a non-nullable inverse relation is a proxy, not a preload.
+        self::assertSame(1, CountingStatement::$count);
+        self::assertTrue($this->isUninitialised($citizens[0]->passport));
+
+        self::assertSame('P-002', $citizens[1]->passport->number);
+        self::assertSame(2, CountingStatement::$count);
+        self::assertSame($citizens[1], $citizens[1]->passport->citizen);
+
+        // The citizen without a passport fails on first access, not at hydration.
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('OneToOne inverse entity "' . PassportFixture::class . '" not found for FK value "3"');
+        self::assertSame('', $citizens[2]->passport->number);
+    }
+
+    public function testNonNullableInverseOneToOneProxyResolvesToTheLoadedEntity(): void
+    {
+        $orm = $this->createOrm('database_passports.sql');
+        $passport = $orm->getRepository(PassportFixture::class)->findOne(['id' => 1]);
+        self::assertInstanceOf(PassportFixture::class, $passport);
+
+        CountingStatement::reset();
+        $citizen = $passport->citizen;
+        self::assertSame('John', $citizen->name);
+        // Initialising the proxy queries the passport by its FK; the row maps to the instance already loaded.
+        self::assertSame('P-001', $citizen->passport->number);
+        self::assertSame($passport->id, $citizen->passport->id);
+        self::assertSame(2, CountingStatement::$count);
+    }
+
+    public function testWithRejectsMissingNonNullableInverseOneToOne(): void
+    {
+        $orm = $this->createOrm('database_passports.sql');
+        $repository = $orm->getRepository(CitizenFixture::class);
+
+        CountingStatement::reset();
+        $citizens = $repository->select()->with('passport')->where(['id', 'IN', [1, 2]])->orderBy('id')->fetchAll();
+        self::assertSame(
+            ['P-001', 'P-002'],
+            array_map(static fn(CitizenFixture $citizen): string => $citizen->passport->number, $citizens),
+        );
+        self::assertSame(2, CountingStatement::$count);
+
+        // Preloaded as missing, so a non-nullable relation fails at hydration.
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('not found for FK value "3"');
+        $repository->select()->with('passport')->where(['id' => 3])->fetchOne();
     }
 
     public function testWithFillsLazyCollectionsOfLoadedOwnersAndLeavesNothingBehind(): void

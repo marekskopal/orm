@@ -1,0 +1,6 @@
+static function (array $s, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'number' => $s[0] === null ? null : ((string) $s[0]),
+        'citizen_id' => $s[1] === null ? null : ((int) $s[1]),
+    ];
+}

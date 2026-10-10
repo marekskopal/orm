@@ -20,6 +20,7 @@ use MarekSkopal\ORM\Tests\Fixtures\Entity\Code;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Enum\UserTypeEnum;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserWithAddressFixture;
+use MarekSkopal\ORM\Tests\Fixtures\InvalidEntity\UnionTypeEntity;
 use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -284,5 +285,16 @@ class ColumnSchemaFactoryTest extends TestCase
         );
 
         self::assertEquals($columnSchemaExpected, $columnSchema);
+    }
+
+    public function testCreateRejectsUnionType(): void
+    {
+        /** @phpstan-ignore-next-line argument.type */
+        $columnSchemaFactory = new ColumnSchemaFactory(new ReflectionClass(UnionTypeEntity::class));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Property type is not named');
+
+        $columnSchemaFactory->create(new ReflectionProperty(UnionTypeEntity::class, 'value'), CaseEnum::SnakeCase);
     }
 }

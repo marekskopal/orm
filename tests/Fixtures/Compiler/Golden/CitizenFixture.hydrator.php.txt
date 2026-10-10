@@ -1,0 +1,10 @@
+\Closure::bind(static function (array $row, \MarekSkopal\ORM\Relation\RelationResolver $r): \MarekSkopal\ORM\Tests\Fixtures\Entity\CitizenFixture {
+    $id = $row['id'];
+    $p_id = (int) ($row['id'] ?? throw new \RuntimeException('Column "id" is not nullable'));
+    $p_name = (string) ($row['name'] ?? throw new \RuntimeException('Column "name" is not nullable'));
+    $p_passport = $r->oneToOneInverse('MarekSkopal\\ORM\\Tests\\Fixtures\\Entity\\CitizenFixture::passport', $id, false);
+    $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\CitizenFixture(name: $p_name, passport: $p_passport);
+    $e->id = $p_id;
+    $r->snapshots[\spl_object_id($e)] = [$row['name'] ?? null];
+    return $e;
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\CitizenFixture::class)

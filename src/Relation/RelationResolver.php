@@ -278,13 +278,7 @@ class RelationResolver
      */
     public function loadCollection(string $relationKey, int|string $ownerId): array
     {
-        if (isset($this->preloadedCollections[$relationKey][$ownerId])) {
-            $items = $this->preloadedCollections[$relationKey][$ownerId];
-            unset($this->preloadedCollections[$relationKey][$ownerId]);
-
-            return $items;
-        }
-
+        // No preloaded entry to consume: with() fills the lazy collections of owners that exist already.
         $columnSchema = $this->getRelationColumnSchema($relationKey);
         $targetSchema = $this->schemaProvider->getEntitySchema($this->getRelationEntityClass($columnSchema));
 

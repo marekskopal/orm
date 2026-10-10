@@ -1,0 +1,6 @@
+\Closure::bind(static function (\MarekSkopal\ORM\Tests\Fixtures\Entity\PassportFixture $e, \MarekSkopal\ORM\Mapper\ExtensionMapperProvider $x): array {
+    return [
+        'number' => ($e->number ?? throw new \RuntimeException('Column "number" is not nullable')),
+        'citizen_id' => ($e->citizen ?? throw new \RuntimeException('Column "citizen_id" is not nullable'))->id,
+    ];
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\PassportFixture::class)

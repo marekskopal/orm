@@ -4,22 +4,37 @@ declare(strict_types=1);
 
 namespace MarekSkopal\ORM\Tests\Query;
 
+use MarekSkopal\ORM\Attribute\Column;
+use MarekSkopal\ORM\Attribute\ColumnEnum;
+use MarekSkopal\ORM\Attribute\Entity;
+use MarekSkopal\ORM\Attribute\ForeignKey;
+use MarekSkopal\ORM\Attribute\ManyToMany;
+use MarekSkopal\ORM\Attribute\ManyToOne;
+use MarekSkopal\ORM\Attribute\OneToMany;
+use MarekSkopal\ORM\Attribute\OneToOne;
 use MarekSkopal\ORM\Database\AbstractDatabase;
 use MarekSkopal\ORM\Database\DatabaseInterface;
 use MarekSkopal\ORM\Database\SqliteDatabase;
+use MarekSkopal\ORM\Mapper\ExtensionMapperProvider;
 use MarekSkopal\ORM\Query\Insert;
+use MarekSkopal\ORM\Schema\Builder\ClassScanner\ClassScanner;
+use MarekSkopal\ORM\Schema\Builder\ColumnSchemaFactory;
+use MarekSkopal\ORM\Schema\Builder\EntitySchemaFactory;
 use MarekSkopal\ORM\Schema\Builder\SchemaBuilder;
 use MarekSkopal\ORM\Schema\ColumnSchema;
 use MarekSkopal\ORM\Schema\Compiler\CodeExporter;
 use MarekSkopal\ORM\Schema\Compiler\ExtractorGenerator;
 use MarekSkopal\ORM\Schema\Compiler\HydratorGenerator;
+use MarekSkopal\ORM\Schema\Compiler\NormalizerGenerator;
 use MarekSkopal\ORM\Schema\Compiler\SchemaCompiler;
 use MarekSkopal\ORM\Schema\EntitySchema;
+use MarekSkopal\ORM\Schema\Enum\PropertyTypeEnum;
 use MarekSkopal\ORM\Schema\Provider\SchemaProvider;
 use MarekSkopal\ORM\Schema\Schema;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\Code;
 use MarekSkopal\ORM\Tests\Fixtures\Entity\UserFixture;
 use MarekSkopal\ORM\Tests\Fixtures\Schema\EntitySchemaFixture;
+use MarekSkopal\ORM\Utils\CaseUtils;
 use MarekSkopal\ORM\Utils\NameUtils;
 use MarekSkopal\ORM\Utils\QuoteUtils;
 use PDO;
@@ -42,6 +57,22 @@ use Ramsey\Uuid\Uuid;
 #[UsesClass(ExtractorGenerator::class)]
 #[UsesClass(HydratorGenerator::class)]
 #[UsesClass(CodeExporter::class)]
+#[UsesClass(Column::class)]
+#[UsesClass(ColumnEnum::class)]
+#[UsesClass(Entity::class)]
+#[UsesClass(ForeignKey::class)]
+#[UsesClass(ManyToMany::class)]
+#[UsesClass(ManyToOne::class)]
+#[UsesClass(OneToMany::class)]
+#[UsesClass(OneToOne::class)]
+#[UsesClass(ExtensionMapperProvider::class)]
+#[UsesClass(ClassScanner::class)]
+#[UsesClass(ColumnSchemaFactory::class)]
+#[UsesClass(EntitySchemaFactory::class)]
+#[UsesClass(SchemaBuilder::class)]
+#[UsesClass(NormalizerGenerator::class)]
+#[UsesClass(PropertyTypeEnum::class)]
+#[UsesClass(CaseUtils::class)]
 final class InsertTest extends TestCase
 {
     public function testGetSql(): void
@@ -117,6 +148,24 @@ final class InsertTest extends TestCase
         self::assertSame(['a@example.com', 'b@example.com'], array_column($insert->getExtractedValues(), 'email'));
         self::assertSame('a@example.com', $this->fetchEmail($pdo, 1));
         self::assertSame('b@example.com', $this->fetchEmail($pdo, 2));
+    }
+
+    public function testExecuteWithReturningFailsWhenNoIdIsReturned(): void
+    {
+        $statement = $this::createStub(PDOStatement::class);
+        $statement->method('fetchAll')->willReturn([['id' => 1]]);
+        $database = $this::createStub(DatabaseInterface::class);
+        $database->method('getIdentifierQuoteChar')->willReturn('"');
+        $database->method('getInsertReturningClause')->willReturn('RETURNING "id"');
+        $database->method('execute')->willReturn($statement);
+
+        $insert = new Insert($database, UserFixture::class, EntitySchemaFixture::create(), $this->createSchemaProvider());
+        $insert->entity(UserFixture::create(email: 'a@example.com'))->entity(UserFixture::create(email: 'b@example.com'));
+
+        // Two rows were inserted, but only one id came back.
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Insert did not return a value for "id".');
+        $insert->execute();
     }
 
     public function testExecuteWithoutReturningAssignsIdsFromLastInsertId(): void

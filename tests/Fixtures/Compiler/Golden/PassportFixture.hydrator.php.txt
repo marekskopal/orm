@@ -1,0 +1,9 @@
+\Closure::bind(static function (array $row, \MarekSkopal\ORM\Relation\RelationResolver $r): \MarekSkopal\ORM\Tests\Fixtures\Entity\PassportFixture {
+    $p_id = (int) ($row['id'] ?? throw new \RuntimeException('Column "id" is not nullable'));
+    $p_number = (string) ($row['number'] ?? throw new \RuntimeException('Column "number" is not nullable'));
+    $p_citizen = $r->manyToOne(\MarekSkopal\ORM\Tests\Fixtures\Entity\CitizenFixture::class, (int) ($row['citizen_id'] ?? throw new \RuntimeException('Column "citizen_id" is not nullable')));
+    $e = new \MarekSkopal\ORM\Tests\Fixtures\Entity\PassportFixture(number: $p_number, citizen: $p_citizen);
+    $e->id = $p_id;
+    $r->snapshots[\spl_object_id($e)] = [$row['number'] ?? null, $row['citizen_id'] ?? null];
+    return $e;
+}, null, \MarekSkopal\ORM\Tests\Fixtures\Entity\PassportFixture::class)

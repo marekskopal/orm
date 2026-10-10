@@ -382,7 +382,9 @@ class Select extends AbstractQuery
             // Aliases are assigned per relation path, not per table, so two relations to the
             // same table (or a self-referencing relation) get distinct aliases.
             $relationPath = $relationPath === '' ? $parts[$i] : $relationPath . '.' . $parts[$i];
-            $relationTableAlias = $this->resolveJoinAlias($relationPath, $relationEntitySchema->tableAlias);
+            // A join added with join() on the same foreign key is reused, so the column refers to its alias.
+            $relationTableAlias = $this->joins[$tableAlias . '.' . $columnSchema->columnName]->referenceTableAlias
+                ?? $this->resolveJoinAlias($relationPath, $relationEntitySchema->tableAlias);
 
             $this->join(
                 column: $columnSchema->columnName,

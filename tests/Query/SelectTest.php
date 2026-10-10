@@ -285,6 +285,32 @@ final class SelectTest extends TestCase
         );
     }
 
+    public function testRelationPathReusesManualJoinOnTheSameForeignKey(): void
+    {
+        $select = $this->select;
+        $select->join('address_id', 'addresses', 'addr', 'id');
+
+        self::assertSame('`addr`.`city`', $select->parseColumn('address.city'));
+        self::assertSame(
+            self::BaseSql . ' LEFT JOIN `addresses` `addr` ON `addr`.`id`=`u`.`address_id`',
+            $select->getSql(),
+        );
+    }
+
+    public function testRelationJoinAliasAvoidsAliasesTakenByManualJoins(): void
+    {
+        $select = $this->select;
+        $select->join('address_id', 'addresses', 'a', 'id')
+            ->join('id', 'addresses', 'a_secondAddress', 'user_id');
+
+        // Both the table alias and the path-based alias are taken, so a numeric suffix is added.
+        self::assertSame('`a_secondAddress_2`.`city`', $select->parseColumn('secondAddress.city'));
+        self::assertStringEndsWith(
+            ' LEFT JOIN `addresses` `a_secondAddress_2` ON `a_secondAddress_2`.`id`=`u`.`second_address_id`',
+            $select->getSql(),
+        );
+    }
+
     public function testParseColumnJoinNestedRelationsToSameTable(): void
     {
         $select = $this->select;
